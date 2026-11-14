@@ -1,0 +1,13 @@
+[package]
+name = "wm-process"
+description = "Layer 4: the printer, material, firmware and slicer as a model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+[lints]
+workspace = true
+[dependencies]
+serde = { workspace = true }
+wm-envelope = { workspace = true }

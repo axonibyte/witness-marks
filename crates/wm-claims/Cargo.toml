@@ -1,0 +1,13 @@
+[package]
+name = "wm-claims"
+description = "Layer 5: assertions that re-evaluate, staleness propagation, dominance, fan-out"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+[lints]
+workspace = true
+[dependencies]
+serde = { workspace = true }
+wm-envelope = { workspace = true }

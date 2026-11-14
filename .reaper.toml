@@ -1,0 +1,27 @@
+# witness-marks as a reaper tenant. Shape copied from reaper's own manifest:
+# an Ubuntu guest runs the Rust battery in a pinned toolchain image; the FreeBSD
+# guest is host-execution so the platform the server actually ships on is the
+# one that is exercised. Image digest to be resolved from the registry when the
+# first run is attempted -- it is deliberately NOT a tag.
+schema = 1
+project = "witness-marks"
+exec = "container"
+
+[[guests]]
+name = "ubuntu-26.04"
+[guests.build]
+# TODO(first run): pin by digest. rust:1.98 resolved from docker.io, then
+# written here as image = "docker.io/library/rust@sha256:...".
+image = "docker.io/library/rust:1.98"
+cmd = """
+CARGO_HOME=$REAPER_CACHE_CARGO \
+CARGO_TARGET_DIR=$REAPER_CACHE_TARGET \
+cargo build --locked --workspace --tests"""
+cache = ["cargo", "target"]
+
+[[guests]]
+name = "freebsd-15.1"
+exec = "host"
+
+[run]
+cmd = "cargo test --locked --workspace && cargo clippy --locked --workspace --all-targets -- -D warnings"

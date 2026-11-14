@@ -1,0 +1,9 @@
+# The geometry provider, pinned. Witness Marks never imports this; it runs it as
+# a subprocess and speaks MCP to it over stdio. The pin is what makes the
+# differential-vector suite (docs/testing-methodology.md, tier 1) meaningful:
+# both sides of a vector are fixed.
+[project]
+name = "witness-marks-provider"
+version = "0.0.1"
+requires-python = ">=3.10"
+dependencies = ["openscad-mcp==0.6.1"]

@@ -1,0 +1,38 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/wm-envelope",   # the result envelope every layer returns through
+  "crates/wm-provider",   # client for the geometry provider (RobertCoop/openscad-mcp), over MCP stdio
+  "crates/wm-csg",        # Layer 1b: the construction tree -- eats, flank, coincident
+  "crates/wm-mech",       # Layer 3: closed-form mechanics
+  "crates/wm-process",    # Layer 4: printer, material, firmware, slicer criterion
+  "crates/wm-claims",     # Layer 5: assertions, staleness, dominance, fan-out
+  "crates/witness-marks", # the server binary: NDJSON JSON-RPC over stdio
+]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.98"
+authors = ["Axonibyte Innovations, LLC"]
+repository = "https://forge.axonibyte.com/axonibyte/witness-marks"
+# license: deliberately unset until the owner chooses. See README.
+
+# Ranges here; EXACT versions live in Cargo.lock, which is committed, and CI
+# builds with --locked so a drift in the lockfile is a failure, not a surprise.
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+wm-envelope = { path = "crates/wm-envelope" }
+wm-provider = { path = "crates/wm-provider" }
+wm-csg      = { path = "crates/wm-csg" }
+wm-mech     = { path = "crates/wm-mech" }
+wm-process  = { path = "crates/wm-process" }
+wm-claims   = { path = "crates/wm-claims" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+[workspace.lints.clippy]
+unwrap_used = "warn"

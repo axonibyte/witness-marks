@@ -1,0 +1,13 @@
+[package]
+name = "wm-csg"
+description = "Layer 1b: queries over the construction tree, not its result"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+[lints]
+workspace = true
+[dependencies]
+serde = { workspace = true }
+wm-envelope = { workspace = true }

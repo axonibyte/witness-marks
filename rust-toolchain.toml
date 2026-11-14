@@ -1,0 +1,6 @@
+# Pinned to the toolchain on the development host (matrix, FreeBSD 15.1) so a
+# failure in CI is a failure of the code, not of a version difference. reaper's
+# own image pins 1.97 and lychgate's floor is 1.96; this is above both.
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]

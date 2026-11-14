@@ -1,0 +1,13 @@
+[package]
+name = "wm-mech"
+description = "Layer 3: closed-form mechanics -- beam, screw, friction chain, press, tolerance chain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+[lints]
+workspace = true
+[dependencies]
+serde = { workspace = true }
+wm-envelope = { workspace = true }

@@ -1,0 +1,14 @@
+# Rust
+/target/
+**/*.rs.bk
+# the provider pin's local environment (uv); uv.lock IS committed
+/provider/.venv/
+# reaper state and caches live outside the tree, but a stray local one should not land
+/.reaper/
+# editor / OS
+*.swp
+.DS_Store
+# secrets never sit in a tree: curlrc, age identities, tokens
+*.curlrc
+*.age
+age-identity*

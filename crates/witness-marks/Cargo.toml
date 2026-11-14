@@ -1,0 +1,15 @@
+[package]
+name = "witness-marks"
+description = "Witness Marks: hands and a tape measure for agents that model in OpenSCAD"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+[lints]
+workspace = true
+[dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wm-envelope = { workspace = true }

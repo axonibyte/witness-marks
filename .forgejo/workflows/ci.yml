@@ -1,0 +1,62 @@
+# CI for witness-marks. One FreeBSD job, in the shape rumor and reaper settled
+# on (rumor ci.yml, G1 issue 32): no actions/checkout; a timeout(1) on every
+# external call plus a timeout-minutes backstop; rc 124 reported separately from
+# a failure; `set -o pipefail` in every step; and every step emitting a value
+# only execution could have produced -- never a duration, never the absence of
+# red. A second job whose label no runner answers would QUEUE FOREVER and read
+# as "no failure" rather than "never ran".
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  freebsd:
+    runs-on: freebsd-15-jail
+    timeout-minutes: 45
+    steps:
+      - name: probe the runner (non-fatal; names what is absent)
+        run: |
+          set -o pipefail
+          echo "uname   $(uname -a)"
+          echo "whoami  $(whoami)"
+          for t in git cargo rustc rustup uv; do
+            p=$(command -v "$t" 2>/dev/null) && echo "$t  FOUND  $p" || echo "$t  ABSENT"
+          done
+          timeout 20 rustc --version 2>/dev/null || echo "rustc: none or did not answer in 20s"
+          timeout 20 git --version 2>/dev/null || echo "git: none or did not answer in 20s"
+
+      - name: fetch the tree with git, not a JS action
+        run: |
+          set -o pipefail
+          rm -rf src-tree; rc=0
+          timeout 180 git clone --quiet --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
+            https://forge.axonibyte.com/axonibyte/witness-marks.git src-tree || rc=$?
+          test "$rc" -eq 124 && { echo "HANG: git clone exceeded 180s (RUNNER finding; 124 proves only that 180s elapsed)"; exit 124; }
+          test "$rc" -eq 0 || { echo "git clone exited $rc"; exit "$rc"; }
+          cd src-tree
+          echo "HEAD $(timeout 30 git rev-parse HEAD)"
+          test -f Cargo.lock || { echo "no Cargo.lock: wrong tree, or the lockfile was not committed"; exit 1; }
+
+      - name: build and test, locked
+        run: |
+          set -o pipefail
+          cd src-tree
+          command -v cargo >/dev/null 2>&1 || { echo "no cargo on PATH: a PROVISIONING finding, not a code one"; exit 1; }
+          echo "toolchain $(timeout 30 cargo --version)"
+          rc=0; timeout 1500 cargo test --locked --workspace >test.out 2>&1 || rc=$?
+          test "$rc" -eq 124 && { echo "HANG: cargo test exceeded 1500s"; tail -40 test.out; exit 124; }
+          # a value only execution could have produced: the count of passing tests
+          passed=$(grep -E '^test result: ok' test.out | sed -E 's/.* ([0-9]+) passed.*/\1/' | paste -sd+ - | bc)
+          echo "tests passed: ${passed:-0}"
+          test "$rc" -eq 0 || { tail -60 test.out; exit "$rc"; }
+          test "${passed:-0}" -gt 0 || { echo "zero tests ran: a green with nothing behind it"; exit 1; }
+
+      - name: clippy and fmt
+        run: |
+          set -o pipefail
+          cd src-tree
+          rc=0; timeout 600 cargo clippy --locked --workspace --all-targets -- -D warnings >clippy.out 2>&1 || rc=$?
+          echo "clippy rc=$rc findings=$(grep -cE '^(warning|error)' clippy.out || true)"
+          test "$rc" -eq 0 || { tail -40 clippy.out; exit "$rc"; }
+          timeout 120 cargo fmt --all -- --check && echo "fmt: clean"
