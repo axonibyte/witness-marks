@@ -70,10 +70,15 @@ Work is tracked as issues on the forge.
 
 ## License
 
-**Not yet chosen; proposed BSD-2-Clause, copyright Axonibyte Innovations, LLC.**
-That matches `lychgate` (the other MCP server in this organization) and `rumor`.
-`reaper` is MIT and `yasss`, a product, is MPL-2.0; a tool consuming an
-MIT-licensed provider sits comfortably under either BSD-2 or MIT, and BSD-2 is
-the house choice for infrastructure. No LICENSE file is committed until the
-owner decides, so the tree is all-rights-reserved by default rather than
-accidentally permissive.
+**BSD-2-Clause**, copyright Axonibyte Innovations, LLC. Chosen by the owner
+2026-11-14; `LICENSE` is committed and `license = "BSD-2-Clause"` is set on
+`[workspace.package]`, inherited by every crate.
+
+That matches `lychgate` (the other MCP server in this organization) and
+`rumor`. `reaper` is MIT and `yasss`, a product, is MPL-2.0; a tool consuming
+an MIT-licensed provider sits comfortably under either BSD-2 or MIT, and BSD-2
+is the house choice for infrastructure. One inconsistency worth the owner's
+eye rather than a silent decision: `rumor`'s BSD-2 notice names *Caleb L.
+Power* where `reaper`'s MIT notice names *Axonibyte Innovations, LLC*. This
+tree follows the organization, as proposed; say the word and the holder line
+changes in one commit.
