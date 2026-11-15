@@ -71,7 +71,7 @@ conversation, six of the twelve went wrong at once and nothing in the file knew.
 
 > **The live case.** User: "this is petg." Spring rate is linear in modulus;
 > PETG ~2000 MPa against PLA's 3500. The clip's clamp dropped 3.17 N → 1.81 N,
-> 43% of the one property that sub-assembly exists to provide. A comment four
+> losing 43% of the one property that sub-assembly exists to provide. A comment four
 > lines above the parameter still read `2.4x under yield`.
 
 ## 02. Scope: from one harness to general work
@@ -113,7 +113,7 @@ run.
 | 1 · measure | **Yes.** Volume, components, watertight, mesh health, sections, mass; interference with penetration depth and a *witness point*; clearance with closest points. **`UNRESOLVED` below tessellation error** — a refusal this document lacked. |
 | 1b · history | Foundation: a CSG-dump parser for holes, bosses, cross-part alignment. Not `eats`, not `coincident`. |
 | 2 · motion | **Yes, arguably better.** Linear/rotary sweeps with `first_contact`, `worst`, `min_gap`; full rotation yields an `all_angles` *certificate* from footprints, not samples. No `insert`, no `travel_stop`. |
-| 3 · mechanics | **Absent.** Zero hits for beam, spring, torque, stress. |
+| 3 · mechanics | **Absent.** No calculators: "beam" and "stress" appear only as prose in `reference.py`, whose own advice says *"for a real stress calculation use the BASF cantilever formulas"*; "spring" and "torque" have no hits at all. Mass properties and a sourced reference table only. |
 | 4 · process | Partial, face-normal based (`printability.py`: facet normal vs a 45° default). No critical angle from layer height, no slicer offset criterion, no quantize, no firmware. |
 | 5 · claims | Half. `validate predicates` + `sweep` → `first_failure`, `crossing`, `monotonic`. One-shot. **No staleness propagation, dominance or input provenance.** |
 | envelope | Mostly. `valid` false on any ERROR regardless of exit code; `empty: true`; empty parts raise `UNRESOLVED` "so a check cannot pass green"; `cached: true`. Not per-result provenance hashes. |
@@ -127,12 +127,14 @@ line exists under MIT with a test suite; **[exists]** marks it through §05.
 ### Vital signs
 
 Not vaporware. A careful single-maintainer project with a burst cadence and a
-two-month silence. Last 100 commits: Aug 2025 (12), four-month gap, Feb–Mar 2026
-(4), Jul (5), Aug (8), Sep (16); nothing since 10 September. Maintainer 39 of
-100 commits (two spellings), one outside contributor with 5, one with 1.
+two-month silence. The whole history is 47 commits: Aug 2025 (12), Sep 2025 (2),
+a five-month gap, Feb–Mar 2026 (4), Jul (5), Aug (8), Sep (16); nothing since 10
+September. Maintainer 39 of 47 (two spellings; 40 under three, if "Robert Coop"
+is the same person), one outside contributor with 5, two with 1 each.
 Releases 0.2.0 → 0.3.0 → 0.6.0/0.6.1; PyPI publishing began at 0.6.1. CI with
-trusted publishing. All six closed outside PRs were merged — at one week to
-**five months** — and PR #12 (a fix, 30 Sep) has had no comment in six weeks.
+trusted publishing. All six closed outside PRs were merged — the fastest the
+**same day**, the slowest after **137 days** — and PR #12 (a fix, 30 Sep) has
+had no comment in six weeks.
 
 The 549-line CONTRIBUTING.md is the strongest signal either way: a "Design Rules
 That Should Not Be Undone" section that reads like this document's §07, honesty
@@ -144,8 +146,9 @@ own."*
 
 ### The forks
 
-Twenty. Nineteen are snapshots — their "ahead" counts are stale divergence, all
-44 behind. One is real: `Trebuhgh/openscad-mcp`, 16 commits on current main from
+Twenty. Seventeen are snapshots — their "ahead" counts are stale divergence,
+all 44 behind — and two are byte-identical to current main, carrying nothing of
+their own. One is real: `Trebuhgh/openscad-mcp`, 16 commits on current main from
 18–19 Sep: portability fixes, a sweep-variant fix, and five `refactor: extract…`
 commits pulling parameter parsing, image handling, cache, runtime discovery and
 process execution out of `server.py`. Competent, not upstreamed. None is a better
@@ -176,7 +179,9 @@ social one, and load-bearing on their side for good reason.
    is ours. Two tiers map directly: *cross-language vectors* becomes
    differential testing — our geometry checks against the provider's, neither
    the oracle, a committed vector file is; the *rediscovery gate* is already §10
-   test 3 — the 106 logged failures are the fixed defects to revert and re-find.
+   test 3 done strictly — the 106 logged failures are the fixed defects to
+   revert and re-find, not merely to count. (The methodology calls it the
+   rediscovery test.)
 4. **Fork only if the provider goes dark.** Two months is not dark; an
    unanswered PR at six weeks is yellow, not red. The pin plus the differential
    suite makes a later fork cheap rather than urgent.
@@ -212,7 +217,7 @@ cache half of W are PROVIDED — by `RobertCoop/openscad-mcp` today, by whatever
 answers the same questions tomorrow. Witness Marks OWNS 3, 5, the criterion half
 of 4, `csg.eats`/`coincident`, async jobs, and the envelope as a rule the
 provider's answers are wrapped in, not trusted to carry. The boundary is a
-hypothesis; §10 test 6 says how it fails.
+hypothesis; §10 test 5 says how it fails.
 
 **Granularity is architectural.** [evidence] One interference question today is
 six steps and a round-trip. So the primitives compose server-side: one call,
@@ -236,11 +241,18 @@ shape of its return.
 
 - **A handle, not a string.** [evidence] [exists] Makes two calls knowably about the same
   model, carries the hash provenance needs, lets the server cache meshes.
-- **Typed parameters.** [evidence] [exists: by source-wrapping] `-D` only overrides existing variables and
+- **Typed parameters.** [evidence] [exists: by source-wrapping] `-D` appends an assignment, so a misspelled name
+  defines an unread variable and changes nothing — and draws no warning,
+  because an assignment nobody reads is legal. (A name the file *reads* but
+  never assigns warns "Ignoring unknown variable" without `-D` and is silently
+  satisfied with it: measured, OpenSCAD 2026.10.14.) Its string values
   fails silently; its strings survive two parsers. A typed map with the
   parameter list as schema makes both unrepresentable.
 - **Echo is an instrument.** [evidence] [exists: as `scad_eval`, which is better] Models communicate derived values via
-  `echo()`; today it is buried in stderr. Return it structured.
+  `echo()`; today it is buried in stderr — and on Windows the `openscad.com`
+  wrapper merges it into stdout instead, so a parser keyed on the stream is
+  wrong on one platform or the other. [general: the Windows half is read from
+  the wrapper's purpose, not run here] Return it structured.
 - **Diff by geometry.** [general] The common agentic edit is small and the
   common fear is unintended change. One adjacent incident: a bit-identical
   result after a change was the tell that the change had not applied.
@@ -338,7 +350,10 @@ answer. [general]
     proc.slice(mesh, profile)       -> time, filament, flagged_regions[], gcode?
 
 `support` implements the slicer's criterion, never face normals:
-`unsupported(z) = slice(z) − offset(slice(z−h), +d)`, `d = layer_h/tan(θ)`. The
+`unsupported(z) = slice(z) − offset(slice(z−h), +d)`, `d = layer_h/tan(θ)`,
+θ measured **from the horizontal** — slicers differ on the convention and 45°
+is the one angle where both readings agree, so the convention has to be stated
+or the criterion is ambiguous everywhere else. The
 critical angle is `atan(layer_h / (0.5·width))` — 45° only because 0.2 mm at
 0.4 mm makes the ratio 1; at 0.1 mm the same nozzle holds 26.6°. [evidence]
 `firmware`: a slicer field is a *request*; an unset extruder acceleration made
@@ -413,7 +428,12 @@ found here by accident, late. [evidence]
       controls:   { ran: N, bit: N },
       warnings:   [...] }
 
-- **`empty` is a value, never an absence.** Seven independent incidents. [evidence] The provider does this. [exists]
+- **`empty` is a value, never an absence.** Seven independent incidents.
+  [evidence] The kernel itself breaks the rule, and worse in 2D than in 3D:
+  an empty 3D result says "Current top level object is empty", an empty 2D one
+  says "Current top level object is **not a 2D object**" — emptiness reported
+  as a type error — and *both* exit 0 and write no file. [evidence] The
+  provider does this. [exists]
 - **A pass must not share its representation with a null.** The overhang scan
   reported PASS on a part 80 mm from where it looked. Hence `subject.bbox`; a
   verdict with zero-extent subject is `refused`. [evidence]
@@ -485,7 +505,31 @@ instruments reporting absence.
 
 ---
 
-Draft 4, 2026-11-14. Every [evidence] badge traces to a logged incident; every
-[general] badge is reasoned and unfailed; every [exists] badge was read from the
-provider's own API.md, not run. Neither has been tested against a
-second part or a second agent.
+Draft 4, 2026-11-14; corrected 2026-11-15. Every [evidence] badge traces to a
+logged incident; every [general] badge is reasoned and unfailed; every [exists]
+badge was read from the provider's own API.md, not run. Neither has been tested
+against a second part or a second agent.
+
+**Corrections, 2026-11-15.** A second agent audited draft 4; every claim of
+theirs that could be checked was checked here before it was taken, and all of
+them held. Measured on OpenSCAD 2026.10.14: `-D` appends an assignment rather
+than overriding only existing names (the original claim was false); an empty 2D
+result is reported as a type error and an empty 3D one as emptiness, both at
+exit 0 with no file. Read from the provider's repository at `bde0b23`: the
+history is 47 commits and not 100, September 2025 holds 2 of them, the gap is
+five months, the maintainer has 39 of 47, two outside contributors have one
+commit each, the merged outside PRs ran from the same day to 137 days, and the
+forks are 17 diverged / 2 identical / 1 ahead; "beam" and "stress" do occur in
+the provider, as prose in `reference.py`. Fixed from the text itself: the
+provider boundary is falsified by §10 test 5 and not 6, the rediscovery gate is
+test 3 done strictly rather than test 3, and the clamp *lost* 43% rather than
+dropping to it.
+
+TWO THINGS NOT TAKEN, and why. The auditor reported that the PETG figures
+"back-solve to a 0.9 mm leaf, 4.5 layers": that is consistent (k = 9.05 N/mm,
+δ = 0.350 mm) but not determined, since the preload is not published and
+t = 0.8 mm with δ = 0.499 mm fits the same force — so it is arithmetic that
+agrees, not a recovered dimension. The 4.5-layer observation is kept on its own
+merit: a 0.9 mm leaf at 0.2 mm layers is not a whole number of layers, which is
+the defect `proc.quantize` exists for. And the Windows `openscad.com` behavior
+is carried as [general] rather than [evidence]: it was not run on Windows here.
