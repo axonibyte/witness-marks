@@ -1,0 +1,1 @@
+    let w = p.need("nozzle", "critical_angle").or_else(|_| p.need("extrusion_width", "critical_angle"))?.value;

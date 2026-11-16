@@ -252,3 +252,168 @@ mod tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// The critical angle. Spec §08.
+// ---------------------------------------------------------------------------
+
+/// The shallowest angle from horizontal that is self-supporting, in degrees.
+///
+/// `theta = atan(layer_h / (0.5 * extrusion_width))`
+///
+/// A WALL IS SELF-SUPPORTING WHEN ITS PER-LAYER STEP OUTWARD STAYS UNDER ABOUT
+/// HALF AN EXTRUSION WIDTH, so each bead still lands on the one below. That
+/// makes the threshold a property of the PRINT and not of the model, which is
+/// the whole reason it belongs in Layer 4.
+///
+/// # 45 degrees is folklore with one true case
+///
+/// 0.2 mm layers at 0.4 mm width make the ratio exactly 1, and atan(1) is 45.
+/// The number is correct there and nowhere else by right: 0.1 mm layers at the
+/// same width hold 26.57 degrees, and 0.15 mm hold 36.87. Quoting 45 without
+/// the layer height is quoting half a fact.
+///
+/// # It reads the WIDTH, not the nozzle
+///
+/// A 0.4 mm nozzle commonly extrudes 0.42 to 0.48. Reading the nozzle instead
+/// would be a different, slightly wrong number that looks just as plausible.
+pub fn critical_angle_deg(p: &Process) -> Result<f64, Missing> {
+    let h = p.need("layer_h", "critical_angle")?.value;
+    let w = p.need("extrusion_width", "critical_angle")?.value;
+    // A NON-POSITIVE OR NON-FINITE INPUT IS NOT A SHALLOW ANGLE. atan of a
+    // zero or negative ratio returns a perfectly good number that means
+    // nothing here, so it is refused rather than reported.
+    //
+    // `is_finite` IS CHECKED FIRST AND EXPLICITLY. This was `!(h > 0.0)`,
+    // which catches NaN as a side effect of the negation -- clippy refused it
+    // as hard to read, and clippy was right twice over: the NaN case was
+    // load-bearing and invisible. A plain `h <= 0.0` would let NaN through,
+    // since every comparison with NaN is false.
+    if !h.is_finite() || !w.is_finite() || h <= 0.0 || w <= 0.0 {
+        return Err(Missing {
+            wanted: format!("a positive layer_h and extrusion_width (got {h} and {w})"),
+            by: "critical_angle",
+        });
+    }
+    Ok((h / (0.5 * w)).atan().to_degrees())
+}
+
+/// Is a surface at `angle_deg` from horizontal self-supporting under `p`?
+///
+/// REFUSES WITHOUT A DECLARED PROCESS, which is the point of the function
+/// existing beside the angle: the tempting call is "is 40 degrees fine?" and
+/// the honest answer is "under which layer height?".
+pub fn is_self_supporting(p: &Process, angle_deg: f64) -> Result<bool, Missing> {
+    Ok(angle_deg >= critical_angle_deg(p)?)
+}
+
+#[cfg(test)]
+mod critical_angle_tests {
+    use super::*;
+
+    fn proc_with(h: f64, w: f64) -> Process {
+        let mut p = Process::new();
+        p.layer_h = Some(Declared::measured(h, "the profile"));
+        p.extrusion_width = Some(Declared::measured(w, "the profile"));
+        p
+    }
+
+    /// Three hand-computed points, including the one that made the folklore.
+    #[test]
+    fn the_angle_is_a_property_of_the_print() {
+        let cases = [
+            (0.2, 0.4, 45.000_000),
+            (0.1, 0.4, 26.565_051),
+            (0.15, 0.4, 36.869_898),
+        ];
+        for (h, w, want) in cases {
+            let got = critical_angle_deg(&proc_with(h, w)).expect("declared");
+            assert!(
+                (got - want).abs() < 1e-5,
+                "{h} mm at {w} mm should be {want} deg, got {got}"
+            );
+        }
+    }
+
+    /// 45 IS TRUE IN EXACTLY ONE CASE. The arm exists to pin that the value
+    /// moves with the layer height rather than sitting at the folklore number.
+    #[test]
+    fn forty_five_is_not_a_constant() {
+        let coarse = critical_angle_deg(&proc_with(0.2, 0.4)).expect("declared");
+        let fine = critical_angle_deg(&proc_with(0.1, 0.4)).expect("declared");
+        assert!((coarse - 45.0).abs() < 1e-9);
+        assert!(
+            fine < coarse - 15.0,
+            "finer layers tolerate SHALLOWER overhangs: {fine} should be well under {coarse}"
+        );
+    }
+
+    /// It reads the extrusion width. A 0.4 nozzle extruding 0.46 gives a
+    /// different, lower angle, and reading the nozzle would look just as
+    /// plausible while being wrong.
+    #[test]
+    fn it_reads_the_width_and_not_the_nozzle() {
+        let mut p = proc_with(0.2, 0.46);
+        p.nozzle = Some(Declared::measured(0.4, "the installed nozzle"));
+        let got = critical_angle_deg(&p).expect("declared");
+        assert!(
+            (got - 45.0).abs() > 1e-3,
+            "a 0.46 width must not give the 0.4-nozzle answer, got {got}"
+        );
+        let want = (0.2f64 / (0.5 * 0.46)).atan().to_degrees();
+        assert!((got - want).abs() < 1e-9);
+    }
+
+    #[test]
+    fn it_refuses_without_a_declared_layer_height() {
+        let mut p = Process::new();
+        p.extrusion_width = Some(Declared::measured(0.4, "the profile"));
+        let e = critical_angle_deg(&p).expect_err("must refuse");
+        assert_eq!(e.wanted, "layer_h");
+        assert_eq!(e.by, "critical_angle");
+    }
+
+    #[test]
+    fn it_refuses_without_a_declared_width() {
+        let mut p = Process::new();
+        p.layer_h = Some(Declared::measured(0.2, "the profile"));
+        assert_eq!(
+            critical_angle_deg(&p).expect_err("must refuse").wanted,
+            "extrusion_width"
+        );
+    }
+
+    /// A zero or negative input yields a perfectly good atan that means
+    /// nothing. Refused rather than reported.
+    #[test]
+    fn a_nonpositive_input_is_refused_not_reported_as_zero_degrees() {
+        for (h, w) in [(0.0, 0.4), (0.2, 0.0), (-0.2, 0.4), (f64::NAN, 0.4)] {
+            let e = critical_angle_deg(&proc_with(h, w)).expect_err("must refuse");
+            assert!(e.wanted.contains("positive"), "{}", e.wanted);
+        }
+    }
+
+    /// The tempting question is "is 40 degrees fine?" and the honest answer is
+    /// "under which layer height?" -- so the verdict refuses too.
+    #[test]
+    fn a_self_supporting_verdict_refuses_without_a_process() {
+        assert!(is_self_supporting(&Process::new(), 40.0).is_err());
+        let p = proc_with(0.15, 0.4);
+        assert!(
+            is_self_supporting(&p, 40.0).expect("declared"),
+            "40 > 36.87"
+        );
+        assert!(
+            !is_self_supporting(&p, 30.0).expect("declared"),
+            "30 < 36.87"
+        );
+    }
+
+    /// 40 degrees is self-supporting at 0.15 mm and NOT at 0.1 mm, on the same
+    /// geometry. One verdict, two answers, and the process is the difference.
+    #[test]
+    fn the_same_angle_gets_opposite_verdicts_under_different_processes() {
+        assert!(!is_self_supporting(&proc_with(0.2, 0.4), 44.0).expect("declared"));
+        assert!(is_self_supporting(&proc_with(0.1, 0.4), 44.0).expect("declared"));
+    }
+}

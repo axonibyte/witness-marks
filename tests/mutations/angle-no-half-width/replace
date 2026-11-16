@@ -1,0 +1,1 @@
+    Ok((h / w).atan().to_degrees())
