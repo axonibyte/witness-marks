@@ -1,0 +1,4 @@
+    let mut roots: Vec<&String> = ds.iter().flat_map(|d| d.from.iter()).collect();
+    roots.sort();
+    roots.dedup();
+    roots.len() > 1

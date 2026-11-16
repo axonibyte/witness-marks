@@ -1,0 +1,7 @@
+        if let Ok(v) = rhs.parse::<f64>() {
+            out.insert(name.to_string(), v);
+        } else if let Some(first) = rhs.split(|c: char| !c.is_ascii_digit() && c != '.').find(|s| !s.is_empty()) {
+            if let Ok(v) = first.parse::<f64>() {
+                out.insert(name.to_string(), v);
+            }
+        }

@@ -1,0 +1,4 @@
+        let d = Derivation { expr, from };
+        if out.is_empty() {
+            out.push(d);
+        }

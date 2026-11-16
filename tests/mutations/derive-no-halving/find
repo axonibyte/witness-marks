@@ -1,0 +1,5 @@
+        for (k, label) in [(2.0, "/ 2"), (3.0, "/ 3")] {
+            if close(*v / k, value, tol) {
+                add(format!("{n} {label}"), vec![n.clone()]);
+            }
+        }
