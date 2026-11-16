@@ -1120,3 +1120,312 @@ mod press_tests {
         assert!(PressFit { mu: -0.1, ..fit() }.solve().is_err());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tolerance chains. Spec §05. The most valuable call in the spec.
+// ---------------------------------------------------------------------------
+
+/// One link in a tolerance chain.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Link {
+    pub name: String,
+    /// The intended dimension, mm. Carried for reporting; the chain's answer
+    /// does not depend on it.
+    pub nominal_mm: f64,
+    /// Half-width of the tolerance band, mm. A +/-0.1 fit has 0.1 here.
+    pub tolerance_mm: f64,
+    /// How much this link's error is multiplied before it reaches the working
+    /// point. 1.0 means it arrives undiminished.
+    ///
+    /// THE LEVER IS THE WHOLE POINT. A clearance in a joint does not reach the
+    /// working point as itself; it arrives multiplied by the joint's geometry,
+    /// and nothing on a drawing says so.
+    pub lever: f64,
+}
+
+impl Link {
+    /// What this link contributes at the working point, mm.
+    pub fn amplified(&self) -> f64 {
+        self.tolerance_mm.abs() * self.lever.abs()
+    }
+}
+
+/// What a chain does to a mechanism's working deflection.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChainVerdict {
+    /// Arithmetic sum of every amplified contribution: everything wrong at
+    /// once, in the same direction.
+    pub worst_case_mm: f64,
+    /// Root-sum-square: the statistical stack, for a production run.
+    pub rss_mm: f64,
+    /// The link contributing most AT THE WORKING POINT.
+    pub dominant: String,
+    /// That link's share of the worst case, 0 to 1.
+    pub dominant_share: f64,
+    /// Worst case as a fraction of the working deflection.
+    pub fraction_of_working: f64,
+    /// True when the worst case is the same order as the working deflection
+    /// or larger, at which point a clearance fit cannot do the job.
+    pub clearance_fit_is_untenable: bool,
+}
+
+/// Stack a tolerance chain against the deflection the mechanism actually works
+/// over.
+///
+/// # Why worst case and not RSS
+///
+/// Both are reported, and the VERDICT reads the worst case. Root-sum-square
+/// is the right statistic for a production run of many parts, where errors
+/// are independent and rarely all extreme together. A printed one-off is one
+/// sample: it either fits or it does not, and the parts come off the same
+/// machine on the same day with the same systematic bias. Choosing RSS there
+/// is choosing the more flattering number for the wrong reason.
+///
+/// # The threshold
+///
+/// `clearance_fit_is_untenable` is true at 50% of the working deflection and
+/// above, not at 100%. By the time the stack equals the whole deflection the
+/// mechanism is already dead; at half, it has lost half its force and is
+/// behaving unpredictably. The harness incident is exactly the half case:
+/// 0.05 mm of slot slack through a 3.54 lever is 0.177 mm against 0.35 mm of
+/// working deflection, and that cost half the clamp.
+pub fn stack(links: &[Link], working_deflection_mm: f64) -> Result<ChainVerdict, String> {
+    if links.is_empty() {
+        return Err(
+            "an empty chain has no tolerance to stack; refusing rather than \
+                    reporting a perfect fit"
+                .into(),
+        );
+    }
+    if !working_deflection_mm.is_finite() || working_deflection_mm <= 0.0 {
+        return Err(format!(
+            "working_deflection_mm must be positive and finite, got \
+             {working_deflection_mm}: without it there is nothing to compare the stack to, \
+             and a stack with no comparison is a number rather than a verdict"
+        ));
+    }
+    for l in links {
+        for (n, v) in [
+            ("nominal_mm", l.nominal_mm),
+            ("tolerance_mm", l.tolerance_mm),
+            ("lever", l.lever),
+        ] {
+            if !v.is_finite() {
+                return Err(format!("{} : {n} is not finite ({v})", l.name));
+            }
+        }
+    }
+    let worst: f64 = links.iter().map(Link::amplified).sum();
+    let rss: f64 = links
+        .iter()
+        .map(|l| l.amplified().powi(2))
+        .sum::<f64>()
+        .sqrt();
+    // THE DOMINANT LINK IS THE LARGEST AMPLIFIED CONTRIBUTION, not the largest
+    // tolerance. A tight tolerance on a long lever beats a loose one on a
+    // short lever, and tightening the loose one is then wasted effort.
+    let dom = links
+        .iter()
+        .max_by(|a, b| {
+            a.amplified()
+                .partial_cmp(&b.amplified())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .ok_or("no links")?;
+    let fraction = worst / working_deflection_mm;
+    Ok(ChainVerdict {
+        worst_case_mm: worst,
+        rss_mm: rss,
+        dominant: dom.name.clone(),
+        dominant_share: if worst > 0.0 {
+            dom.amplified() / worst
+        } else {
+            0.0
+        },
+        fraction_of_working: fraction,
+        clearance_fit_is_untenable: fraction >= 0.5,
+    })
+}
+
+#[cfg(test)]
+mod tolerance_tests {
+    use super::*;
+
+    /// The blade clip: root 3.5 mm deep, leaf reaching 8.9 mm past it, so the
+    /// joint amplifies by (reach + root)/root.
+    fn clip_lever() -> f64 {
+        (8.9 + 3.5) / 3.5
+    }
+
+    fn slot(tolerance: f64) -> Link {
+        Link {
+            name: "slot slack".into(),
+            nominal_mm: 1.5,
+            tolerance_mm: tolerance,
+            lever: clip_lever(),
+        }
+    }
+
+    /// THE LOGGED LEVER: 3.54.
+    #[test]
+    fn the_clips_joint_amplifies_by_three_and_a_half() {
+        assert!(
+            (clip_lever() - 3.542_857).abs() < 1e-6,
+            "(8.9+3.5)/3.5 is 3.542857, got {}",
+            clip_lever()
+        );
+    }
+
+    /// THE INCIDENT. 0.05 mm of slot slack costs HALF the clamp; 0.15 mm, an
+    /// ordinary print tolerance, costs all of it.
+    #[test]
+    fn an_ordinary_print_tolerance_costs_the_whole_clamp() {
+        let half = stack(&[slot(0.05)], 0.35).expect("valid");
+        assert!(
+            (half.fraction_of_working - 0.506).abs() < 1e-3,
+            "0.05 through a 3.54 lever is half the working deflection, got {}",
+            half.fraction_of_working
+        );
+        assert!(half.clearance_fit_is_untenable, "half is already untenable");
+
+        let all = stack(&[slot(0.15)], 0.35).expect("valid");
+        assert!(
+            all.fraction_of_working > 1.5,
+            "0.15 costs MORE than the whole deflection, got {}",
+            all.fraction_of_working
+        );
+    }
+
+    /// WITHOUT THE LEVER IT LOOKS FINE. 0.05 mm against 0.35 mm of travel is
+    /// 14%, which nobody would question. The lever is what turns it into 51%,
+    /// and nothing on a drawing says so.
+    #[test]
+    fn the_same_slack_looks_harmless_without_its_lever() {
+        let unlevered = stack(
+            &[Link {
+                lever: 1.0,
+                ..slot(0.05)
+            }],
+            0.35,
+        )
+        .expect("valid");
+        assert!(
+            unlevered.fraction_of_working < 0.15,
+            "unlevered it is 14% and unremarkable, got {}",
+            unlevered.fraction_of_working
+        );
+        assert!(!unlevered.clearance_fit_is_untenable);
+        let levered = stack(&[slot(0.05)], 0.35).expect("valid");
+        assert!(
+            levered.fraction_of_working > 3.0 * unlevered.fraction_of_working,
+            "the lever is the entire difference"
+        );
+    }
+
+    /// THE DOMINANT LINK IS THE LARGEST CONTRIBUTION, NOT THE LARGEST
+    /// TOLERANCE. A tight tolerance on a long lever beats a loose one on a
+    /// short lever, and tightening the loose one is wasted effort.
+    #[test]
+    fn the_dominant_link_is_not_the_loosest_one() {
+        let links = [
+            Link {
+                name: "loose but unlevered".into(),
+                nominal_mm: 10.0,
+                tolerance_mm: 0.20,
+                lever: 1.0,
+            },
+            Link {
+                name: "tight but levered".into(),
+                nominal_mm: 1.5,
+                tolerance_mm: 0.05,
+                lever: 8.0,
+            },
+        ];
+        let v = stack(&links, 1.0).expect("valid");
+        assert_eq!(
+            v.dominant, "tight but levered",
+            "0.05*8 = 0.40 beats 0.20*1 = 0.20, though the tolerance is 4x tighter"
+        );
+        assert!((v.dominant_share - 0.4 / 0.6).abs() < 1e-9);
+    }
+
+    /// Worst case and RSS are both reported and they differ. The verdict reads
+    /// the worst case, because a printed one-off is one sample.
+    #[test]
+    fn worst_case_exceeds_rss_and_the_verdict_uses_the_worst_case() {
+        let links = [
+            slot(0.05),
+            Link {
+                name: "pin fit".into(),
+                ..slot(0.05)
+            },
+        ];
+        let v = stack(&links, 1.0).expect("valid");
+        assert!(
+            v.worst_case_mm > v.rss_mm,
+            "arithmetic sum beats the quadrature"
+        );
+        assert!(
+            (v.fraction_of_working - v.worst_case_mm / 1.0).abs() < 1e-12,
+            "the verdict reads the worst case, not the RSS"
+        );
+    }
+
+    /// THE THRESHOLD IS HALF, NOT ALL. By the time the stack equals the whole
+    /// deflection the mechanism is dead; at half it has already lost half its
+    /// force and is behaving unpredictably.
+    #[test]
+    fn the_threshold_is_half_the_working_deflection() {
+        let under = stack(
+            &[Link {
+                lever: 1.0,
+                ..slot(0.17)
+            }],
+            0.35,
+        )
+        .expect("valid");
+        assert!(!under.clearance_fit_is_untenable, "0.486 of working");
+        let over = stack(
+            &[Link {
+                lever: 1.0,
+                ..slot(0.18)
+            }],
+            0.35,
+        )
+        .expect("valid");
+        assert!(over.clearance_fit_is_untenable, "0.514 of working");
+    }
+
+    /// AN EMPTY CHAIN IS NOT A PERFECT FIT, and reporting zero stack would
+    /// read as one.
+    #[test]
+    fn an_empty_chain_is_refused_rather_than_reported_as_perfect() {
+        let e = stack(&[], 0.35).expect_err("must refuse");
+        assert!(e.contains("refusing"), "{e}");
+    }
+
+    /// A STACK WITH NOTHING TO COMPARE IT TO IS A NUMBER, NOT A VERDICT.
+    #[test]
+    fn a_missing_working_deflection_is_refused() {
+        for d in [0.0, -0.35, f64::NAN] {
+            let e = stack(&[slot(0.05)], d).expect_err("must refuse");
+            assert!(e.contains("rather than a verdict"), "{e}");
+        }
+    }
+
+    /// A negative lever still amplifies: direction is not magnitude, and a
+    /// chain that cancelled opposing errors would be reporting a best case.
+    #[test]
+    fn a_negative_lever_still_contributes_its_magnitude() {
+        let a = stack(&[slot(0.05)], 0.35).expect("valid");
+        let b = stack(
+            &[Link {
+                lever: -clip_lever(),
+                ..slot(0.05)
+            }],
+            0.35,
+        )
+        .expect("valid");
+        assert!((a.worst_case_mm - b.worst_case_mm).abs() < 1e-12);
+    }
+}

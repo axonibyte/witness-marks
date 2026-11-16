@@ -1,0 +1,2 @@
+            a.tolerance_mm
+                .partial_cmp(&b.tolerance_mm)
