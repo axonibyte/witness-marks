@@ -1,0 +1,5 @@
+        .ok_or_else(|| {
+            "first_contact names an EMPTY contacts list: a contact with nothing in it is not \
+             a contact"
+                .to_string()
+        })?;

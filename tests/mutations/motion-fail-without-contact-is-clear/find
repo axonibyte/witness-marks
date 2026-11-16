@@ -1,0 +1,7 @@
+            if f.status == "FAIL" {
+                return Err(format!(
+                    "the sweep is marked {} and yet names no first_contact. One of those two \
+                     readings is wrong, and guessing which would make a failure look clear",
+                    f.status
+                ));
+            }

@@ -1,0 +1,141 @@
+{
+ "blocked": {
+  "answer": {
+   "cache": {
+    "hits": 2,
+    "misses": 0,
+    "parts": 2
+   },
+   "exit_code": 1,
+   "findings": [
+    {
+     "elapsed_s": 0.06,
+     "first_contact": {
+      "contacts": [
+       {
+        "at": [
+         10.0,
+         0.0,
+         10.0
+        ],
+        "distance_mm": 0.0,
+        "part": "frame",
+        "penetration_mm": null,
+        "state": "contact"
+       }
+      ],
+      "offset_mm": 5.0
+     },
+     "min_gap_mm": 0.0,
+     "motion": "translate",
+     "quality": {
+      "curved_features": false,
+      "fn": null,
+      "note": "no $fn override; the model's own $fn/$fa/$fs apply"
+     },
+     "rule": "sweep",
+     "status": "FAIL",
+     "steps": 11,
+     "subject": [
+      "blade"
+     ],
+     "tier": "python",
+     "why": "",
+     "worst": {
+      "max_penetration_mm": 1.0,
+      "offset_mm": 7.0,
+      "worst_part": "frame"
+     }
+    }
+   ],
+   "frame": "assembly",
+   "mode": "motion",
+   "pairs_aabb_separated": 0,
+   "pairs_evaluated": 0,
+   "parts": [
+    "frame",
+    "blade"
+   ],
+   "quality": {
+    "curved_features": false,
+    "fn": null,
+    "note": "no $fn override; the model's own $fn/$fa/$fs apply"
+   },
+   "success": true,
+   "summary": {
+    "fail": 1,
+    "pass": 0,
+    "unresolved": 0
+   },
+   "timing_s": 0.335,
+   "timings": {
+    "export_s": 0.263,
+    "features_s": 0.01,
+    "load_s": 0.001,
+    "rules_s": 0.06
+   },
+   "units": "mm"
+  },
+  "model": "module frame(){ translate([10,0,0]) cube([2,10,10]); }\nmodule blade(){ cube([5,10,10]); }\n"
+ },
+ "clear": {
+  "answer": {
+   "cache": {
+    "hits": 0,
+    "misses": 2,
+    "parts": 2
+   },
+   "exit_code": 0,
+   "findings": [
+    {
+     "elapsed_s": 0.007,
+     "first_contact": null,
+     "min_gap_mm": 30.0,
+     "motion": "translate",
+     "quality": {
+      "curved_features": false,
+      "fn": null,
+      "note": "no $fn override; the model's own $fn/$fa/$fs apply"
+     },
+     "rule": "sweep",
+     "status": "PASS",
+     "steps": 11,
+     "subject": [
+      "blade"
+     ],
+     "tier": "python",
+     "why": "",
+     "worst": null
+    }
+   ],
+   "frame": "assembly",
+   "mode": "motion",
+   "pairs_aabb_separated": 0,
+   "pairs_evaluated": 0,
+   "parts": [
+    "frame",
+    "blade"
+   ],
+   "quality": {
+    "curved_features": false,
+    "fn": null,
+    "note": "no $fn override; the model's own $fn/$fa/$fs apply"
+   },
+   "success": true,
+   "summary": {
+    "fail": 0,
+    "pass": 1,
+    "unresolved": 0
+   },
+   "timing_s": 1.962,
+   "timings": {
+    "export_s": 0.763,
+    "features_s": 1.19,
+    "load_s": 0.001,
+    "rules_s": 0.007
+   },
+   "units": "mm"
+  },
+  "model": "module frame(){ translate([10,0,40]) cube([2,10,10]); }\nmodule blade(){ cube([5,10,10]); }\n"
+ }
+}

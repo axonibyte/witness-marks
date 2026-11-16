@@ -1,0 +1,2 @@
+    static BLANK: Value = Value::Null;
+    let f = findings.first().unwrap_or(&BLANK);

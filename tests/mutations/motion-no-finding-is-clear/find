@@ -1,0 +1,5 @@
+    let f = findings.first().ok_or_else(|| {
+        "the sweep produced NO finding. No finding and no contact are the same bytes, and \
+         only one of them is a measurement"
+            .to_string()
+    })?;

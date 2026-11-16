@@ -7,6 +7,7 @@
 pub mod fits;
 pub mod insert;
 pub mod travel;
+pub mod wire;
 
 pub const LAYER: &str = "wm-asm";
 
