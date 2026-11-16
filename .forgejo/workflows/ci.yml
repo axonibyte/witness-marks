@@ -30,7 +30,11 @@ jobs:
         run: |
           set -o pipefail
           rm -rf src-tree; rc=0
-          timeout 180 git clone --quiet --depth 1 --branch "${GITHUB_REF_NAME:-main}" \
+          # NO --depth 1. The mutation-record gate below diffs the commits this
+          # push carried, and a shallow clone has no history to diff. A gate
+          # that cannot see the change has not cleared it, so it would refuse
+          # every run rather than pass a shallow one -- correct, and useless.
+          timeout 180 git clone --quiet --branch "${GITHUB_REF_NAME:-main}" \
             https://forge.axonibyte.com/axonibyte/witness-marks.git src-tree || rc=$?
           test "$rc" -eq 124 && { echo "HANG: git clone exceeded 180s (RUNNER finding; 124 proves only that 180s elapsed)"; exit 124; }
           test "$rc" -eq 0 || { echo "git clone exited $rc"; exit "$rc"; }
@@ -38,20 +42,45 @@ jobs:
           echo "HEAD $(timeout 30 git rev-parse HEAD)"
           test -f Cargo.lock || { echo "no Cargo.lock: wrong tree, or the lockfile was not committed"; exit 1; }
 
+      # THE METHODOLOGY'S RULE, MECHANIZED. A change that adds assertions must
+      # record a mutation kill: a `MUTATION:` line in a commit message, or a
+      # file under tests/mutations/ that tools/mutate.sh can re-run. The range
+      # comes from the push event, because a job cannot otherwise know which
+      # commits a push carried, and it REFUSES when it cannot resolve one.
+      - name: new assertions must carry a recorded kill
+        run: |
+          set -o pipefail
+          cd src-tree
+          sh tools/check-mutation-record.sh --from-event HEAD
+
       # THE COUNTER IS TESTED BEFORE IT IS TRUSTED. The passing-test count is
       # this job's proof that execution happened, so the thing that computes it
       # cannot be the one unexercised part of the run. Its arms use committed
       # cargo transcripts, four of them real captures, and they assert stdout as
       # well as rc -- a refusal that printed a number would read as a count.
-      - name: the counter's own arms
+      - name: the tooling's own arms
         run: |
           set -o pipefail
           cd src-tree
-          rc=0; timeout 120 sh tools/tests/t_test_count.sh >count.out 2>&1 || rc=$?
-          cat count.out
-          test "$rc" -eq 0 || exit "$rc"
-          grep -qE '^-- [0-9]+/[0-9]+ arms pass' count.out \
-            || { echo "the arms produced no count of their own: they did not run"; exit 1; }
+          fail=0
+          for t in tools/tests/t_*.sh; do
+            echo "== $t"
+            rc=0; timeout 300 sh "$t" >arms.out 2>&1 || rc=$?
+            cat arms.out
+            grep -qE '^-- [0-9]+/[0-9]+ arms pass' arms.out \
+              || { echo "$t produced no count of its own: it did not run"; fail=1; }
+            test "$rc" -eq 0 || fail=1
+          done
+          test "$fail" -eq 0
+
+      # AND THE RECORDED KILLS ARE RE-RUN, not taken on the word of a commit
+      # message. A mutation record that no longer kills is a record of a test
+      # that has since stopped covering what it claims.
+      - name: every recorded mutant still kills
+        run: |
+          set -o pipefail
+          cd src-tree
+          timeout 1200 sh tools/mutate.sh --all
 
       - name: build and test, locked
         run: |
