@@ -6,6 +6,19 @@ name = "openscad-mcp"
 upstream = "https://github.com/RobertCoop/openscad-mcp"
 license = "MIT"
 version = "0.6.1"
+# TWO VERSION NUMBERS, AND THEY ARE NOT THE SAME SCHEME. `version` above is the
+# PyPI distribution version, which is what uv resolves and what
+# importlib.metadata reports. Over MCP a client never sees it: `initialize`
+# returns serverInfo, and THAT reads 4.2.0. MEASURED 2026-11-16 by speaking
+# stdio to the pinned 0.6.1 itself.
+#
+# A client that refuses on "serverInfo disagrees with PROVIDER.toml version"
+# would therefore refuse every single run. So the expectation is recorded
+# separately and the refusal is against THIS line, which is the only version a
+# client can actually observe.
+server_info_name = "OpenSCAD MCP Server"
+server_info_version = "4.2.0"
+mcp_protocol = "2024-11-05"
 pypi_sdist_sha256 = "3a899b16676e5d8fa7255ae90183a1bca459a41f6c3bafaf144d59b736c08fcd"
 git_tag_sha = "258c8a4553b62d0d1df1a37aa54c218ef3de5689"
 pinned_on = "2026-11-14"

@@ -1,0 +1,3 @@
+                    let mut m = Map::new();
+                    m.insert("text".into(), Value::String(t.to_string()));
+                    return Value::Object(m);

@@ -1,0 +1,1 @@
+        if info.name != self.server_name {

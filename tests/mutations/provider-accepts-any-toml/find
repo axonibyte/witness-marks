@@ -1,0 +1,4 @@
+            _ => bail!(
+                "PROVIDER.toml names no server_info_name / server_info_version / mcp_protocol; \
+                 refusing rather than accepting any server"
+            ),
