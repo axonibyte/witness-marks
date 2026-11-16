@@ -1,0 +1,1 @@
+        Ok((self.lead_mm / self.r_mm).atan())

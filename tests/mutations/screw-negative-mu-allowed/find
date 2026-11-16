@@ -1,0 +1,7 @@
+        if !self.mu.is_finite() || self.mu < 0.0 {
+            return Err(format!(
+                "mu must be finite and non-negative, got {}; a negative friction \
+                 coefficient is not a frictionless screw, it is a sign error",
+                self.mu
+            ));
+        }

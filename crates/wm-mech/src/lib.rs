@@ -352,3 +352,276 @@ mod beam_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Power screws. Spec §05.
+// ---------------------------------------------------------------------------
+
+/// A square-thread power screw: pitch, mean radius, friction.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Screw {
+    /// Axial advance per turn, mm. For a single start this is the pitch.
+    pub lead_mm: f64,
+    /// Mean thread radius, mm.
+    pub r_mm: f64,
+    /// Coefficient of friction at the thread flank.
+    pub mu: f64,
+}
+
+/// What a screw does under an axial load.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ScrewResult {
+    /// Helix angle, degrees.
+    pub helix_deg: f64,
+    /// N*mm to drive the load along the screw's own direction of advance.
+    pub torque_raise: f64,
+    /// N*mm to let it back off. POSITIVE means torque is needed to lower it,
+    /// which is the self-locking case; NEGATIVE means the load drives it back
+    /// on its own.
+    pub torque_lower: f64,
+    /// `mu > tan(lambda)`.
+    pub self_locking: bool,
+    /// How far from the self-locking boundary: `mu / tan(lambda)`. 1.0 is
+    /// exactly on it.
+    pub locking_margin: f64,
+}
+
+impl Screw {
+    /// Helix angle in radians: `atan(lead / (2*pi*r))`.
+    pub fn helix_rad(&self) -> Result<f64, String> {
+        for (n, v) in [("lead_mm", self.lead_mm), ("r_mm", self.r_mm)] {
+            if !v.is_finite() || v <= 0.0 {
+                return Err(format!("{n} must be positive and finite, got {v}"));
+            }
+        }
+        if !self.mu.is_finite() || self.mu < 0.0 {
+            return Err(format!(
+                "mu must be finite and non-negative, got {}; a negative friction \
+                 coefficient is not a frictionless screw, it is a sign error",
+                self.mu
+            ));
+        }
+        Ok((self.lead_mm / (2.0 * std::f64::consts::PI * self.r_mm)).atan())
+    }
+
+    /// Torque and the self-locking verdict under axial load `f_n` newtons.
+    ///
+    /// # The power-screw terms
+    ///
+    /// raise: `F*r*(tan(l) + mu) / (1 - mu*tan(l))`
+    /// lower: `F*r*(mu - tan(l)) / (1 + mu*tan(l))`
+    ///
+    /// # Self-locking is `mu > tan(lambda)`, and the sign of the lower torque
+    ///
+    /// They are the same statement: the lower term's numerator is
+    /// `mu - tan(l)`, so a positive lowering torque means the load cannot
+    /// drive the screw back on its own. Reporting the boolean AND the signed
+    /// torque is deliberate -- the boolean is what a caller asks for and the
+    /// sign is what makes it checkable.
+    ///
+    /// # The margin matters more than the verdict
+    ///
+    /// The harness screw is pitch 5 at r = 34, so lambda = 1.3408 degrees and
+    /// tan(lambda) = 0.0234. Against a printed-plastic mu around 0.3 that is a
+    /// margin of nearly 13, which is not a close call. At mu = 0.02 it is
+    /// 0.855 and the thing back-drives. A boolean alone would make those look
+    /// like neighbouring cases.
+    pub fn under(&self, f_n: f64) -> Result<ScrewResult, String> {
+        let lam = self.helix_rad()?;
+        if !f_n.is_finite() || f_n < 0.0 {
+            return Err(format!(
+                "axial load must be finite and non-negative, got {f_n}"
+            ));
+        }
+        let t = lam.tan();
+        let denom_raise = 1.0 - self.mu * t;
+        if denom_raise <= 0.0 {
+            return Err(format!(
+                "mu*tan(lambda) = {} reaches 1: the raise term is undefined and this is \
+                 not a screw any more",
+                self.mu * t
+            ));
+        }
+        Ok(ScrewResult {
+            helix_deg: lam.to_degrees(),
+            torque_raise: f_n * self.r_mm * (t + self.mu) / denom_raise,
+            torque_lower: f_n * self.r_mm * (self.mu - t) / (1.0 + self.mu * t),
+            self_locking: self.mu > t,
+            locking_margin: if t == 0.0 { f64::INFINITY } else { self.mu / t },
+        })
+    }
+}
+
+#[cfg(test)]
+mod screw_tests {
+    use super::*;
+
+    /// The can-cutter floor thread: pitch 5 at a mean radius of 34.
+    fn harness(mu: f64) -> Screw {
+        Screw {
+            lead_mm: 5.0,
+            r_mm: 34.0,
+            mu,
+        }
+    }
+
+    /// THE LOGGED FIXTURE: lambda = 1.34 degrees.
+    #[test]
+    fn the_harness_threads_helix_angle() {
+        let r = harness(0.3).under(100.0).expect("valid");
+        assert!(
+            (r.helix_deg - 1.340_771).abs() < 1e-5,
+            "pitch 5 at r 34 is 1.340771 deg, got {}",
+            r.helix_deg
+        );
+    }
+
+    /// A shallow helix against ordinary printed-plastic friction is not a
+    /// close call: the margin is nearly 13.
+    #[test]
+    fn printed_plastic_friction_locks_this_thread_comfortably() {
+        let r = harness(0.3).under(100.0).expect("valid");
+        assert!(r.self_locking);
+        assert!(
+            r.locking_margin > 12.0,
+            "mu 0.3 against tan(lambda) 0.0234 is a margin near 13, got {}",
+            r.locking_margin
+        );
+        assert!(
+            r.torque_lower > 0.0,
+            "self-locking means torque is NEEDED to lower it"
+        );
+    }
+
+    /// THE BOOLEAN AND THE SIGN ARE THE SAME STATEMENT, and the arm checks
+    /// they agree. If they ever disagree, one of them is lying.
+    #[test]
+    fn the_verdict_and_the_sign_of_the_lowering_torque_always_agree() {
+        for mu in [0.0, 0.01, 0.02, 0.0234, 0.05, 0.3, 0.8] {
+            let r = harness(mu).under(100.0).expect("valid");
+            assert_eq!(
+                r.self_locking,
+                r.torque_lower > 0.0,
+                "mu {mu}: verdict {} but lowering torque {}",
+                r.self_locking,
+                r.torque_lower
+            );
+        }
+    }
+
+    /// A SLIPPERY THREAD BACK-DRIVES, and the lowering torque goes negative:
+    /// the load does the work.
+    #[test]
+    fn a_slippery_thread_back_drives() {
+        let r = harness(0.02).under(100.0).expect("valid");
+        assert!(!r.self_locking);
+        assert!(r.torque_lower < 0.0, "the load drives it back on its own");
+        assert!(
+            r.locking_margin < 1.0,
+            "below the boundary, got {}",
+            r.locking_margin
+        );
+    }
+
+    /// THE MARGIN IS THE NUMBER THAT MATTERS. A boolean makes mu 0.3 and
+    /// mu 0.024 look like neighbouring cases; they are 13 and 1.0.
+    #[test]
+    fn the_margin_separates_a_safe_case_from_a_marginal_one() {
+        let safe = harness(0.3).under(100.0).expect("valid").locking_margin;
+        let edge = harness(0.0234).under(100.0).expect("valid").locking_margin;
+        assert!(safe > 12.0 && (edge - 1.0).abs() < 0.01);
+        assert!(
+            safe / edge > 10.0,
+            "a boolean would report both as 'locking'"
+        );
+    }
+
+    /// A STEEPER THREAD IS THE ONLY PLACE THE RULE IS CHECKABLE, and this arm
+    /// exists because a mutant proved it. Self-locking is `mu > tan(lambda)`,
+    /// not `mu > lambda`, and on the harness screw those agree to five decimal
+    /// places: lambda is 0.0234009 rad against a tangent of 0.0234051, a
+    /// difference of 4.3e-06. Every other arm here passes under either
+    /// formula.
+    ///
+    /// THE FIRST VERSION OF THIS ARM WAS UNPHYSICAL and the code refused it,
+    /// correctly. At a 57.9 degree helix with mu 1.2, `mu*tan(lambda)` is 1.91
+    /// and the raise term's denominator goes negative -- that is not a screw
+    /// any more, and the guard says so. A discriminating case has to be steep
+    /// enough that lambda and its tangent diverge AND shallow enough that the
+    /// product stays under 1.
+    ///
+    /// A 30 degree helix: lambda 0.5236 rad, tan(lambda) 0.5774. A mu of
+    /// 0.5505 sits BETWEEN them, and `mu*tan(lambda)` is 0.318. The correct
+    /// rule says it does not lock; the mistaken one says it does.
+    #[test]
+    fn a_steeper_thread_distinguishes_the_tangent_from_the_angle() {
+        let lam = 30.0f64.to_radians();
+        let steep = Screw {
+            lead_mm: lam.tan() * 2.0 * std::f64::consts::PI * 10.0,
+            r_mm: 10.0,
+            mu: 0.5505,
+        };
+        let r = steep
+            .under(100.0)
+            .expect("physical: mu*tan(lambda) is 0.318");
+        assert!((r.helix_deg - 30.0).abs() < 1e-6, "got {}", r.helix_deg);
+        assert!(
+            steep.mu > lam,
+            "the mistaken rule, comparing against lambda in radians, would say LOCKS"
+        );
+        assert!(
+            !r.self_locking,
+            "mu 0.5505 is below tan(lambda) 0.5774, so it does NOT lock"
+        );
+        assert!(r.torque_lower < 0.0, "and the sign agrees");
+    }
+
+    /// Raising always costs more than lowering, and both scale with the load.
+    #[test]
+    fn torque_scales_with_the_load_and_raising_costs_more() {
+        let a = harness(0.3).under(100.0).expect("valid");
+        let b = harness(0.3).under(200.0).expect("valid");
+        assert!((b.torque_raise / a.torque_raise - 2.0).abs() < 1e-12);
+        assert!(a.torque_raise > a.torque_lower);
+    }
+
+    /// A frictionless screw cannot lock, and its lowering torque is the
+    /// negative of its raising torque.
+    #[test]
+    fn a_frictionless_screw_never_locks() {
+        let r = harness(0.0).under(100.0).expect("valid");
+        assert!(!r.self_locking);
+        assert_eq!(r.locking_margin, 0.0);
+        assert!((r.torque_raise + r.torque_lower).abs() < 1e-9);
+    }
+
+    /// A NEGATIVE mu IS A SIGN ERROR, NOT A FRICTIONLESS SCREW, and the
+    /// refusal says so rather than quietly computing a backwards answer.
+    #[test]
+    fn a_negative_friction_coefficient_is_refused_as_a_sign_error() {
+        let e = Screw {
+            mu: -0.3,
+            ..harness(0.3)
+        }
+        .under(100.0)
+        .expect_err("must refuse");
+        assert!(e.contains("sign error"), "{e}");
+    }
+
+    #[test]
+    fn nonpositive_geometry_and_loads_are_refused() {
+        assert!(Screw {
+            lead_mm: 0.0,
+            ..harness(0.3)
+        }
+        .under(100.0)
+        .is_err());
+        assert!(Screw {
+            r_mm: f64::NAN,
+            ..harness(0.3)
+        }
+        .under(100.0)
+        .is_err());
+        assert!(harness(0.3).under(-1.0).is_err());
+    }
+}

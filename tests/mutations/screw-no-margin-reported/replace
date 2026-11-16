@@ -1,0 +1,1 @@
+            locking_margin: if self.mu > t { 2.0 } else { 0.5 },

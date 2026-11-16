@@ -1,0 +1,1 @@
+            locking_margin: if t == 0.0 { f64::INFINITY } else { self.mu / t },

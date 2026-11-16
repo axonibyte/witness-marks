@@ -1,0 +1,1 @@
+            torque_lower: f_n * self.r_mm * (self.mu - t) / (1.0 + self.mu * t),
