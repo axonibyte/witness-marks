@@ -1,0 +1,1 @@
+            Ok(r) => r.jobs.get(&id).cloned().unwrap_or(Status::Running { note: String::new() }),

@@ -1,0 +1,1 @@
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(progress)));

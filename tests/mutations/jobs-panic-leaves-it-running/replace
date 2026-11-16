@@ -1,0 +1,1 @@
+            let outcome: Result<Result<String, String>, Box<dyn std::any::Any + Send>> = Ok(f(progress));

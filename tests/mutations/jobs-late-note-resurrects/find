@@ -1,0 +1,3 @@
+                if s.is_running() {
+                    *s = Status::Running { note: text.into() };
+                }
