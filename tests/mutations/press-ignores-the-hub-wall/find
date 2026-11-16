@@ -1,0 +1,1 @@
+            (delta_radial * self.e_mpa / r) * (ro.powi(2) - r.powi(2)) / (2.0 * ro.powi(2));

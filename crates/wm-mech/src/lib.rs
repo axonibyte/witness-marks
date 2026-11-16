@@ -880,3 +880,243 @@ mod friction_tests {
         assert!(annular_effective_radius(f64::NAN, 11.0).is_err());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Press fits. Spec §05.
+// ---------------------------------------------------------------------------
+
+/// A cylindrical press fit: a solid shaft in a hub of the same material.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PressFit {
+    /// DIAMETRAL interference, mm: how much larger the shaft is than the bore.
+    /// Diametral and not radial, because that is what a drawing states and
+    /// what a caliper measures, and halving it is the first thing everybody
+    /// forgets.
+    pub interference_mm: f64,
+    /// Nominal interface diameter, mm.
+    pub diameter_mm: f64,
+    /// Hub outer diameter, mm. A hub thin at the interface takes the
+    /// interference by stretching instead of by squeezing.
+    pub hub_outer_mm: f64,
+    /// Engagement length, mm.
+    pub length_mm: f64,
+    pub e_mpa: f64,
+    pub mu: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PressResult {
+    /// Interface pressure, MPa.
+    pub pressure_mpa: f64,
+    /// Axial force to push it together or pull it apart, N.
+    pub axial_force_n: f64,
+    /// Torque it can transmit before slipping, N*mm.
+    pub torque_capacity: f64,
+}
+
+impl PressFit {
+    /// Lamé, same material both sides, solid shaft, plane stress:
+    ///
+    /// `p = (delta_radial * E / r) * (ro^2 - r^2) / (2 * ro^2)`
+    ///
+    /// # What this assumes, stated because it is easy to apply anyway
+    ///
+    /// Same modulus on both sides, a SOLID shaft, and an isotropic hub. A
+    /// printed part is none of those three strictly: it is layered, so its
+    /// modulus across layers differs from along them. The number is a starting
+    /// point and its provenance is `Derived` at best.
+    pub fn solve(&self) -> Result<PressResult, String> {
+        for (n, v) in [
+            ("interference_mm", self.interference_mm),
+            ("diameter_mm", self.diameter_mm),
+            ("hub_outer_mm", self.hub_outer_mm),
+            ("length_mm", self.length_mm),
+            ("e_mpa", self.e_mpa),
+        ] {
+            if !v.is_finite() || v <= 0.0 {
+                return Err(format!("{n} must be positive and finite, got {v}"));
+            }
+        }
+        if !self.mu.is_finite() || self.mu < 0.0 {
+            return Err(format!(
+                "mu must be finite and non-negative, got {}",
+                self.mu
+            ));
+        }
+        if self.hub_outer_mm <= self.diameter_mm {
+            return Err(format!(
+                "hub_outer_mm {} is not larger than diameter_mm {}: there is no hub wall \
+                 to take the interference, and the formula would return a pressure of zero \
+                 or less for a joint that physically cannot be assembled",
+                self.hub_outer_mm, self.diameter_mm
+            ));
+        }
+        let r = self.diameter_mm / 2.0;
+        let ro = self.hub_outer_mm / 2.0;
+        // HALVED HERE, ONCE. The input is diametral; Lamé wants radial.
+        let delta_radial = self.interference_mm / 2.0;
+        let pressure =
+            (delta_radial * self.e_mpa / r) * (ro.powi(2) - r.powi(2)) / (2.0 * ro.powi(2));
+        let area = std::f64::consts::PI * self.diameter_mm * self.length_mm;
+        let axial = self.mu * pressure * area;
+        Ok(PressResult {
+            pressure_mpa: pressure,
+            axial_force_n: axial,
+            torque_capacity: axial * r,
+        })
+    }
+}
+
+/// A SLOT IS NOT A PRESS FIT, and this function exists to say so.
+///
+/// The harness fixture that prompted this issue is the blade's wedge pocket:
+/// two parallel walls squeezing a flat blade with `blade_press = 0.05` of
+/// interference per wall. Lamé does not apply. There is no hoop stress in a
+/// flat wall, nothing goes into tension around a circumference, and the
+/// pressure is set by how stiff that wall is IN BENDING -- which is a beam
+/// problem and is already solved by [`Beam`].
+///
+/// Applying the cylindrical formula anyway would produce a confident number
+/// with the wrong physics behind it, which is worse than no number. So this
+/// refuses and names where to go.
+pub fn slot_press_is_not_a_cylinder(interference_per_wall_mm: f64) -> Result<f64, String> {
+    Err(format!(
+        "a slot squeezing a flat part by {interference_per_wall_mm} mm per wall is NOT a \
+         Lame press fit: a flat wall has no hoop stress and nothing goes into tension \
+         around a circumference. The pressure is set by the wall's BENDING stiffness -- \
+         model each wall with Beam::at(deflection) and use its force over the contact \
+         area. Refusing rather than returning a cylindrical number for a flat problem."
+    ))
+}
+
+#[cfg(test)]
+mod press_tests {
+    use super::*;
+
+    fn fit() -> PressFit {
+        PressFit {
+            interference_mm: 0.10,
+            diameter_mm: 10.0,
+            hub_outer_mm: 20.0,
+            length_mm: 8.0,
+            e_mpa: 2000.0,
+            mu: 0.3,
+        }
+    }
+
+    /// Hand-computed. delta_radial 0.05, r 5, ro 10:
+    /// p = (0.05*2000/5) * (100-25)/(2*100) = 20 * 0.375 = 7.5 MPa.
+    #[test]
+    fn the_pressure_is_pinned_against_arithmetic() {
+        let r = fit().solve().expect("valid");
+        assert!(
+            (r.pressure_mpa - 7.5).abs() < 1e-12,
+            "expected 7.5 MPa, got {}",
+            r.pressure_mpa
+        );
+    }
+
+    /// THE INTERFERENCE IS DIAMETRAL AND IS HALVED EXACTLY ONCE. Forgetting
+    /// the halving doubles every force in the answer.
+    #[test]
+    fn the_interference_is_diametral_and_halved_once() {
+        let mut f = fit();
+        f.interference_mm = 0.20;
+        let doubled = f.solve().expect("valid");
+        assert!(
+            (doubled.pressure_mpa - 15.0).abs() < 1e-12,
+            "twice the interference is twice the pressure, got {}",
+            doubled.pressure_mpa
+        );
+    }
+
+    /// A thin hub takes the interference by STRETCHING rather than squeezing,
+    /// so the pressure falls toward zero as the wall vanishes.
+    #[test]
+    fn a_thinner_hub_grips_less() {
+        let thick = PressFit {
+            hub_outer_mm: 40.0,
+            ..fit()
+        }
+        .solve()
+        .expect("valid");
+        let thin = PressFit {
+            hub_outer_mm: 10.5,
+            ..fit()
+        }
+        .solve()
+        .expect("valid");
+        assert!(
+            thin.pressure_mpa < thick.pressure_mpa * 0.2,
+            "a nearly-absent wall must grip far less: {} vs {}",
+            thin.pressure_mpa,
+            thick.pressure_mpa
+        );
+    }
+
+    /// A HUB WITH NO WALL CANNOT BE ASSEMBLED, and the formula would return
+    /// zero or negative pressure for it rather than saying so.
+    #[test]
+    fn a_hub_no_larger_than_the_shaft_is_refused() {
+        let e = PressFit {
+            hub_outer_mm: 10.0,
+            ..fit()
+        }
+        .solve()
+        .expect_err("must refuse");
+        assert!(e.contains("no hub wall"), "{e}");
+        assert!(PressFit {
+            hub_outer_mm: 9.0,
+            ..fit()
+        }
+        .solve()
+        .is_err());
+    }
+
+    #[test]
+    fn force_and_torque_follow_the_pressure() {
+        let r = fit().solve().expect("valid");
+        let area = std::f64::consts::PI * 10.0 * 8.0;
+        assert!((r.axial_force_n - 0.3 * 7.5 * area).abs() < 1e-9);
+        assert!((r.torque_capacity - r.axial_force_n * 5.0).abs() < 1e-9);
+    }
+
+    /// A frictionless fit holds nothing axially, however hard it squeezes.
+    #[test]
+    fn zero_friction_holds_nothing() {
+        let r = PressFit { mu: 0.0, ..fit() }.solve().expect("valid");
+        assert!(r.pressure_mpa > 0.0, "it still squeezes");
+        assert_eq!(r.axial_force_n, 0.0, "and holds nothing");
+    }
+
+    /// THE HARNESS FIXTURE IS NOT THIS PROBLEM, and saying so is the point.
+    /// A flat wall has no hoop stress; applying Lamé to it would give a
+    /// confident number with the wrong physics behind it.
+    #[test]
+    fn a_slot_refuses_to_be_treated_as_a_cylinder() {
+        let e = slot_press_is_not_a_cylinder(0.05).expect_err("must refuse");
+        assert!(e.contains("NOT a Lame press fit"), "{e}");
+        assert!(
+            e.contains("Beam"),
+            "the refusal must name where to go instead: {e}"
+        );
+        assert!(e.contains("0.05"), "and echo what was asked: {e}");
+    }
+
+    #[test]
+    fn nonpositive_and_nan_inputs_are_refused() {
+        assert!(PressFit {
+            interference_mm: 0.0,
+            ..fit()
+        }
+        .solve()
+        .is_err());
+        assert!(PressFit {
+            e_mpa: f64::NAN,
+            ..fit()
+        }
+        .solve()
+        .is_err());
+        assert!(PressFit { mu: -0.1, ..fit() }.solve().is_err());
+    }
+}

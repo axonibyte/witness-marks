@@ -1,0 +1,4 @@
+pub fn slot_press_is_not_a_cylinder(interference_per_wall_mm: f64) -> Result<f64, String> {
+    return Ok(interference_per_wall_mm * 100.0);
+    #[allow(unreachable_code)]
+    Err(format!(

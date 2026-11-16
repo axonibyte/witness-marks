@@ -1,0 +1,1 @@
+        if self.hub_outer_mm <= self.diameter_mm {

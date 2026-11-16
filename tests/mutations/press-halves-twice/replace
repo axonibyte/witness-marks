@@ -1,0 +1,1 @@
+        let delta_radial = self.interference_mm / 4.0;
