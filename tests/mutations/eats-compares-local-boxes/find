@@ -1,0 +1,1 @@
+    let tbox = bbox_at(root, target_path).unwrap_or(Bbox::Unknown("no such node".into()));

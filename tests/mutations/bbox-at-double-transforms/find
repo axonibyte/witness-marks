@@ -1,0 +1,6 @@
+        if path.is_empty() {
+            return Some(match acc {
+                None => bbox(n),
+                Some(m) => transform(m, bbox(n)),
+            });
+        }

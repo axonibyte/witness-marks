@@ -296,6 +296,74 @@ pub fn bbox(n: &Node) -> Bbox {
     }
 }
 
+/// The box of the node at `path`, IN THE ROOT'S FRAME.
+///
+/// # Why this exists separately from [`bbox`]
+///
+/// `bbox(node)` is the node's own extent in its OWN frame, with its ancestors'
+/// transforms not applied -- it cannot know them. Comparing two nodes' boxes
+/// taken that way is comparing measurements in two different coordinate
+/// systems, and it produces a confident wrong answer: a socket translated into
+/// the path of a cut reads as nowhere near it.
+///
+/// That is not hypothetical. `eats` was written against `bbox` and its first
+/// run reported that the cut which sheared the dovetail sockets did not reach
+/// them, because the socket's own box sat at the origin while the cut's box
+/// included its translation.
+///
+/// Returns `None` when the path names no node.
+pub fn bbox_at(root: &Node, path: &[usize]) -> Option<Bbox> {
+    fn go(n: &Node, path: &[usize], acc: Option<[[f64; 4]; 4]>) -> Option<Bbox> {
+        // THE DESTINATION IS HANDLED BEFORE ANY ACCUMULATION, and that order
+        // is the whole correctness of this function. `bbox` ALREADY applies a
+        // multmatrix's own matrix to its children, so accumulating it here as
+        // well and then applying `acc` would transform the final node twice.
+        // The first version did exactly that and placed the cut at double its
+        // translation, which read as "nothing reaches the socket".
+        if path.is_empty() {
+            return Some(match acc {
+                None => bbox(n),
+                Some(m) => transform(m, bbox(n)),
+            });
+        }
+        // Descending THROUGH a multmatrix: accumulate it, because `bbox` of
+        // the child below knows nothing about it.
+        let acc = if n.op == "multmatrix" {
+            match n.args.get("0").and_then(|s| matrix(s)) {
+                Some(m) => Some(match acc {
+                    None => m,
+                    Some(a) => mul(a, m),
+                }),
+                // AN UNREADABLE TRANSFORM POISONS EVERYTHING BELOW IT. The
+                // alternative is placing a child in the wrong frame and saying
+                // nothing, which is the failure this function was written for.
+                None => {
+                    return Some(Bbox::Unknown(
+                        "a multmatrix on the path has no readable matrix, so nothing below it \
+                     can be placed"
+                            .into(),
+                    ))
+                }
+            }
+        } else {
+            acc
+        };
+        let (i, rest) = path.split_first()?;
+        go(n.children.get(*i)?, rest, acc)
+    }
+    go(root, path, None)
+}
+
+fn mul(a: [[f64; 4]; 4], b: [[f64; 4]; 4]) -> [[f64; 4]; 4] {
+    let mut o = [[0.0f64; 4]; 4];
+    for (i, row) in o.iter_mut().enumerate() {
+        for (j, cell) in row.iter_mut().enumerate() {
+            *cell = (0..4).map(|k| a[i][k] * b[k][j]).sum();
+        }
+    }
+    o
+}
+
 fn children_union(n: &Node) -> Bbox {
     n.children
         .iter()

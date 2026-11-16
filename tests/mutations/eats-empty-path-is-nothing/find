@@ -1,0 +1,2 @@
+    if !all.iter().any(|(p, _)| p.as_slice() == target_path) {
+        return Err({

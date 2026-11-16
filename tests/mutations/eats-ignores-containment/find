@@ -1,0 +1,3 @@
+        if !target_path.starts_with(&first) {
+            continue;
+        }

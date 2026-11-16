@@ -6,6 +6,7 @@
 /// Present so the crate has one exported symbol and one test from day one.
 pub mod bbox;
 pub mod derive;
+pub mod eats;
 pub mod tree;
 
 pub const LAYER: &str = "wm-csg";
