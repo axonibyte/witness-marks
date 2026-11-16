@@ -134,3 +134,44 @@ fn a_server_with_the_wrong_protocol_is_refused_at_startup() {
     let err = Provider::start(&spawn("wrongproto", 20), &expect()).expect_err("must refuse");
     assert!(format!("{err:#}").contains("2099-01-01"));
 }
+
+/// The pinning reaches the provider as `variables`, and the stub echoes the
+/// arguments back so the test can see what was actually sent.
+///
+/// WITHOUT THIS ARM the pinning plan is computed and could simply never be
+/// attached to the call, and every unit test about the plan would still pass.
+#[test]
+fn view_state_is_pinned_in_the_arguments_that_are_actually_sent() {
+    let mut p = Provider::start(&spawn("echoargs", 20), &expect()).expect("starts");
+    let src = "/* [View] */\nexplode = 80;\nshow_frame = true;\n/* [Can] */\ncan_dia = 66;\n";
+    let (a, plan) = p.measure_pinned(src, &[]).expect("measures");
+    let sent = &a.payload["echoed_arguments"];
+    assert_eq!(
+        sent["variables"]["explode"], 0,
+        "explode must be pinned to 0 in the call itself, got {sent}"
+    );
+    assert!(
+        sent["variables"].get("show_frame").is_none(),
+        "a visibility flag must not be pinned: {sent}"
+    );
+    assert!(
+        sent["variables"].get("can_dia").is_none(),
+        "a real dimension must not be pinned: {sent}"
+    );
+    assert!(plan.notes().iter().any(|n| n.contains("explode")));
+}
+
+/// A snippet with no view state must send NO `variables` key at all, rather
+/// than an empty object: an empty override is still an override, and the
+/// provider is entitled to treat it as one.
+#[test]
+fn a_model_without_view_state_sends_no_variables_at_all() {
+    let mut p = Provider::start(&spawn("echoargs", 20), &expect()).expect("starts");
+    let (a, plan) = p.measure_pinned("cube(10);", &[]).expect("measures");
+    assert!(plan.pinned.is_empty());
+    assert!(
+        a.payload["echoed_arguments"].get("variables").is_none(),
+        "no view state means no variables key: {}",
+        a.payload["echoed_arguments"]
+    );
+}

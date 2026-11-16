@@ -1,0 +1,2 @@
+    if n.starts_with("show_") || n.starts_with("hide_") {
+        return Some(Kind::Visibility);

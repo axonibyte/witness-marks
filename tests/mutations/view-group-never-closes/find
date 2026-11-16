@@ -1,0 +1,1 @@
+                in_view_group = VIEW_GROUPS.iter().any(|g| l == *g || l.starts_with(*g));

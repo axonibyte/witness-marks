@@ -14,6 +14,8 @@ The behaviours are chosen because each one broke a client somewhere:
   silent       answer initialize and then never answer again, so the timeout
                path is driven rather than assumed
   texterror    return a tools/call result with isError and a non-JSON text body
+  echoargs     return the call's own arguments, so a test can assert what was
+               SENT rather than only what the client computed
 """
 import json
 import os
@@ -68,6 +70,14 @@ def main():
                 out({"jsonrpc": "2.0", "id": req["id"], "result": {
                     "isError": True,
                     "content": [{"type": "text", "text": "1 validation error for call[measure]"}]}})
+                continue
+            if MODE == "echoargs":
+                out({"jsonrpc": "2.0", "id": req["id"], "result": {
+                    "structuredContent": {
+                        "echoed_arguments": req["params"].get("arguments", {}),
+                        "volume": 1000.0, "empty": False,
+                        "bbox_min": [0, 0, 0], "bbox_max": [1, 1, 1],
+                        "errors": [], "warnings": [], "hints": [], "deprecated": []}}})
                 continue
             out({"jsonrpc": "2.0", "id": req["id"], "result": {
                 "structuredContent": {

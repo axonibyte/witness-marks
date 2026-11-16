@@ -1,0 +1,3 @@
+        if !plan.pinned.is_empty() {
+            args.insert("variables".into(), Value::Object(plan.pinned.clone()));
+        }

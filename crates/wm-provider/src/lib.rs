@@ -34,6 +34,8 @@ use serde_json::{json, Map, Value};
 use wm_envelope::{Controls, Envelope, Observed, Provenance, Status, Subject};
 
 /// Present so the crate has one exported symbol and one test from day one.
+pub mod view;
+
 pub const LAYER: &str = "wm-provider";
 
 /// The six tools this client speaks, named in the milestone's own words.
@@ -418,6 +420,33 @@ impl Provider {
 
     pub fn measure(&mut self, scad: &str) -> Result<ToolAnswer> {
         self.call("measure", json!({"scad_content": scad}))
+    }
+
+    /// Measure with view state pinned, and SAY SO.
+    ///
+    /// This is the call that should be used instead of [`Provider::measure`]
+    /// whenever the model is a real file rather than a snippet, because a real
+    /// file carries its own display settings and a measurement inherits them.
+    /// mcp note 30 is the incident: an overhang scan reported PASS on empty
+    /// space because `explode = 80` had moved the part out of the probe box.
+    ///
+    /// Returns the answer and the pinning plan, so the caller can put
+    /// [`view::Pinning::notes`] into the envelope's warnings. The notes are
+    /// not optional in spirit: a measurement that quietly changed its own
+    /// inputs is not better than one that silently inherited them.
+    pub fn measure_pinned(
+        &mut self,
+        scad: &str,
+        declared_view_params: &[&str],
+    ) -> Result<(ToolAnswer, view::Pinning)> {
+        let plan = view::Pinning::plan(&view::detect(scad, declared_view_params));
+        let mut args = Map::new();
+        args.insert("scad_content".into(), Value::String(scad.to_string()));
+        if !plan.pinned.is_empty() {
+            args.insert("variables".into(), Value::Object(plan.pinned.clone()));
+        }
+        let answer = self.call("measure", Value::Object(args))?;
+        Ok((answer, plan))
     }
 
     pub fn validate(&mut self, scad: &str) -> Result<ToolAnswer> {
