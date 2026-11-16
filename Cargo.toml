@@ -6,6 +6,7 @@ members = [
   "crates/wm-csg",        # Layer 1b: the construction tree -- eats, flank, coincident
   "crates/wm-mech",       # Layer 3: closed-form mechanics
   "crates/wm-process",    # Layer 4: printer, material, firmware, slicer criterion
+  "crates/wm-asm",     # Layer 2: assembly -- pairs, and time
   "crates/wm-claims",     # Layer 5: assertions, staleness, dominance, fan-out
   "crates/witness-marks", # the server binary: NDJSON JSON-RPC over stdio
 ]
@@ -29,6 +30,7 @@ thiserror = "2"
 wm-envelope = { path = "crates/wm-envelope" }
 wm-provider = { path = "crates/wm-provider" }
 wm-csg      = { path = "crates/wm-csg" }
+wm-asm      = { path = "crates/wm-asm" }
 wm-mech     = { path = "crates/wm-mech" }
 wm-process  = { path = "crates/wm-process" }
 wm-claims   = { path = "crates/wm-claims" }

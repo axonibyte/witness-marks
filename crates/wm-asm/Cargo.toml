@@ -1,0 +1,14 @@
+[package]
+name = "wm-asm"
+description = "Layer 2: assembly -- can it be put in, what stops it, and do the pairs fit with the sign the design intended"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+[lints]
+workspace = true
+[dependencies]
+serde = { workspace = true }
+wm-envelope = { workspace = true }

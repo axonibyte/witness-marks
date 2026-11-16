@@ -192,6 +192,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "wm-asm"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "wm-envelope",
+]
+
+[[package]]
 name = "wm-claims"
 version = "0.3.0"
 dependencies = [

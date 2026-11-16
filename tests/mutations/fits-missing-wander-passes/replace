@@ -1,0 +1,3 @@
+                None => return Verdict::Ok,
+                #[allow(unreachable_patterns)]
+                Some(_) if false => Verdict::Unanswerable(format!(

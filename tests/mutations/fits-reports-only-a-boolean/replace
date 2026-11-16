@@ -1,0 +1,1 @@
+    pairs.iter().map(check).filter(|v| !v.is_ok()).take(1).collect()
