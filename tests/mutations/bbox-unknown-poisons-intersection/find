@@ -1,0 +1,2 @@
+            (Bbox::Unknown(_), b @ Bbox::Known { .. }) => b.loosen(),
+            (a @ Bbox::Known { .. }, Bbox::Unknown(_)) => a.loosen(),

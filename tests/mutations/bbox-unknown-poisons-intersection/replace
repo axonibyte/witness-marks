@@ -1,0 +1,2 @@
+            (Bbox::Unknown(w), Bbox::Known { .. }) => Bbox::Unknown(w),
+            (Bbox::Known { .. }, Bbox::Unknown(w)) => Bbox::Unknown(w),

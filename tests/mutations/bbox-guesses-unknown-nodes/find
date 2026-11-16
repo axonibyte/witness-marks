@@ -1,0 +1,4 @@
+        other => Bbox::Unknown(format!(
+            "{other} is not a node this bounds; its extent depends on geometry \
+             this does not evaluate"
+        )),
