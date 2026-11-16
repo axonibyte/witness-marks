@@ -1,1 +1,1 @@
-e_mpa * i / l_mm.powi(3)
+    e_mpa * second_moment(w_mm, t_mm) / l_mm.powi(3)

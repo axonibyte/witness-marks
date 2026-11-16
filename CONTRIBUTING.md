@@ -81,6 +81,19 @@ instead of `expect-fail`, and `tools/mutate.sh` records it as killed by the
 compiler. Declaring both files is itself refused: a mutant that passes on
 whichever matched would be an arm that cannot fail.
 
+**`tools/mutate.sh --all` is also a check that the RECORD still describes the
+CODE.** A recorded mutant names an exact piece of source. Edit that source and
+the mutant stops applying, and the tool refuses rather than patching something
+adjacent and reporting a kill. On 2026-11-16 that caught two in a row: adding
+a `second_moment` function gave an existing mutant's find text a second
+occurrence in the file, and then removing the duplication changed a different
+mutant's line out from under it. Neither broke a test. Both would have left a
+recorded kill quietly unverifiable.
+
+So a non-zero exit from `--all` with no SURVIVED and no MISFIRED lines is not
+a pass: it means a mutant could not be placed. Compare the kill count against
+the number of directories under `tests/mutations/`.
+
 **A mutant that survives is a finding, and it gets written down as a survivor**
 rather than deleted or quietly re-aimed. Two live examples are in
 `tests/mutations/0-mutation-record.md`: a clause that survives alone because
