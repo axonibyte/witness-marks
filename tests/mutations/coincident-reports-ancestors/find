@@ -1,0 +1,3 @@
+            if x.path.starts_with(&y.path) || y.path.starts_with(&x.path) {
+                continue;
+            }

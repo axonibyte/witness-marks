@@ -1,0 +1,1 @@
+    if !radius.is_finite() || radius <= 0.0 || !half_width.is_finite() || half_width < 0.0 {
