@@ -2,6 +2,55 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-16
+
+Milestone 1, Provider and envelope: all eight issues. Witness Marks now talks
+to the pinned provider and wraps every answer in a verdict that refuses to
+overstate itself. Still no Layer answers a geometry question of its own.
+
+### Added
+- `wm-provider`: a std-only JSON-RPC stdio client for the pinned provider. A
+  reader thread so a silent server is a timeout and not a hang, id matching so
+  an interleaved notification is not mistaken for an answer, and refusal at
+  startup if the server is not the pinned one.
+- `Status::derive`: `ok | empty | refused | failed` from what the provider
+  said, with provenance hashes, kernel, and the measured subject attached.
+- `wm-provider::view`: detects parameters that move or hide geometry and pins
+  the ones that move, reporting both.
+- `wm-provider::controls`: known-positive controls beside every probe, so a
+  probe that cannot bite is reported blind rather than clear.
+- `wm-provider::artifact`: a producer that clears its target first and returns
+  no path on failure.
+- `wm-provider::jobs`: job handles, so a long call is not a lost turn, and a
+  worker that dies says so instead of reading as busy.
+- `wm-provider::project`: part enumeration and staleness, where a part never
+  exported is never called current.
+- `witness-marks::budget`: a cap on our own tool surface, with the arm that
+  makes it bite while we still register no tools.
+- `tools/audit-file-writes.py` and `t_artifact_paths.sh`: nothing creates a
+  file outside `artifact.rs`.
+
+### Changed
+- `provider/PROVIDER.toml` records the serverInfo version separately from the
+  PyPI version. They are different schemes: the pin is 0.6.1 and the server
+  advertises 4.2.0, so a refusal written against the wrong one refuses every
+  run.
+- `tests/vectors/`: seven vectors carry the provider's measured answers, so
+  the set is cross-implementation in fact rather than in intent.
+
+### Fixed
+- A claim committed in v0.1.0 said neither side could compute component count.
+  The provider computes it. The finding is about our side: a binary STL has no
+  component structure for the mesh reader to see.
+
+### Known gaps
+- Carried from v0.1.0: the FreeBSD reaper guest has no Rust toolchain, and the
+  vector arms sit outside the glob CI runs pending the openscad probe.
+- `render`, `check` and `get_project_files` have typed entry points only
+  through the generic `call`; the three with dedicated wrappers are `measure`,
+  `validate` and `scad_eval`.
+
+
 ## [0.1.0] - 2026-11-16
 
 Milestone 0, Foundations: the seven issues that had to land before any

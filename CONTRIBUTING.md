@@ -71,6 +71,16 @@ Two forms, either is enough:
 
 Prefer the second for anything that will still matter next month.
 
+**A rule the COMPILER enforces is killed by the compiler, and that counts.** A
+`const _: () = assert!(...)` is the strongest form a cap can take: there is no
+state in which the violating combination is meaningful, so the build refuses it
+rather than a test reporting it later. A mutant against such a rule can never
+be killed by a named test, because no test runs. Give that mutant an
+`expect-build-failure` file holding a substring of the compiler's refusal
+instead of `expect-fail`, and `tools/mutate.sh` records it as killed by the
+compiler. Declaring both files is itself refused: a mutant that passes on
+whichever matched would be an arm that cannot fail.
+
 **A mutant that survives is a finding, and it gets written down as a survivor**
 rather than deleted or quietly re-aimed. Two live examples are in
 `tests/mutations/0-mutation-record.md`: a clause that survives alone because

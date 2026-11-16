@@ -19,6 +19,18 @@
 #   expect-fail   a substring of the test name that must go from pass to FAIL
 #   test-cmd      optional; defaults to `cargo test --locked --workspace`
 #
+#   expect-build-failure
+#                 INSTEAD of expect-fail: a substring that must appear in the
+#                 output when the BUILD refuses the mutant. Some rules are
+#                 enforced by the compiler rather than by a test -- a
+#                 `const _: () = assert!(...)` is the strongest form a cap can
+#                 take, because there is no state in which the violating
+#                 combination is meaningful. A mutant against such a rule can
+#                 never be killed by a named test, since no test runs. Without
+#                 this file the refusal in #4 below would report MISFIRED for
+#                 a mutant the compiler killed correctly, so the tool would be
+#                 punishing the stronger guard.
+#
 # THE FOUR REFUSALS, each of which is a mutation run reporting green while
 # proving nothing, and each of which I have actually shipped:
 #
@@ -42,11 +54,26 @@ cd "$ROOT" || exit 70
 
 run_one() {
     d=$1
-    for need in subject find replace expect-fail; do
+    for need in subject find replace; do
         [ -r "$d/$need" ] || { echo "mutate: $d has no '$need'" >&2; return 70; }
     done
+    # EXACTLY ONE EXPECTATION. A mutant declaring both would pass on whichever
+    # happened to match, which is an arm that cannot fail.
+    build_want=""
+    if [ -r "$d/expect-build-failure" ]; then
+        [ -r "$d/expect-fail" ] && {
+            echo "mutate: $(basename "$d") declares BOTH expect-fail and expect-build-failure; pick one" >&2
+            return 70
+        }
+        build_want=$(cat "$d/expect-build-failure")
+        want=""
+    elif [ -r "$d/expect-fail" ]; then
+        want=$(cat "$d/expect-fail")
+    else
+        echo "mutate: $d has neither 'expect-fail' nor 'expect-build-failure'" >&2
+        return 70
+    fi
     subj=$(cat "$d/subject")
-    want=$(cat "$d/expect-fail")
     cmd='cargo test --locked --workspace'
     [ -r "$d/test-cmd" ] && cmd=$(cat "$d/test-cmd")
     name=$(basename "$d")
@@ -96,6 +123,23 @@ PY
     out=$(cat "$bak.mut"); rm -f "$bak.mut"
 
     verdict=0
+    if [ -n "$build_want" ]; then
+        # A COMPILE-TIME GUARD. The kill is the build refusing, and the
+        # expected message must be present -- a build that failed for some
+        # OTHER reason is not evidence about this rule.
+        if [ "$mrc" -eq 0 ]; then
+            echo "  SURVIVED  $name -- the build accepted a mutant the compiler was supposed to refuse"
+            return 1
+        fi
+        if printf '%s' "$out" | grep -qF "$build_want"; then
+            echo "  KILLED    $name -- by the COMPILER: $build_want"
+            return 0
+        fi
+        echo "  MISFIRED  $name -- the build failed but not with the expected refusal"
+        echo "            wanted: $build_want"
+        printf '%s' "$out" | grep -E '^error' | head -3 | sed 's/^/            /'
+        return 2
+    fi
     if [ "$mrc" -eq 0 ]; then
         echo "  SURVIVED  $name -- the suite is still green, so nothing covers this"
         verdict=1

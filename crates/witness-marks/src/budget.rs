@@ -30,6 +30,24 @@ pub const TOTAL_CAP: usize = 20_000;
 /// 2263) rounded up to 2500.
 pub const PER_TOOL_CAP: usize = 2_500;
 
+/// The provider's surface as measured on 2026-11-16, over the wire.
+pub const PROVIDER_MEASURED_TOTAL: usize = 19_174;
+/// Its largest single tool, `render`.
+pub const PROVIDER_MEASURED_LARGEST: usize = 2_263;
+
+// THE RULE IS ENFORCED AT COMPILE TIME. A cap lowered below the measurement it
+// was derived from stops the BUILD rather than failing a test, because there
+// is no state in which that combination is meaningful: the caps exist to be
+// at least as generous as the thing that inspired them.
+const _: () = assert!(TOTAL_CAP >= PROVIDER_MEASURED_TOTAL);
+const _: () = assert!(PER_TOOL_CAP >= PROVIDER_MEASURED_LARGEST);
+
+/// The caps, read at runtime so a test can assert on them without the
+/// assertion folding to a constant.
+pub fn caps() -> (usize, usize) {
+    (TOTAL_CAP, PER_TOOL_CAP)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Surface {
     pub total: usize,
@@ -184,12 +202,23 @@ mod tests {
 
     /// The provider's measured surface fits the caps it inspired, which is the
     /// check that they are not arbitrary.
+    ///
+    /// READ THROUGH `caps()` SO THE ASSERTION IS NOT CONSTANT. Written against
+    /// the consts directly this is a constant expression, and clippy refuses
+    /// it -- rightly, because a test that cannot vary is not a test. The
+    /// compile-time versions above are where the rule is actually enforced;
+    /// this arm exists to NAME it in the suite's output, so a reader of the
+    /// test list sees that the caps are tied to a measurement.
     #[test]
     fn the_caps_admit_the_provider_they_were_set_from() {
+        let (total, per_tool) = caps();
         assert!(
-            TOTAL_CAP >= 19_174,
+            total >= PROVIDER_MEASURED_TOTAL,
             "the cap must admit the provider's measured surface"
         );
-        assert!(PER_TOOL_CAP >= 2_263, "and its largest single tool");
+        assert!(
+            per_tool >= PROVIDER_MEASURED_LARGEST,
+            "and its largest single tool"
+        );
     }
 }
