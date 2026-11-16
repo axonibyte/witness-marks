@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-16
+
+Milestone 2a, Owned layers: mechanics and process. The ten closed-form calls
+Witness Marks owns because the provider does not do them. Nothing here needs a
+geometry kernel; every answer is checkable against arithmetic.
+
+Milestone 2 was split at the owner's word, and the seam is whether the work
+needs the provider rather than a count. `wm-process: support` moved to 2b
+mid-milestone for that reason: its own body says "over provider sections", and
+the Layer 4 half of it -- the critical angle -- shipped here.
+
+### Added
+- `wm-process::Process`: the process as a typed model where every field is
+  optional so a missing input can be REFUSED rather than defaulted, and the
+  refusal names both the field and the caller.
+- `critical_angle_deg`: 45 degrees is folklore with exactly one true case.
+- `quantize`: a thickness is whole layers, and the error that matters is cubed.
+- `reachable_retract_speed`: commanded and achieved are two numbers.
+- `fits_bed`, `MeshFormat` (binary by default), `SliceRequest`.
+- `wm-mech::Beam` with cantilever and fixed-guided ends, `Screw`,
+  `friction_chain`, `PressFit`, and the tolerance `stack`.
+
+### Fixed
+- Buildability log entry 72 states a 3.7:1 ratio that its own radii make
+  4.05:1. Recorded as entry 78 rather than silently corrected; the entry's
+  other figures check out and its conclusion survives either way.
+
+### Known gaps
+- Carried: the FreeBSD reaper guest has no Rust toolchain; the vector arms sit
+  outside the glob CI runs pending the openscad probe.
+- `wm-mech::press` covers cylindrical fits only, and refuses slots by design.
+
+
 ## [0.2.0] - 2026-11-16
 
 Milestone 1, Provider and envelope: all eight issues. Witness Marks now talks
