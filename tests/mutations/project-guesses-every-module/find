@@ -1,0 +1,6 @@
+    for m in module_parts {
+        let needle = format!("module {m}(");
+        if source.contains(&needle) {
+            push((*m).to_string(), Found::Module);
+        }
+    }

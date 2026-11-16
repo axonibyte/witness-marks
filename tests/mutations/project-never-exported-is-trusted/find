@@ -1,0 +1,2 @@
+    pub fn is_trustworthy(&self) -> bool {
+        matches!(self, Freshness::Current)

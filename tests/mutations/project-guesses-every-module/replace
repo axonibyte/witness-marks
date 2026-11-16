@@ -1,0 +1,8 @@
+    let _ = module_parts;
+    for line in source.lines() {
+        if let Some(rest) = line.trim().strip_prefix("module ") {
+            if let Some(n) = rest.split('(').next() {
+                push(n.trim().to_string(), Found::Module);
+            }
+        }
+    }

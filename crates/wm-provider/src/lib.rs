@@ -37,6 +37,7 @@ use wm_envelope::{Controls, Envelope, Observed, Provenance, Status, Subject};
 pub mod artifact;
 pub mod controls;
 pub mod jobs;
+pub mod project;
 pub mod view;
 
 pub const LAYER: &str = "wm-provider";
