@@ -1,0 +1,1 @@
+sh tools/tests/t_provider_claims.sh

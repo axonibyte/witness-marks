@@ -1,0 +1,1 @@
+    for key, unwanted in (claim.get("behavior_lacks") or {}).items():

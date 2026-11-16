@@ -1,0 +1,2 @@
+        if have is None:
+            return "UNVERIFIED", f"{tool_name} did not enumerate its modes, so {want_modes} is unchecked"

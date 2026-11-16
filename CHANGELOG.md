@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+Milestone 2c, Provider truth. The spec's [exists] badges were read from the
+provider's documentation and never run. They are now measured.
+
+Against **OpenSCAD MCP Server 4.2.0**, protocol 2024-11-05, 12 tools, 20321
+bytes of schema: **15 claims measured, 0 failed, 0 unverified** -- 13 decided
+from the tool surface, 2 from behavior, 3 further badges describing the badge
+system itself.
+
+### Added
+- `tools/provider-audit.py`: launches the PINNED provider over MCP stdio and
+  records its tools, modes, properties and selected behaviors. Distinct exit
+  codes for the three ways this can go wrong -- 3 unreachable, 4 identity
+  mismatch, 5 a surface with no tools -- because an unreachable provider is not
+  "no claims failed".
+- `tools/check-provider-claims.py`: judges the claims against a captured
+  surface. Needs no provider, so it runs on every push.
+- `tests/fixtures/provider-claims.toml`: the 17 badges as data, each naming
+  what in the surface would have to be true.
+- `tests/fixtures/provider-surface.json`: the measured surface.
+- `tools/tests/t_provider_claims.sh`: 11 arms, including the refusals driven in
+  both directions.
+
+### Changed
+- `docs/spec.md` is **draft 5**. The sentence "every [exists] badge was read
+  from the provider's own API.md, not run" is retired, replaced by the measured
+  tally and the two things measurement changed that reading could not.
+- `mcp-surface.md`, the designs copy, synced; only its COPY banner differs.
+
+### Fixed
+- Spec L436 narrowed by measurement. The provider does report an empty result
+  rather than passing silently -- but OpenSCAD's *2D type error* does not
+  survive the boundary: an empty 2D and an empty 3D arrive as the same
+  `empty_output` hint with zero errors. Pinned as its own claim, so recovering
+  the distinction upstream will fail the claim rather than go unnoticed.
+
+### Known gaps
+- Carried: the FreeBSD reaper guest has no Rust toolchain; the vector arms sit
+  outside the glob CI runs pending the openscad probe.
+- `tools/provider-audit.py` needs uv, a resolved lockfile and OpenSCAD, so it
+  cannot run in the forge jail. CI judges the claims against the committed
+  snapshot; a STALE snapshot therefore passes. The surface records the
+  serverInfo it came from and the audit refuses if the server answering is not
+  the pinned one, but making it current is a deliberate act.
+- Carried: milestone 2b's four provider-wiring remnants (23, 31, 34, 35) are
+  still open. This release establishes that the calls they need -- `check`
+  mode motion, `measure` modes probe/features/section/printability -- all
+  exist and are measured.
+
 ## [0.4.0] - 2026-11-16
 
 Milestone 2b, Geometry over the provider: the ten tools that need a geometry

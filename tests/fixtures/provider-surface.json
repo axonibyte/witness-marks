@@ -1,0 +1,260 @@
+{
+ "behaviors": {
+  "empty_2d": {
+   "error_count": 0,
+   "hint_codes": [
+    "empty_output"
+   ],
+   "source": "difference(){square(10);square(10);}",
+   "success": true
+  },
+  "empty_3d": {
+   "error_count": 0,
+   "hint_codes": [
+    "empty_output"
+   ],
+   "source": "difference(){cube(10);cube(10);}",
+   "success": true
+  },
+  "nonempty_3d": {
+   "error_count": 0,
+   "hint_codes": [],
+   "source": "cube(10);",
+   "success": true
+  }
+ },
+ "pinned": {
+  "mcp_protocol": "2024-11-05",
+  "version": "0.6.1"
+ },
+ "protocol_version": "2024-11-05",
+ "schema_bytes": 20321,
+ "server_info": {
+  "name": "OpenSCAD MCP Server",
+  "version": "4.2.0"
+ },
+ "tool_count": 12,
+ "tools": {
+  "check": {
+   "description": "Relations between named parts, exported separately (never unioned),\ncached, in the assembly frame. parts=[{name, code, place?, frame?,\nghost?, mass_g?, motion?}] (code \"lid();\", place \"translate(P)\") or\ncheck_file= (YAML/JSON: frames, quality, parts, checks, model).\nmode \"interference\": clear|contact|interference with penetration depth\nand witness point (flush contact is contact). \"clearance\": exact\nminimum distance, closest points, min_mm. \"contact\": area, normal,\nplane; kind=static|sliding. \"alignment\": coaxial hole stacks across\nparts, offsets, orphans. \"motion\": sweep moving= about axis/center over\nrange deg, or along vector over range mm; full turns add a certificate.\n\"rules\": every rule in the check file; exit_code 0/1/2. Any number or\nvector in a rule or motion may be a SCAD expression string (\"[BOLT_R,\n0, BASE_H]\") evaluated in the model's scope. quality:\ndraft|normal|high or $fn, echoed per row; distances inside the\ntessellation error bound are UNRESOLVED. volume=true cross-checks with\nOpenSCAD's intersection volume.",
+   "modes": [
+    "interference",
+    "clearance",
+    "contact",
+    "alignment",
+    "motion",
+    "rules"
+   ],
+   "properties": [
+    "against",
+    "axis",
+    "center",
+    "check_file",
+    "checks",
+    "frames",
+    "include_paths",
+    "kind",
+    "min_mm",
+    "mode",
+    "moving",
+    "pairs",
+    "parts",
+    "quality",
+    "range",
+    "response_format",
+    "scad_content",
+    "scad_file",
+    "steps",
+    "tolerance_mm",
+    "variables",
+    "vector",
+    "volume"
+   ],
+   "required": []
+  },
+  "check_openscad": {
+   "description": "Verify OpenSCAD installation and return version info.",
+   "modes": [],
+   "properties": [
+    "include_paths"
+   ],
+   "required": []
+  },
+  "clear_cache": {
+   "description": "Delete all cached render files and report freed space.\n\nRemoves every cached image and its dependency manifest from the\nconfigured cache directory.\nDoes nothing (and still reports success) when the cache is disabled\nor the directory does not exist.",
+   "modes": [],
+   "properties": [],
+   "required": []
+  },
+  "export_model": {
+   "description": "Export OpenSCAD code or file to a mesh, 2D, or CSG format. With\nparts=[{name, code, place?}] every part is exported separately (in its\nassembly position) and bundled into one 3MF with named objects, or into\na directory of STLs when output_format=\"stl\"; a manifest is returned.\n\nMesh exports (stl, 3mf, amf, off, nef3) also return a \"mesh_health\"\nblock from OpenSCAD's CGAL statistics: \"manifold\" is true, false, or\nnull when OpenSCAD did not perform the check. A non-manifold result\nusually means parts touch along an edge or face; overlap them slightly.",
+   "modes": [],
+   "properties": [
+    "include_paths",
+    "output_format",
+    "output_path",
+    "parts",
+    "quality",
+    "scad_content",
+    "scad_file",
+    "variables"
+   ],
+   "required": []
+  },
+  "get_libraries": {
+   "description": "Discover installed OpenSCAD libraries on the system.\n\nSearches standard OpenSCAD library paths for the current\nplatform, plus the OPENSCADPATH environment variable. For each\nfound library directory, lists subdirectories as libraries and\nreports file counts, README presence, and main entry files.\n\nThis is a read-only operation that does not require OpenSCAD\nto be installed.",
+   "modes": [],
+   "properties": [],
+   "required": []
+  },
+  "get_project_files": {
+   "description": "mode=\"files\": every .scad under project_dir with size/mtime and the\ninclude/use/import/surface references of each. mode=\"trace\": the\nconstant dependency graph for symbol= (lexical, file-scope constants\nonly): its definition, what depends on it (direction=\"downstream\") or\nwhat it depends on (\"upstream\"), by depth, and the part files that use\nthem. project_dir must be inside allowed_paths when configured.",
+   "modes": null,
+   "properties": [
+    "direction",
+    "mode",
+    "project_dir",
+    "symbol"
+   ],
+   "required": [
+    "project_dir"
+   ]
+  },
+  "measure": {
+   "description": "Exact numbers from a model's geometry (mm). Prefer this over judging a\npicture. parts=[{name, code, place?, material?, mass_g?}] names\nassembly parts; coordinates are then in the assembly frame.\nmode \"model\": bbox, volume, area, solid/cavity counts, watertight,\nmesh_health (2D: area/perimeter). \"parts\": per part plus assembly bbox.\n\"section\": cut contours at section_axis=section_offset (mm or an\nexpression). \"mass\": grams for material/density; with parts= and\nabout_axis=[[point],[dir]] the assembly mass, centre of mass and\ninertia about the axis (mass_g overrides purchased parts). \"probe\":\npoints -> solid|air and which part, rays=[[ox,oy,oz,dx,dy,dz]] ->\ncrossings, polyline -> line of sight and blocker. \"features\": holes\nfrom the CSG tree: axis, diameter, depth, undersize at $fn, fit names.\n\"printability\": overhang patches with unsupported reach, thickness vs\nnozzle, islands (layer_height_mm), support estimate; facts only.\n\"orientation\": candidate orientations, no winner. \"anchors\": BOSL2\nanchors of part=\"module();\". mesh=existing STL/SVG. quality: draft|\nnormal|high or $fn. response_format: concise|detailed.",
+   "modes": [
+    "model",
+    "parts",
+    "section",
+    "mass",
+    "probe",
+    "features",
+    "printability",
+    "orientation",
+    "anchors"
+   ],
+   "properties": [
+    "about_axis",
+    "density_g_cm3",
+    "include_paths",
+    "layer_height_mm",
+    "material",
+    "mesh",
+    "mode",
+    "nozzle_mm",
+    "orientation",
+    "part",
+    "parts",
+    "points",
+    "polyline",
+    "quality",
+    "rays",
+    "response_format",
+    "scad_content",
+    "scad_file",
+    "section_axis",
+    "section_offset",
+    "variables"
+   ],
+   "required": []
+  },
+  "model": {
+   "description": "Manage .scad files in a workspace: action = \"create\" | \"get\" | \"update\" |\n\"list\" | \"delete\". name is the file name (\".scad\" added); content is the\nsource for create/update. Every response carries an \"etag\" (content\nhash) so a later update can be checked against the version last read.\ntemplate=\"part:<id>\" with action=\"create\" writes a purchased-part module\nfrom the parts catalog (see reference(topic=\"parts\")) instead of content.\nworkspace defaults to the server temp models directory; when\nallowed_paths is configured the workspace must lie inside it.",
+   "modes": [],
+   "properties": [
+    "action",
+    "content",
+    "name",
+    "template",
+    "workspace"
+   ],
+   "required": [
+    "action"
+   ]
+  },
+  "reference": {
+   "description": "Sourced engineering data for 3D-printed parts, each entry with a\nconfidence label (standard / consensus / calibrate). topics: fits\n(clearances per side and diametral, $slop), fasteners (metric screws,\nclearance and tap holes), inserts (heat-set), bearings, magnets,\njoints (dovetail, snap, press, hinge; BOSL2 module names), parts\n(purchased-part catalog: envelope, mount pattern, shaft, mass, a BOSL2\nmodule with named anchors and a clearance mask; write it with\nmodel(action=create, template=\"part:<id>\")), conventions, cheatsheet,\ndfm (FDM design rules), materials. query filters entries.\ntopic=\"fits\" with diameter_mm=3.3 names what that hole is (top 3\nwith deltas); with shaft_mm and bore_mm it names the fit class.",
+   "modes": [],
+   "properties": [
+    "bore_mm",
+    "detailed",
+    "diameter_mm",
+    "query",
+    "shaft_mm",
+    "topic"
+   ],
+   "required": []
+  },
+  "render": {
+   "description": "Images of a model, each preceded by a text digest (view direction,\ncamera, scale, bbox) and followed by metadata with errors/warnings/\nhints. Check those: OpenSCAD draws a blank scene and exits 0 on a\nfailed assert or unknown module.\nmode \"views\": one image per view (default [\"isometric\"]; front back\nleft right top bottom isometric dimetric) or a custom camera_position.\n\"section\": exact cut at section_axis=section_offset (mm, or an\nexpression in the model's scope). \"parts\": parts=[{name, code, place?,\ncolor?, ghost?, explode?}] in stable colours; isolate=name ghosts the\nrest. \"compare\": before/after via variables_after or scad_content_after.\ngrounded=true gives an orthographic view with an exact mm/px scale;\nannotate=true adds scale bar, axis triad and bbox size; look_at=part |\n[x,y,z] | {min,max} frames that box; callouts=[{label, at}] label\npoints. Auto-fit views have no absolute scale. quality: draft|normal|\nhigh. image_size default 800x600 (~640 tokens per image).",
+   "modes": [
+    "views",
+    "section",
+    "parts",
+    "compare"
+   ],
+   "properties": [
+    "annotate",
+    "callouts",
+    "camera_position",
+    "camera_target",
+    "camera_up",
+    "color_scheme",
+    "grounded",
+    "image_size",
+    "include_paths",
+    "isolate",
+    "look_at",
+    "mode",
+    "parts",
+    "quality",
+    "scad_content",
+    "scad_content_after",
+    "scad_file",
+    "section_axis",
+    "section_offset",
+    "variables",
+    "variables_after",
+    "views"
+   ],
+   "required": []
+  },
+  "scad_eval": {
+   "description": "Evaluate OpenSCAD expressions and return typed values (number, vector,\nstring, bool, range, undef). With scad_content/scad_file the\nexpressions run in that model's variable and function scope, so\n\"wall*2 + clearance\" or \"len(hole_positions)\" work; without a model\nthey run standalone. Numbers carry OpenSCAD's 6 significant digits.\nNo geometry is evaluated.",
+   "modes": [],
+   "properties": [
+    "expressions",
+    "include_paths",
+    "scad_content",
+    "scad_file",
+    "variables"
+   ],
+   "required": [
+    "expressions"
+   ]
+  },
+  "validate": {
+   "description": "Check a model. \"valid\" is false whenever an ERROR was reported, whatever\nOpenSCAD's exit code was.\nmode:\n  \"syntax\": parse and evaluate without geometry (fast): errors,\n    warnings, echo_output, hints, unresolved_includes with locations.\n  \"geometry\": export the mesh and report findings: not watertight,\n    non-manifold, several solids, cavities, empty; with the numbers.\n  \"predicates\": predicates=[\"W > 10\", ...] evaluated in the model's own\n    scope; each must be true. sweep={variable, values:[..]} re-runs\n    them per value and reports the first failure and the crossing.\n  \"includes\": every include/use/import/surface reference with its\n    resolved path, plus the BOSL2 lint: a module from a use<>d file\n    placed by attach()/position() is silently put at CENTER; findings\n    carry a fix plan, applied to the file when autofix=true and safe.\n  \"printability\": rules from reference(topic=dfm) over\n    measure(mode=printability) facts in orientation=; profile=\n    {overhang_deg, nozzle_mm, max_unsupported_reach_mm, min_wall_mm}\n    overrides thresholds. Findings carry magnitude and location.",
+   "modes": [
+    "syntax",
+    "geometry",
+    "predicates",
+    "includes",
+    "printability"
+   ],
+   "properties": [
+    "autofix",
+    "include_paths",
+    "mode",
+    "orientation",
+    "predicates",
+    "profile",
+    "scad_content",
+    "scad_file",
+    "sweep",
+    "variables"
+   ],
+   "required": []
+  }
+ }
+}

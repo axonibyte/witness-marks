@@ -1,0 +1,175 @@
+# The spec's [exists] badges, as checkable claims.
+#
+# docs/spec.md §12: "every [exists] badge was read from the provider's own
+# API.md, not run." This file is the list that turns that sentence false, one
+# claim at a time. Each entry names where the claim lives in the spec, what it
+# asserts, and what in the provider's measured surface would have to be true.
+#
+# `spec_line` is where the badge sits in docs/spec.md. It drifts when the spec
+# is edited; the arm checks the badge COUNT rather than trusting these numbers,
+# so a drift shows up as a count mismatch and not as a silent miss.
+#
+# kind:
+#   surface  -- decidable from the captured surface (tests/fixtures/provider-surface.json)
+#   run      -- a BEHAVIOR, not a shape. The surface cannot answer it; it needs
+#               a call against a live provider. Recorded here so it is counted
+#               as unverified rather than quietly absent from the tally.
+#   meta     -- the badge defines or describes the badge system itself.
+
+[[claim]]
+spec_line = 242
+subject = "a handle, not a string"
+asserts = "the provider identifies a model by handle with a content hash, not by passing source strings"
+kind = "surface"
+tool = "model"
+description_contains = ["etag"]
+
+[[claim]]
+spec_line = 244
+subject = "typed parameters"
+asserts = "parameters are injected typed, by source-wrapping, rather than as -D strings"
+kind = "surface"
+tool = "measure"
+properties = ["variables"]
+
+[[claim]]
+spec_line = 251
+subject = "echo is an instrument"
+asserts = "derived values are readable without parsing stderr -- as scad_eval, which the spec calls better"
+kind = "surface"
+tool = "scad_eval"
+properties = ["expressions"]
+
+[[claim]]
+spec_line = 259
+subject = "library resolution"
+asserts = "BOSL2, MCAD and user libraries resolve, and unresolved includes are reportable"
+kind = "surface"
+tool = "validate"
+modes = ["includes"]
+
+[[claim]]
+spec_line = 270
+subject = "the camera the agent asked for"
+asserts = "the caller chooses the camera rather than being given a default throwntogether preview"
+kind = "surface"
+tool = "render"
+properties = ["camera_position", "camera_target", "camera_up"]
+
+[[claim]]
+spec_line = 272
+subject = "ghost geometry is a mode"
+asserts = "ghost geometry is chosen by the caller and reported, not a surprise of the render mode"
+kind = "surface"
+tool = "render"
+description_contains = ["ghost"]
+
+[[claim]]
+spec_line = 274
+subject = "highlight is how an agent finds things"
+asserts = "per-part ghost and colour, so one module can be lit and the rest ghosted"
+kind = "surface"
+tool = "render"
+properties = ["isolate", "parts", "color_scheme"]
+
+[[claim]]
+spec_line = 276
+subject = "sections are the diagnostic view"
+asserts = "cut sections at a chosen plane, rather than hand-slicing a dozen heights"
+kind = "surface"
+tool = "measure"
+modes = ["section"]
+properties = ["section_axis", "section_offset"]
+
+[[claim]]
+spec_line = 297
+subject = "locate and at"
+asserts = "measure modes probe and features answer where material is and what made it"
+kind = "surface"
+tool = "measure"
+modes = ["probe", "features"]
+properties = ["points", "rays", "polyline"]
+
+[[claim]]
+spec_line = 320
+subject = "sweep with a footprint certificate"
+asserts = "a motion sweep exists, and full rotations carry a certificate"
+kind = "surface"
+tool = "check"
+modes = ["motion"]
+properties = ["moving", "range", "axis", "vector"]
+description_contains = ["certificate"]
+
+[[claim]]
+spec_line = 360
+subject = "features and export"
+asserts = "walls and islands are reported, and export exists"
+kind = "surface"
+tool = "measure"
+modes = ["printability"]
+description_contains = ["islands"]
+
+[[claim]]
+spec_line = 383
+subject = "parts are first-class"
+asserts = "parts are named and handled by the provider, not by show_ flags and a hand-maintained export loop"
+kind = "surface"
+tool = "check"
+properties = ["parts"]
+modes = ["interference", "clearance", "contact", "alignment"]
+
+[[claim]]
+spec_line = 387
+subject = "everything derived is regenerated from source"
+asserts = "results are cached by source hash and the cache is manageable"
+kind = "surface"
+tool = "clear_cache"
+description_contains = ["cache"]
+
+# MEASURED, not read. The provider is handed geometry that renders to nothing
+# and its answer is recorded in the surface's `behaviors`. The CONTROL is the
+# load-bearing half: a provider that cried "empty" at everything would satisfy
+# the first assertion and be useless, so a non-empty model must NOT raise the
+# hint.
+[[claim]]
+spec_line = 436
+subject = "an empty result is reported as empty"
+asserts = "the provider reports an empty result rather than passing silently"
+kind = "behavior"
+behavior_has = { empty_3d = ["empty_output"] }
+behavior_lacks = { nonempty_3d = ["empty_output"] }
+
+# A NARROWING OF L436, found by running it. The spec's own OpenSCAD evidence
+# says an empty 3D result says "empty" while an empty 2D result is reported as
+# a TYPE ERROR -- two different diagnoses. The provider normalizes both into
+# one `empty_output` hint with zero errors, so that distinction does not
+# survive the boundary.
+#
+# This pins what is true TODAY. If the provider later recovers the 2D type
+# error, this claim fails and the spec gets corrected -- which is the point of
+# pinning a narrowing rather than only writing it down.
+[[claim]]
+spec_line = 436
+subject = "the 2D type error does not survive the provider"
+asserts = "an empty 2D result arrives as the same empty_output hint as an empty 3D one, with no error; OpenSCAD's 2D type error is not distinguishable through this boundary"
+kind = "behavior"
+behavior_has = { empty_2d = ["empty_output"] }
+behavior_error_count = { empty_2d = 0 }
+
+[[claim]]
+spec_line = 20
+subject = "the badge system"
+kind = "meta"
+asserts = "defines [exists] as already shipped in the provider"
+
+[[claim]]
+spec_line = 125
+subject = "the badge system, restated"
+kind = "meta"
+asserts = "says the badge is carried through section 05"
+
+[[claim]]
+spec_line = 515
+subject = "the provenance of the badges"
+kind = "meta"
+asserts = "draft 5 states that every [exists] badge has now been RUN, naming the instrument and the measured tally; draft 4's 'read from API.md, not run' is retired"

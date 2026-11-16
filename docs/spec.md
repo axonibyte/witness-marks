@@ -12,7 +12,7 @@ one part, then widened to the general case.
 Evidence: `buildability-tests.md` (75 entries), `openscad-mcp-notes.md` (31
 defects), `overhang-scan.scad` (the slicer-criterion test, validated against
 four hand-computed shapes), `kobra-neo.md` (one printer's measured
-constraints). **Draft 4, 2026-11-14.**
+constraints). **Draft 5, 2026-11-16.**
 
 **Witness Marks is a NEW server**, not an extension of the one the harness was
 built through. Every claim below is badged: **[evidence]** — a specific logged
@@ -433,7 +433,11 @@ found here by accident, late. [evidence]
   an empty 3D result says "Current top level object is empty", an empty 2D one
   says "Current top level object is **not a 2D object**" — emptiness reported
   as a type error — and *both* exit 0 and write no file. [evidence] The
-  provider does this. [exists]
+  provider does this. [exists] MEASURED 2026-11-16, and with one narrowing:
+  the provider reports both as the same `empty_output` hint with zero errors,
+  so it does report emptiness rather than passing silently — and OpenSCAD's
+  *2D type error* does not survive the boundary. A caller that needs to tell an
+  empty 2D result from an empty 3D one cannot do it through this provider.
 - **A pass must not share its representation with a null.** The overhang scan
   reported PASS on a part 80 mm from where it looked. Hence `subject.bbox`; a
   verdict with zero-extent subject is `refused`. [evidence]
@@ -505,10 +509,38 @@ instruments reporting absence.
 
 ---
 
-Draft 4, 2026-11-14; corrected 2026-11-15. Every [evidence] badge traces to a
-logged incident; every [general] badge is reasoned and unfailed; every [exists]
-badge was read from the provider's own API.md, not run. Neither has been tested
-against a second part or a second agent.
+Draft 5, 2026-11-16. Every [evidence] badge traces to a logged incident; every
+[general] badge is reasoned and unfailed.
+
+**Every [exists] badge has now been RUN.** Draft 4 said they "were read from
+the provider's own API.md, not run", and that sentence is what this draft
+retires. `tools/provider-audit.py` launches the pinned provider over MCP stdio
+and records what it actually has; `tools/check-provider-claims.py` judges the
+badges against that capture; `tests/fixtures/provider-claims.toml` holds them
+as data. Measured against **OpenSCAD MCP Server 4.2.0**, protocol 2024-11-05,
+12 tools, 20321 bytes of schema: **15 claims measured, 0 failed, 0 unverified**
+— 13 decided from the tool surface and 2 from behavior, with the other three
+badges describing the badge system itself.
+
+Two things that measurement changed, neither of which reading could have:
+
+- **Modes are not in the schema.** `mode` is a bare string with a default and
+  no enum, so a reader of the JSON schema sees none of them. The audit asks the
+  provider instead — an invalid mode draws `mode must be one of: ...` — which
+  is the only account of its modes that cannot drift from its behavior. A first
+  attempt that parsed the modes out of each tool's prose found 4 of `measure`'s
+  9 and 2 of `check`'s 6, missing `probe`, `features` and `motion`: precisely
+  the three this document's claims rest on.
+- **Two servers answer to "openscad-mcp" on the author's machine**, one of them
+  an unrelated 1.0.0 with 11 render-only tools. Reading that one and reporting
+  on this one produced a confident, wholly wrong conclusion that the provider
+  boundary was fiction. The audit therefore reconciles `serverInfo` against
+  `PROVIDER.toml` and refuses before capturing anything, and refuses distinctly
+  when the provider cannot be reached at all — an unreachable provider is not
+  "no claims failed".
+
+The boundary itself still has not been tested against a second part or a second
+agent.
 
 **Corrections, 2026-11-15.** A second agent audited draft 4; every claim of
 theirs that could be checked was checked here before it was taken, and all of

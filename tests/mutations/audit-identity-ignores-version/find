@@ -1,0 +1,2 @@
+    return (server.get("name") == pin.get("server_info_name")
+            and server.get("version") == pin.get("server_info_version"))

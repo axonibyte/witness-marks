@@ -1,0 +1,3 @@
+        missing = [m for m in want_modes if m not in have]
+        if missing:
+            return "FAIL", f"{tool_name} lacks mode(s) {missing}; it has {have}"
