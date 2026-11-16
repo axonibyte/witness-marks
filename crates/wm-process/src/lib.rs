@@ -17,6 +17,7 @@
 use wm_envelope::ProvenanceKind;
 
 pub mod support;
+pub mod wire;
 
 pub const LAYER: &str = "wm-process";
 

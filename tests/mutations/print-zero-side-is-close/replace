@@ -1,0 +1,1 @@
+        return Ok(Agreement::Close { ratio: 1.0 });

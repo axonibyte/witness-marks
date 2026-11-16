@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-16
+
+Milestone 2d, the remnants wired. Milestone 2b shipped four tools as judgment
+halves with their measurement mocked in fixtures; 2c established that every
+provider call they need exists. This connects them.
+
+### Added
+- `wm-csg::wire`: `locate` and `at` from `measure(mode=probe|features)`.
+- `wm-asm::wire`: `insert` and `travel_stop` from `check(mode=motion)`.
+- `wm-model::wire`: a real content hash for `diff`, from `export_model`'s
+  bytes -- the provider publishes none.
+- `wm-process::wire`: the issue-23 acceptance test, run at last, as a
+  DIFFERENTIAL against `measure(mode=printability)` rather than a
+  substitution; plus islands.
+- Four fixtures captured from the pinned provider.
+
+### Fixed
+- Measured: the provider's printability answers a different question. On the
+  30 degree cone it reports 362.64 mm2 against the scan's 131.1 -- 2.77x --
+  because `pi * R * (R / cos 30) = 362.76` is the cone's down-facing SURFACE
+  area, where the criterion measures the area with nothing under it. On a flat
+  slab the two nearly coincide (200.0 against 198.5), which is why the
+  difference had never shown.
+- Measured: at exactly 45 degrees the provider's bracket runs [0, 444.18]
+  around a point estimate of 0. The instrument cannot decide at its own
+  critical angle, and a bracket wider than the caller's limit is now a refusal.
+
+### Known gaps
+- Carried: the FreeBSD reaper guest has no Rust toolchain; the vector arms and
+  `provider-audit.py` sit outside what the forge jail can run.
+- Carried: #50, a stale provider snapshot passes the claims arm.
+- The adapters are PURE parsers driven by captured fixtures. Nothing yet
+  re-captures them against a live provider on a schedule, so these fixtures
+  can go stale exactly as #50 describes for the surface.
+
 ## [0.5.0] - 2026-11-16
 
 Milestone 2c, Provider truth. The spec's [exists] badges were read from the

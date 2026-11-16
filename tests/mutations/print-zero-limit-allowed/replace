@@ -1,0 +1,1 @@
+    if !undecided_mm2.is_finite() || undecided_mm2 < 0.0 {

@@ -1,0 +1,6 @@
+        .ok_or_else(|| {
+            "the overhang block carries no usable `bracket`. The bracket is the provider's \
+             own uncertainty from facet size, and a reading without it cannot be told apart \
+             from a certain one"
+                .to_string()
+        })?;

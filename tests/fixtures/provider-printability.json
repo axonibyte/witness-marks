@@ -1,0 +1,404 @@
+{
+ "cone_30": {
+  "answer": {
+   "bbox_max": [
+    10.0,
+    10.0,
+    5.7735
+   ],
+   "bbox_min": [
+    -10.0,
+    -10.0,
+    0.0
+   ],
+   "bed_contact_area_mm2": 0.0,
+   "drop_to_bed_mm": 0.0,
+   "frame": "local",
+   "height_mm": 5.7735,
+   "islands": {
+    "count": 0,
+    "layer_count": 29,
+    "layer_height_mm": 0.2,
+    "list": [],
+    "list_truncated": 0,
+    "unclosed_loop_fraction": 0.0
+   },
+   "mode": "printability",
+   "note": "facts only; thresholds and rules live in validate(mode=printability)",
+   "notes": [
+    "overhang area under-reports on curved surfaces in proportion to facet size; the bracket is evaluated at plus and minus half the mesh's own facet step",
+    "max_unsupported_reach_mm is exact for a patch anchored on opposite sides and an over-estimate for a cantilever; it is not a bridge length",
+    "the thickness minimum is a single facet and may be a tessellation sliver; read p01/p05 and min_location before acting on it"
+   ],
+   "orientation": {
+    "down": [
+     -0.0,
+     -0.0,
+     -1.0
+    ],
+    "drop_to_bed_mm": 0.0,
+    "form": "as-modelled",
+    "input": null,
+    "rotate": {
+     "a": 0.0,
+     "v": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "overhang": {
+    "area_mm2": 362.6415,
+    "bracket": [
+     362.6415,
+     362.6415
+    ],
+    "facet_step_deg": 1.4065,
+    "fraction_of_surface": 0.5359,
+    "patch_count": 1,
+    "patches": [
+     {
+      "area_mm2": 362.6415,
+      "center": [
+       0.0,
+       0.0,
+       3.849
+      ],
+      "facet_count": 128,
+      "worst_deg": 30.0075,
+      "z_min": 0.0
+     }
+    ],
+    "threshold_deg": 45.0
+   },
+   "quality": {
+    "fn": null
+   },
+   "success": true,
+   "support_estimate": {
+    "method": "prism",
+    "volume_mm3": 1208.7141
+   },
+   "support_footprint_area_mm2": 316.16,
+   "thickness": {
+    "area_below_nozzle_mm2": 7.7976,
+    "available": true,
+    "facets_below_nozzle_with_area_ge_1mm2": 0,
+    "measured": 254,
+    "median": 2.2224,
+    "method": "ray",
+    "min": 0.0046,
+    "min_location": [
+     9.992,
+     0.0,
+     5.7735
+    ],
+    "nozzle_mm": 0.4,
+    "p01": 0.0093,
+    "p05": 0.0877,
+    "samples": 254
+   },
+   "total_area_mm2": 676.6746,
+   "triangle_count": 254,
+   "units": "mm"
+  },
+  "model": "cylinder(h=5.773503, r1=0, r2=10.0, $fn=128);"
+ },
+ "cone_45": {
+  "answer": {
+   "bbox_max": [
+    10.0,
+    10.0,
+    10.0
+   ],
+   "bbox_min": [
+    -10.0,
+    -10.0,
+    0.0
+   ],
+   "bed_contact_area_mm2": 0.0,
+   "drop_to_bed_mm": 0.0,
+   "frame": "local",
+   "height_mm": 10.0,
+   "islands": {
+    "count": 0,
+    "layer_count": 50,
+    "layer_height_mm": 0.2,
+    "list": [],
+    "list_truncated": 0,
+    "unclosed_loop_fraction": 0.0
+   },
+   "mode": "printability",
+   "note": "facts only; thresholds and rules live in validate(mode=printability)",
+   "notes": [
+    "overhang area under-reports on curved surfaces in proportion to facet size; the bracket is evaluated at plus and minus half the mesh's own facet step",
+    "max_unsupported_reach_mm is exact for a patch anchored on opposite sides and an over-estimate for a cantilever; it is not a bridge length",
+    "the thickness minimum is a single facet and may be a tessellation sliver; read p01/p05 and min_location before acting on it"
+   ],
+   "orientation": {
+    "down": [
+     -0.0,
+     -0.0,
+     -1.0
+    ],
+    "drop_to_bed_mm": 0.0,
+    "form": "as-modelled",
+    "input": null,
+    "rotate": {
+     "a": 0.0,
+     "v": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "overhang": {
+    "area_mm2": 0.0,
+    "bracket": [
+     0.0,
+     444.1768
+    ],
+    "facet_step_deg": 1.9889,
+    "fraction_of_surface": 0.0,
+    "patch_count": 0,
+    "patches": [],
+    "threshold_deg": 45.0
+   },
+   "quality": {
+    "fn": null
+   },
+   "success": true,
+   "support_estimate": {
+    "method": "prism",
+    "volume_mm3": 0.0
+   },
+   "support_footprint_area_mm2": 0.0,
+   "thickness": {
+    "area_below_nozzle_mm2": 3.3242,
+    "available": true,
+    "facets_below_nozzle_with_area_ge_1mm2": 0,
+    "measured": 254,
+    "median": 4.7148,
+    "method": "ray",
+    "min": 0.008,
+    "min_location": [
+     9.992,
+     0.0,
+     10.0
+    ],
+    "nozzle_mm": 0.4,
+    "p01": 0.0161,
+    "p05": 0.1519,
+    "samples": 254
+   },
+   "total_area_mm2": 758.2099,
+   "triangle_count": 254,
+   "units": "mm"
+  },
+  "model": "cylinder(h=10.000000, r1=0, r2=10.0, $fn=128);"
+ },
+ "cone_60": {
+  "answer": {
+   "bbox_max": [
+    10.0,
+    10.0,
+    17.3205
+   ],
+   "bbox_min": [
+    -10.0,
+    -10.0,
+    0.0
+   ],
+   "bed_contact_area_mm2": 0.0,
+   "drop_to_bed_mm": 0.0,
+   "frame": "local",
+   "height_mm": 17.3205,
+   "islands": {
+    "count": 0,
+    "layer_count": 87,
+    "layer_height_mm": 0.2,
+    "list": [],
+    "list_truncated": 0,
+    "unclosed_loop_fraction": 0.0
+   },
+   "mode": "printability",
+   "note": "facts only; thresholds and rules live in validate(mode=printability)",
+   "notes": [
+    "overhang area under-reports on curved surfaces in proportion to facet size; the bracket is evaluated at plus and minus half the mesh's own facet step",
+    "max_unsupported_reach_mm is exact for a patch anchored on opposite sides and an over-estimate for a cantilever; it is not a bridge length",
+    "the thickness minimum is a single facet and may be a tessellation sliver; read p01/p05 and min_location before acting on it"
+   ],
+   "orientation": {
+    "down": [
+     -0.0,
+     -0.0,
+     -1.0
+    ],
+    "drop_to_bed_mm": 0.0,
+    "form": "as-modelled",
+    "input": null,
+    "rotate": {
+     "a": 0.0,
+     "v": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "overhang": {
+    "area_mm2": 0.0,
+    "bracket": [
+     0.0,
+     0.0
+    ],
+    "facet_step_deg": 2.4358,
+    "fraction_of_surface": 0.0,
+    "patch_count": 0,
+    "patches": [],
+    "threshold_deg": 45.0
+   },
+   "quality": {
+    "fn": null
+   },
+   "success": true,
+   "support_estimate": {
+    "method": "prism",
+    "volume_mm3": 0.0
+   },
+   "support_footprint_area_mm2": 0.0,
+   "thickness": {
+    "area_below_nozzle_mm2": 1.4054,
+    "available": true,
+    "facets_below_nozzle_with_area_ge_1mm2": 0,
+    "measured": 254,
+    "median": 11.5496,
+    "method": "ray",
+    "min": 0.0139,
+    "min_location": [
+     9.992,
+     0.0,
+     17.3205
+    ],
+    "nozzle_mm": 0.4,
+    "p01": 0.0278,
+    "p05": 0.2631,
+    "samples": 254
+   },
+   "total_area_mm2": 942.2413,
+   "triangle_count": 254,
+   "units": "mm"
+  },
+  "model": "cylinder(h=17.320508, r1=0, r2=10.0, $fn=128);"
+ },
+ "flat_cantilever": {
+  "answer": {
+   "bbox_max": [
+    30.0,
+    10.0,
+    20.0
+   ],
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "bed_contact_area_mm2": 100.0,
+   "drop_to_bed_mm": 0.0,
+   "frame": "local",
+   "height_mm": 20.0,
+   "islands": {
+    "count": 0,
+    "layer_count": 100,
+    "layer_height_mm": 0.2,
+    "list": [],
+    "list_truncated": 0,
+    "unclosed_loop_fraction": 0.0
+   },
+   "mode": "printability",
+   "note": "facts only; thresholds and rules live in validate(mode=printability)",
+   "notes": [
+    "overhang area under-reports on curved surfaces in proportion to facet size; the bracket is evaluated at plus and minus half the mesh's own facet step",
+    "max_unsupported_reach_mm is exact for a patch anchored on opposite sides and an over-estimate for a cantilever; it is not a bridge length",
+    "the thickness minimum is a single facet and may be a tessellation sliver; read p01/p05 and min_location before acting on it"
+   ],
+   "orientation": {
+    "down": [
+     -0.0,
+     -0.0,
+     -1.0
+    ],
+    "drop_to_bed_mm": 0.0,
+    "form": "as-modelled",
+    "input": null,
+    "rotate": {
+     "a": 0.0,
+     "v": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    }
+   },
+   "overhang": {
+    "area_mm2": 200.0,
+    "bracket": [
+     200.0,
+     200.0
+    ],
+    "facet_step_deg": 0.0,
+    "fraction_of_surface": 0.1351,
+    "patch_count": 1,
+    "patches": [
+     {
+      "area_mm2": 200.0,
+      "center": [
+       20.0,
+       5.0,
+       10.0
+      ],
+      "facet_count": 2,
+      "max_distance_to_support_mm": 20.0,
+      "max_unsupported_reach_mm": 40.0,
+      "worst_deg": 0.0,
+      "z_min": 10.0
+     }
+    ],
+    "threshold_deg": 45.0
+   },
+   "quality": {
+    "fn": null
+   },
+   "success": true,
+   "support_estimate": {
+    "method": "prism",
+    "volume_mm3": 2000.0
+   },
+   "support_footprint_area_mm2": 200.0,
+   "thickness": {
+    "area_below_nozzle_mm2": 0.0,
+    "available": true,
+    "facets_below_nozzle_with_area_ge_1mm2": 0,
+    "measured": 28,
+    "median": 10.0,
+    "method": "ray",
+    "min": 2.0,
+    "min_location": [
+     16.6667,
+     3.3333,
+     12.0
+    ],
+    "nozzle_mm": 0.4,
+    "p01": 2.0,
+    "p05": 2.0,
+    "samples": 28
+   },
+   "total_area_mm2": 1480.0,
+   "triangle_count": 28,
+   "units": "mm"
+  },
+  "model": "union(){ cube([10,10,20]); translate([10,0,10]) cube([20,10,2]); }"
+ }
+}

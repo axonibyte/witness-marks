@@ -1,0 +1,3 @@
+        return Ok(Agreement::Apart {
+            ratio: f64::INFINITY,
+        });
