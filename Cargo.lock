@@ -100,7 +100,7 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "witness-marks"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -110,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "wm-claims"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde",
  "wm-envelope",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "wm-csg"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde",
  "wm-envelope",
@@ -126,7 +126,7 @@ dependencies = [
 
 [[package]]
 name = "wm-envelope"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -134,7 +134,7 @@ dependencies = [
 
 [[package]]
 name = "wm-mech"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde",
  "wm-envelope",
@@ -142,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "wm-process"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "serde",
  "wm-envelope",
@@ -150,7 +150,7 @@ dependencies = [
 
 [[package]]
 name = "wm-provider"
-version = "0.0.1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "serde",
