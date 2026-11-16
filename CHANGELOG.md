@@ -26,6 +26,15 @@ plumbing that makes it possible." All seven issues.
 - `wm-claims::refusals`: the four the spec names.
 
 ### Fixed
+- `tools/mutate.sh`'s default test command had no `--no-fail-fast`, so cargo
+  stopped at the first failing crate. `mech-thickness-cubed-to-squared` had no
+  `test-cmd`, took that default, and MISFIRED the moment `wm-claims` grew an
+  elasticity test that also detects a broken cubic: cargo stopped in
+  `wm-claims` and `wm-mech`'s named arm never ran. The mutant was fine; the
+  default was the trap. `t_mutation_record.sh` now pins it -- the default
+  carries the flag, every cargo mutant names it (204 checked), and the sweep
+  refuses if it finds none. (Landed inside 15d5baf rather than its own commit;
+  the detail is in tests/mutations/3-claims.md.)
 - Pinned by measurement: a forward difference on a cubic carries a
   first-order error that reads as a real asymmetry between inputs. The central
   difference reads thickness at 3.0000 and modulus at 1.0000; the forward one
