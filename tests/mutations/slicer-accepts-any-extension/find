@@ -1,0 +1,1 @@
+        if !SLICER_EXTENSIONS.contains(&ext.as_str()) {

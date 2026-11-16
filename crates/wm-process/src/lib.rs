@@ -828,3 +828,419 @@ mod firmware_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Bed fit and export. Spec §05.
+// ---------------------------------------------------------------------------
+
+/// Whether a part fits the bed, and what to do if it does not.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BedFit {
+    pub fits_as_is: bool,
+    /// Degrees about Z that would make it fit, where a rotation helps.
+    /// `None` means either it already fits or no rotation about Z can help.
+    pub suggested_rotation_deg: Option<f64>,
+    /// Which axis is over, and by how much, for the orientation as given.
+    pub over_by_mm: [f64; 3],
+}
+
+/// Does a bounding box fit the declared bed, and would turning it help?
+///
+/// ROTATION IS TRIED ABOUT Z ONLY, and that is a stated limit rather than an
+/// oversight: turning a part onto another face changes which surfaces need
+/// support and which direction its layers run, so it is a DESIGN decision and
+/// not a packing one. Suggesting it here would be answering a question nobody
+/// asked with consequences this function cannot see.
+///
+/// The 45-degree diagonal is checked because a part too long for the bed often
+/// fits corner to corner, which is the one rotation worth suggesting without
+/// knowing anything about the part.
+pub fn fits_bed(p: &Process, size_mm: [f64; 3]) -> Result<BedFit, Missing> {
+    let bed = p.bed.as_ref().ok_or(Missing {
+        wanted: "bed".to_string(),
+        by: "fits_bed",
+    })?;
+    for (i, v) in size_mm.iter().enumerate() {
+        if !v.is_finite() || *v <= 0.0 {
+            return Err(Missing {
+                wanted: format!("a positive, finite size on axis {i} (got {v})"),
+                by: "fits_bed",
+            });
+        }
+    }
+    let b = bed.value;
+    let over = [
+        (size_mm[0] - b[0]).max(0.0),
+        (size_mm[1] - b[1]).max(0.0),
+        (size_mm[2] - b[2]).max(0.0),
+    ];
+    let fits = over.iter().all(|o| *o <= 0.0);
+    if fits {
+        return Ok(BedFit {
+            fits_as_is: true,
+            suggested_rotation_deg: None,
+            over_by_mm: over,
+        });
+    }
+    // HEIGHT IS NOT NEGOTIABLE BY A Z ROTATION. If z is over, no turn about z
+    // changes it, and suggesting one would be advice that cannot work.
+    let suggested = if over[2] > 0.0 {
+        None
+    } else {
+        let d = 45.0f64.to_radians();
+        let (c, s) = (d.cos(), d.sin());
+        let w = size_mm[0] * c + size_mm[1] * s;
+        let h = size_mm[0] * s + size_mm[1] * c;
+        if w <= b[0] && h <= b[1] {
+            Some(45.0)
+        } else {
+            None
+        }
+    };
+    Ok(BedFit {
+        fits_as_is: false,
+        suggested_rotation_deg: suggested,
+        over_by_mm: over,
+    })
+}
+
+/// Mesh export formats.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MeshFormat {
+    /// The default, and the only one anybody should ask for.
+    BinaryStl,
+    /// Available, never default. Roughly five times the bytes for the same
+    /// triangles: the logged mistake was a **111 MB** export of a model whose
+    /// binary form is a few megabytes, written because ASCII was the default
+    /// and nobody chose it.
+    AsciiStl,
+    Off,
+    ThreeMf,
+}
+
+impl Default for MeshFormat {
+    /// BINARY, ALWAYS. This impl is the whole fix for mcp-surface's
+    /// "ascii is a 111 MB mistake": a default that has to be overridden to get
+    /// the bad outcome, rather than chosen to avoid it.
+    fn default() -> Self {
+        MeshFormat::BinaryStl
+    }
+}
+
+impl MeshFormat {
+    pub fn is_binary(self) -> bool {
+        matches!(self, MeshFormat::BinaryStl | MeshFormat::ThreeMf)
+    }
+
+    /// The flag OpenSCAD wants for this format.
+    pub fn openscad_export_format(self) -> &'static str {
+        match self {
+            MeshFormat::BinaryStl => "binstl",
+            MeshFormat::AsciiStl => "asciistl",
+            MeshFormat::Off => "off",
+            MeshFormat::ThreeMf => "3mf",
+        }
+    }
+}
+
+#[cfg(test)]
+mod bed_tests {
+    use super::*;
+
+    fn kobra() -> Process {
+        let mut p = Process::new();
+        p.bed = Some(Declared::measured(
+            [220.0, 220.0, 250.0],
+            "the Kobra Neo's usable volume",
+        ));
+        p
+    }
+
+    #[test]
+    fn a_part_within_the_bed_fits_and_needs_no_advice() {
+        let f = fits_bed(&kobra(), [100.0, 50.0, 30.0]).expect("declared");
+        assert!(f.fits_as_is);
+        assert_eq!(f.suggested_rotation_deg, None);
+        assert_eq!(f.over_by_mm, [0.0, 0.0, 0.0]);
+    }
+
+    /// A part too long for the bed often fits corner to corner, which is the
+    /// one rotation worth suggesting without knowing anything about the part.
+    #[test]
+    fn a_long_thin_part_is_offered_the_diagonal() {
+        let f = fits_bed(&kobra(), [280.0, 20.0, 30.0]).expect("declared");
+        assert!(!f.fits_as_is);
+        assert_eq!(f.suggested_rotation_deg, Some(45.0));
+        assert!(f.over_by_mm[0] > 59.0, "60 mm over in x");
+    }
+
+    /// HEIGHT IS NOT NEGOTIABLE BY A Z ROTATION, and suggesting one would be
+    /// advice that cannot work.
+    #[test]
+    fn a_part_too_tall_gets_no_rotation_advice() {
+        let f = fits_bed(&kobra(), [100.0, 100.0, 300.0]).expect("declared");
+        assert!(!f.fits_as_is);
+        assert_eq!(
+            f.suggested_rotation_deg, None,
+            "no turn about z makes a part shorter"
+        );
+        assert!(f.over_by_mm[2] > 49.0);
+    }
+
+    /// A part too big in both axes is not rescued by turning it, and saying
+    /// "try 45 degrees" would waste somebody's afternoon.
+    #[test]
+    fn a_part_too_big_in_both_axes_gets_no_rotation_advice() {
+        let f = fits_bed(&kobra(), [300.0, 300.0, 30.0]).expect("declared");
+        assert!(!f.fits_as_is);
+        assert_eq!(f.suggested_rotation_deg, None);
+    }
+
+    #[test]
+    fn it_refuses_without_a_declared_bed() {
+        assert_eq!(
+            fits_bed(&Process::new(), [10.0, 10.0, 10.0])
+                .expect_err("must refuse")
+                .wanted,
+            "bed"
+        );
+    }
+
+    /// THE DEFAULT IS BINARY. The logged mistake was a 111 MB ASCII export
+    /// written because ASCII was the default and nobody chose it; the fix is a
+    /// default that has to be overridden to get the bad outcome.
+    #[test]
+    fn the_export_default_is_binary() {
+        assert_eq!(MeshFormat::default(), MeshFormat::BinaryStl);
+        assert!(MeshFormat::default().is_binary());
+        assert_eq!(MeshFormat::default().openscad_export_format(), "binstl");
+    }
+
+    /// ASCII is available and is never arrived at by accident.
+    #[test]
+    fn ascii_exists_but_must_be_asked_for() {
+        assert!(!MeshFormat::AsciiStl.is_binary());
+        assert_ne!(MeshFormat::default(), MeshFormat::AsciiStl);
+        assert_eq!(MeshFormat::AsciiStl.openscad_export_format(), "asciistl");
+    }
+
+    #[test]
+    fn a_nonpositive_or_nan_size_is_refused() {
+        for s in [
+            [0.0, 10.0, 10.0],
+            [10.0, f64::NAN, 10.0],
+            [-1.0, 10.0, 10.0],
+        ] {
+            assert!(fits_bed(&kobra(), s).is_err(), "{s:?} must be refused");
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The slicer handoff. Spec §05.
+// ---------------------------------------------------------------------------
+
+/// How to invoke the slicer, built rather than typed.
+///
+/// # Three quirks, all of them measured against OrcaSlicer 2.3.2
+///
+/// **It dispatches on the FILE EXTENSION, not on content.** A perfectly good
+/// binary STL named `stage.binstl` -- which is what OpenSCAD's
+/// `--export-format binstl` invites -- is rejected with "Unknown file format.
+/// Input file must have .stl, .obj, .amf(.xml) extension." The same bytes
+/// named `.stl` load fine. So the export name is part of the handoff and not
+/// a detail.
+///
+/// **Its facet count is not the file's facet count.** `--info` on the vendored
+/// stage reports 788 facets where the file holds 806. The difference is
+/// exactly the 18 ZERO-AREA triangles OpenSCAD's export contains, which the
+/// slicer drops on load. Volume agrees to six significant figures
+/// (40805.5117 against 40805.4868) and so does the bounding box. A facet count
+/// is a property of a file AND of the reader that loaded it.
+///
+/// **The CLI matches the LEAF preset name where the GUI walks the inherits
+/// chain.** A profile that resolves in the GUI through inheritance may not
+/// resolve on the command line, and the failure reads as a missing preset
+/// rather than as an unresolved parent.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SliceRequest {
+    /// Path to the mesh. MUST end in one of the extensions the CLI accepts.
+    pub mesh_path: String,
+    /// Process and machine settings files, in the CLI's `;`-joined form.
+    pub settings: Vec<String>,
+    pub output_dir: String,
+}
+
+/// What `SliceRequest` refuses before spending a subprocess on it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SliceRefusal {
+    /// The mesh name has an extension the CLI will not dispatch on.
+    UnacceptableExtension {
+        got: String,
+    },
+    MissingMesh,
+    MissingOutputDir,
+}
+
+impl std::fmt::Display for SliceRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SliceRefusal::UnacceptableExtension { got } => write!(
+                f,
+                "the slicer dispatches on the file EXTENSION and will refuse {got:?}: it \
+                 accepts .stl, .obj, .amf and .xml. A binary STL named .binstl is rejected \
+                 for its name, not its contents. Rename the export before handing it over."
+            ),
+            SliceRefusal::MissingMesh => write!(f, "no mesh path given"),
+            SliceRefusal::MissingOutputDir => write!(f, "no output directory given"),
+        }
+    }
+}
+
+/// Extensions OrcaSlicer 2.3.2 will dispatch on, from its own refusal message.
+pub const SLICER_EXTENSIONS: [&str; 4] = ["stl", "obj", "amf", "xml"];
+
+impl SliceRequest {
+    /// Build the argv, or refuse.
+    ///
+    /// REFUSES BEFORE SPENDING A SUBPROCESS. The extension check in particular
+    /// is cheap here and costs a process launch and a confusing error message
+    /// if it is left to the slicer.
+    pub fn argv(&self) -> Result<Vec<String>, SliceRefusal> {
+        if self.mesh_path.trim().is_empty() {
+            return Err(SliceRefusal::MissingMesh);
+        }
+        if self.output_dir.trim().is_empty() {
+            return Err(SliceRefusal::MissingOutputDir);
+        }
+        let ext = self
+            .mesh_path
+            .rsplit('.')
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !SLICER_EXTENSIONS.contains(&ext.as_str()) {
+            return Err(SliceRefusal::UnacceptableExtension {
+                got: self.mesh_path.clone(),
+            });
+        }
+        let mut v = vec!["--slice".to_string(), "0".to_string()];
+        if !self.settings.is_empty() {
+            v.push("--load-settings".into());
+            v.push(self.settings.join(";"));
+        }
+        v.push("--outputdir".into());
+        v.push(self.output_dir.clone());
+        v.push(self.mesh_path.clone());
+        Ok(v)
+    }
+}
+
+#[cfg(test)]
+mod slicer_tests {
+    use super::*;
+
+    fn req() -> SliceRequest {
+        SliceRequest {
+            mesh_path: "/tmp/stage.stl".into(),
+            settings: vec![
+                "/profiles/process.json".into(),
+                "/profiles/machine.json".into(),
+            ],
+            output_dir: "/tmp/out".into(),
+        }
+    }
+
+    #[test]
+    fn the_argv_carries_the_settings_joined_by_semicolons() {
+        let v = req().argv().expect("valid");
+        let joined = v.join(" ");
+        assert!(joined.contains("--slice 0"));
+        assert!(
+            joined.contains("/profiles/process.json;/profiles/machine.json"),
+            "the CLI wants one semicolon-joined argument: {joined}"
+        );
+        assert!(joined.contains("--outputdir /tmp/out"));
+        assert_eq!(v.last().map(String::as_str), Some("/tmp/stage.stl"));
+    }
+
+    /// MEASURED AGAINST OrcaSlicer 2.3.2: a perfectly good binary STL named
+    /// `.binstl` -- which `--export-format binstl` invites -- is rejected with
+    /// "Unknown file format". The same bytes named `.stl` load fine.
+    #[test]
+    fn a_binstl_extension_is_refused_before_a_process_is_spent() {
+        let bad = SliceRequest {
+            mesh_path: "/tmp/stage.binstl".into(),
+            ..req()
+        };
+        let e = bad.argv().expect_err("must refuse");
+        assert_eq!(
+            e,
+            SliceRefusal::UnacceptableExtension {
+                got: "/tmp/stage.binstl".into()
+            }
+        );
+        let said = e.to_string();
+        assert!(
+            said.contains("not its contents"),
+            "the refusal must say the name is the problem: {said}"
+        );
+    }
+
+    #[test]
+    fn the_accepted_extensions_are_the_ones_the_cli_names() {
+        for ok in ["a.stl", "a.obj", "a.amf", "a.xml", "A.STL"] {
+            assert!(
+                SliceRequest {
+                    mesh_path: ok.into(),
+                    ..req()
+                }
+                .argv()
+                .is_ok(),
+                "{ok} must be accepted"
+            );
+        }
+        for bad in ["a.3mf", "a.off", "a.binstl", "a"] {
+            assert!(
+                SliceRequest {
+                    mesh_path: bad.into(),
+                    ..req()
+                }
+                .argv()
+                .is_err(),
+                "{bad} must be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn a_request_with_no_settings_still_builds() {
+        let v = SliceRequest {
+            settings: vec![],
+            ..req()
+        }
+        .argv()
+        .expect("valid");
+        assert!(!v.join(" ").contains("--load-settings"));
+    }
+
+    #[test]
+    fn empty_paths_are_refused() {
+        assert_eq!(
+            SliceRequest {
+                mesh_path: "  ".into(),
+                ..req()
+            }
+            .argv(),
+            Err(SliceRefusal::MissingMesh)
+        );
+        assert_eq!(
+            SliceRequest {
+                output_dir: String::new(),
+                ..req()
+            }
+            .argv(),
+            Err(SliceRefusal::MissingOutputDir)
+        );
+    }
+}

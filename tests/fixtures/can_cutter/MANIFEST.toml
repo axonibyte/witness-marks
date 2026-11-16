@@ -29,6 +29,21 @@ openscad = "2026.10.14"
 # ---------------------------------------------------------------------------
 
 [[measurement]]
+name = "zero-area triangles in the export"
+value = 18
+note = """
+MEASURED 2026-11-16, and it explains a disagreement between three readers.
+OpenSCAD's binary STL of the stage contains 806 triangles, 18 of which have
+ZERO AREA. OrcaSlicer 2.3.2's `--info` reports 788 facets for the same file:
+it drops the degenerate ones on load, and 806 - 18 = 788 exactly.
+
+Volume and bounding box agree across all three readings -- 40805.4868 here
+against the slicer's 40805.5117, six significant figures -- so the only
+quantity that moves is the facet count. A FACET COUNT IS A PROPERTY OF A FILE
+AND OF THE READER THAT LOADED IT, which is the same lesson the sphere vector
+learned about export FORMATS, arriving a second way."""
+
+[[measurement]]
 name = "stage triangles and vertices"
 at_rest = { triangles = 806, vertices = 396 }
 at_stop = { triangles = 810, vertices = 396 }

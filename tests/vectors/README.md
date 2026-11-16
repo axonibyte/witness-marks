@@ -63,6 +63,26 @@ The provider rounds to four decimals; the agreement is to the digits it
 reports. Nothing here is the oracle: five of these have closed forms, and for
 those the arithmetic is.
 
+## A third reader, and a facet count that moves again
+
+OrcaSlicer 2.3.2's `--info` was run on the vendored stage on 2026-11-16, which
+makes three independent readers of one file:
+
+| quantity | this runner | OrcaSlicer 2.3.2 |
+| --- | --- | --- |
+| volume | 40805.4868 | 40805.5117 |
+| size x | 46.939 | 46.939133 |
+| size z | 31.000 | 31.000000 |
+| facets | 806 | **788** |
+
+Volume and bounding box agree to six significant figures. The facet count
+differs by exactly 18, which is exactly the number of ZERO-AREA triangles
+OpenSCAD's export contains: the slicer drops them on load.
+
+So the earlier finding generalizes. A facet count is not well posed without
+naming the export FORMAT, and it is not well posed without naming the READER
+either, because a reader may repair. Volume survives both.
+
 ## Running them
 
 ```
