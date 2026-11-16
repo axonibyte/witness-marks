@@ -1,0 +1,4 @@
+let worst = hits
+                .iter()
+                .filter(|s| (s.t - at).abs() < f64::EPSILON)
+                .min_by(

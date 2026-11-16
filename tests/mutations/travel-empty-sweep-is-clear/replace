@@ -1,0 +1,4 @@
+return Ok(Stop::Clear { sampled_to: 0.0 });
+        #[allow(unreachable_code)]
+        return Err(
+            "an empty sweep
