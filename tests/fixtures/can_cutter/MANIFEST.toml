@@ -22,11 +22,25 @@ openscad = "2026.10.14"
 [hashes]
 "can_cutter.scad" = "19ccb568472f0119fdcc6e7d4cf1fbf6"
 "print_stage.scad" = "51e28a92e50bb5e1c280c6c29204d7f4"
+"stage.csg" = "fa0004e18f6aa63864d9fea0894afbb8"
 "overhang-scan.scad" = "718c3f03560773e64619a92b30fc20fd"
 
 # ---------------------------------------------------------------------------
 # MEASURED, at press = 0 (rest) and press = 2.209 (the tail stop)
 # ---------------------------------------------------------------------------
+
+[[measurement]]
+name = "CSG dump node census"
+note = """
+`openscad -o stage.csg print_stage.scad`, 8612 bytes, OpenSCAD 2026.10.14.
+The node types a real model produces, counted off the file: 47 multmatrix,
+29 group, 9 polygon, 9 linear_extrude, 5 cylinder, 5 cube, 2 square,
+2 rotate_extrude, 2 difference, 1 union, 1 intersection, 1 hull.
+
+THE PARSER REPORTS 30 GROUPS WHERE THE FILE HOLDS 29. The dump has TWO
+top-level nodes and the parser wraps them in an implicit `group`, which is
+what OpenSCAD means by them. The difference is exactly that one node and it is
+asserted rather than relaxed into a range."""
 
 [[measurement]]
 name = "zero-area triangles in the export"

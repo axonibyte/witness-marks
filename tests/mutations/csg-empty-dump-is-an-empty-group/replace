@@ -1,0 +1,5 @@
+        0 => Ok(Node {
+            op: "group".into(),
+            args: BTreeMap::new(),
+            children: vec![],
+        }),

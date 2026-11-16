@@ -1,0 +1,6 @@
+        0 => Err(ParseError {
+            at: 0,
+            why: "the dump is empty: OpenSCAD writes no CSG for a model with no geometry, \
+                  and an empty tree is not the same as a group with no children"
+                .into(),
+        }),

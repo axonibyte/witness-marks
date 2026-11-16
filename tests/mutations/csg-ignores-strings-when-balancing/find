@@ -1,0 +1,2 @@
+            } else if c == b'"' {
+                in_str = true;

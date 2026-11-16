@@ -4,6 +4,8 @@
 //! have caught its absence, and a mutation check recorded in the PR.
 
 /// Present so the crate has one exported symbol and one test from day one.
+pub mod tree;
+
 pub const LAYER: &str = "wm-csg";
 
 #[cfg(test)]
