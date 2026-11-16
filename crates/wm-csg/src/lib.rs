@@ -11,6 +11,7 @@ pub mod eats;
 pub mod flank;
 pub mod locate;
 pub mod tree;
+pub mod wire;
 
 pub const LAYER: &str = "wm-csg";
 

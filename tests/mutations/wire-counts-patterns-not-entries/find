@@ -1,0 +1,6 @@
+            call_sites += p
+                .get("entries")
+                .and_then(Value::as_array)
+                .map(|e| e.len())
+                .or_else(|| p.get("count").and_then(Value::as_u64).map(|c| c as usize))
+                .unwrap_or(1);

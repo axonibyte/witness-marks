@@ -1,0 +1,424 @@
+{
+ "clusters": {
+  "deep_solid": {
+   "frame": "local",
+   "mode": "probe",
+   "parts": [
+    "model"
+   ],
+   "points": [
+    {
+     "at": [
+      2.0,
+      2.0,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      1.9,
+      2.0,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      2.1,
+      2.0,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      2.0,
+      1.9,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      2.0,
+      2.1,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      2.0,
+      2.0,
+      4.9
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      2.0,
+      2.0,
+      5.1
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    }
+   ],
+   "quality": {
+    "fn": null
+   },
+   "rays": [],
+   "success": true,
+   "units": "mm"
+  },
+  "in_the_hole": {
+   "frame": "local",
+   "mode": "probe",
+   "parts": [
+    "model"
+   ],
+   "points": [
+    {
+     "at": [
+      10.0,
+      10.0,
+      5.0
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      9.9,
+      10.0,
+      5.0
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      10.1,
+      10.0,
+      5.0
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      10.0,
+      9.9,
+      5.0
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      10.0,
+      10.1,
+      5.0
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      10.0,
+      10.0,
+      4.9
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      10.0,
+      10.0,
+      5.1
+     ],
+     "parts": [],
+     "state": "air"
+    }
+   ],
+   "quality": {
+    "fn": null
+   },
+   "rays": [],
+   "success": true,
+   "units": "mm"
+  },
+  "on_the_wall": {
+   "frame": "local",
+   "mode": "probe",
+   "parts": [
+    "model"
+   ],
+   "points": [
+    {
+     "at": [
+      13.0,
+      10.0,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "on_surface"
+    },
+    {
+     "at": [
+      12.9,
+      10.0,
+      5.0
+     ],
+     "parts": [],
+     "state": "air"
+    },
+    {
+     "at": [
+      13.1,
+      10.0,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      13.0,
+      9.9,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      13.0,
+      10.1,
+      5.0
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "solid"
+    },
+    {
+     "at": [
+      13.0,
+      10.0,
+      4.9
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "on_surface"
+    },
+    {
+     "at": [
+      13.0,
+      10.0,
+      5.1
+     ],
+     "parts": [
+      "model"
+     ],
+     "state": "on_surface"
+    }
+   ],
+   "quality": {
+    "fn": null
+   },
+   "rays": [],
+   "success": true,
+   "units": "mm"
+  }
+ },
+ "features": {
+  "counts": {
+   "additive": 0,
+   "cylinders_raw": 1,
+   "dropped_stub": 0,
+   "features": 1,
+   "masked_hull": 0,
+   "nodes": 6,
+   "primitive_cube": 1,
+   "subtractive": 1,
+   "unresolved": 0
+  },
+  "descriptions": [
+   "1x D6.00 12.0 mm deep from z=+11.0 along -Z"
+  ],
+  "frame": "local",
+  "mode": "features",
+  "note": "circular subtractive features from the CSG tree (post-expansion, pre-boolean); not holes in the finished part. Features inside hull()/minkowski() are masked.",
+  "patterns": [
+   {
+    "axis_dir": [
+     0.0,
+     0.0,
+     -1.0
+    ],
+    "bolt_circle": null,
+    "count": 1,
+    "d_mm": 6.0,
+    "description": "1x D6.00 12.0 mm deep from z=+11.0 along -Z",
+    "effective_min_d_mm": 5.9982,
+    "entries": [
+     [
+      10.0,
+      10.0,
+      11.0
+     ]
+    ],
+    "fit_candidates": [
+     {
+      "delta_mm": 0.0,
+      "match": "6 mm rod (press fit)",
+      "nominal_mm": 6.0,
+      "role": "press fit"
+     },
+     {
+      "delta_mm": 0.0,
+      "match": "M3 counterbore",
+      "nominal_mm": 6.0,
+      "role": "counterbore / head clearance"
+     }
+    ],
+    "length_mm": 12.0,
+    "polarity": "subtractive",
+    "segments": 128,
+    "undersize_mm": 0.0018
+   }
+  ],
+  "quality": {
+   "fn": null
+  },
+  "success": true,
+  "units": "mm",
+  "unresolved": []
+ },
+ "features_repeated": {
+  "counts": {
+   "additive": 0,
+   "cylinders_raw": 4,
+   "dropped_stub": 0,
+   "features": 4,
+   "masked_hull": 0,
+   "nodes": 15,
+   "primitive_cube": 1,
+   "subtractive": 4,
+   "unresolved": 0
+  },
+  "descriptions": [
+   "4x D4.00 12.0 mm deep from z=+11.0 along -Z, bolt circle r=14.1 at 45/135/225/315 deg"
+  ],
+  "frame": "local",
+  "mode": "features",
+  "note": "circular subtractive features from the CSG tree (post-expansion, pre-boolean); not holes in the finished part. Features inside hull()/minkowski() are masked.",
+  "patterns": [
+   {
+    "axis_dir": [
+     0.0,
+     0.0,
+     -1.0
+    ],
+    "bolt_circle": {
+     "angles_deg": [
+      45.0,
+      135.0,
+      225.0,
+      315.0
+     ],
+     "axis_dir": [
+      0.0,
+      0.0,
+      1.0
+     ],
+     "center": [
+      20.0,
+      20.0,
+      11.0
+     ],
+     "evenly_spaced": true,
+     "radius_mm": 14.142136,
+     "rms_mm": 0.0
+    },
+    "count": 4,
+    "d_mm": 4.0,
+    "description": "4x D4.00 12.0 mm deep from z=+11.0 along -Z, bolt circle r=14.1 at 45/135/225/315 deg",
+    "effective_min_d_mm": 3.9952,
+    "entries": [
+     [
+      10.0,
+      10.0,
+      11.0
+     ],
+     [
+      10.0,
+      30.0,
+      11.0
+     ],
+     [
+      30.0,
+      10.0,
+      11.0
+     ],
+     [
+      30.0,
+      30.0,
+      11.0
+     ]
+    ],
+    "fit_candidates": [
+     {
+      "delta_mm": 0.0,
+      "match": "4 mm rod (press fit)",
+      "nominal_mm": 4.0,
+      "role": "press fit"
+     }
+    ],
+    "length_mm": 12.0,
+    "polarity": "subtractive",
+    "segments": 64,
+    "undersize_mm": 0.0048
+   }
+  ],
+  "quality": {
+   "fn": null
+  },
+  "success": true,
+  "units": "mm",
+  "unresolved": []
+ },
+ "model": "difference(){ cube([20,20,10]); translate([10,10,-1]) cylinder(h=12,r=3,$fn=128); }",
+ "model_repeated": "difference(){ cube([40,40,10]); for(x=[10,30]) for(y=[10,30]) translate([x,y,-1]) cylinder(h=12,r=2,$fn=64); }",
+ "tol_mm": 0.1
+}

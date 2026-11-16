@@ -1,0 +1,1 @@
+if !matches!(state, "solid" | "air" | "on_surface") {
