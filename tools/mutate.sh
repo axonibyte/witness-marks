@@ -144,9 +144,23 @@ PY
         echo "  SURVIVED  $name -- the suite is still green, so nothing covers this"
         verdict=1
     # REFUSAL 4: the named test must be the one that died.
+    #
+    # TWO FAILURE SHAPES, because there are two kinds of subject. A Rust test
+    # dies as `test <name> ... FAILED`; a tools/tests/t_*.sh arm dies as
+    # `  FAIL <message>`. The first mutant with a Python subject MISFIRED on
+    # this matcher -- the mutation applied, the arm failed, and the arm's
+    # format was not one this tool could read, so a real kill was reported as
+    # a build break.
+    #
+    # The guarantee is unchanged and is the whole point of refusal 4: the
+    # expected label must appear IN A FAILURE LINE. A bare `grep -q "$want"`
+    # would also match the label sitting in a PASSING `ok` line, which is how
+    # a mutant that broke something else entirely would read as a kill.
     elif printf '%s' "$out" | grep -qE "^(test .*$want.* \.\.\. FAILED|failures:)" \
          && printf '%s' "$out" | grep -q "$want"; then
         echo "  KILLED    $name -- by $want"
+    elif printf '%s' "$out" | grep -qE "^ *FAIL .*$want"; then
+        echo "  KILLED    $name -- by the arm: $want"
     else
         echo "  MISFIRED  $name -- the suite failed but '$want' is not named in the failure;"
         echo "            a mutant that breaks the BUILD fails every arm and looks like a kill"

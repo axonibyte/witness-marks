@@ -1,0 +1,1 @@
+out.append((i + 1, orig[i] if i < len(orig) else line))

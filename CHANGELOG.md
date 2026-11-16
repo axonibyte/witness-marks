@@ -50,9 +50,32 @@ plausible cheaper instrument gives the wrong answer.
   everyone quotes is the one angle that cannot test the thing everyone gets
   wrong.
 
+### Fixed
+- The brace walk in `tools/audit-file-writes.py` counted braces inside string,
+  char and byte literals and comments, so `wm-csg/src/tree.rs` -- a parser for
+  a brace grammar, which must contain `b'{'`, an escaped `'{{'`, and tests with
+  deliberately unbalanced delimiters inside strings -- was reported UNBALANCED
+  from 2b's first commit. The walk now strips literal and comment content
+  first. Found by a red push: the local battery had run the suite, clippy, fmt
+  and the mutants, and not `tools/tests/t_*.sh`.
+- `tools/battery.sh` is now the single definition of the battery, and
+  `t_battery_covers_ci.sh` asserts it runs every gate `ci.yml` does. That arm
+  immediately found two more: CI runs `check-mutation-record.sh` and
+  `ci-report-count.sh` and the battery ran neither.
+- `tools/mutate.sh` reads a shell arm's `FAIL` line as a kill, not only a Rust
+  test's `FAILED`. The first mutant with a Python subject MISFIRED on a real
+  kill. Refusal 4's guarantee is unchanged: the label must appear in a failure
+  line, never merely somewhere in the transcript.
+
 ### Known gaps
 - Carried: the FreeBSD reaper guest has no Rust toolchain; the vector arms sit
   outside the glob CI runs pending the openscad probe.
+- FOUR of milestone 2b's ten issues ask for provider wiring that did not land.
+  Issue 23 names a specific acceptance test (port `overhang-scan.scad` and
+  validate against four hand-computed shapes); 31, 34 and 35 say "over provider
+  `check mode=motion`", "via provider measure and sections", and "over provider
+  probe and features". What shipped for those four is the judgment half, with
+  the measurement half mocked in the fixtures. They stay open.
 - `solid.locate`/`at` and `proc.support` take their geometry as already-
   measured inputs -- attributions, signed distances, regions. Wiring them to
   the provider's probe and section calls is milestone 4's work, and until then

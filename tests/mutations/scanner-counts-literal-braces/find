@@ -1,0 +1,1 @@
+lines = strip_literals(text).split("\n")
