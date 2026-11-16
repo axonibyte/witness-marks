@@ -70,15 +70,25 @@ Work is tracked as issues on the forge.
 
 ## License
 
-**BSD-2-Clause**, copyright Axonibyte Innovations, LLC. Chosen by the owner
-2026-11-14; `LICENSE` is committed and `license = "BSD-2-Clause"` is set on
-`[workspace.package]`, inherited by every crate.
+Copyright Axonibyte Innovations, LLC. This repository is licensed **in parts**,
+and which part a file falls under is decided by what the file *is*, not where it
+sits:
 
-That matches `lychgate` (the other MCP server in this organization) and
-`rumor`. `reaper` is MIT and `yasss`, a product, is MPL-2.0; a tool consuming
-an MIT-licensed provider sits comfortably under either BSD-2 or MIT, and BSD-2
-is the house choice for infrastructure. One inconsistency worth the owner's
-eye rather than a silent decision: `rumor`'s BSD-2 notice names *Caleb L.
-Power* where `reaper`'s MIT notice names *Axonibyte Innovations, LLC*. This
-tree follows the organization, as proposed; say the word and the holder line
-changes in one commit.
+| What | Terms |
+| --- | --- |
+| Source code | Blue Oak Model License 1.0.0, reproduced in full in `LICENSE` |
+| Language and protocol specifications | Open Web Foundation Agreement 1.0 |
+| Documentation and diagrams | Creative Commons Attribution 4.0 International, `LICENSES/CC-BY-4.0.txt` |
+| Logos and trademarks | excluded from every grant above, All Rights Reserved |
+
+`license = "BlueOak-1.0.0"` is set on `[workspace.package]` and inherited by
+every crate, which is the code half only; the manifest field has no way to
+express the split, so `LICENSE` governs and this table restates it.
+
+`docs/spec.md` is **the specification**, so it is Open Web Foundation, not
+CC-BY. `docs/testing-methodology.md` and the README are documentation, so they
+are CC-BY.
+
+These terms replace the BSD-2-Clause chosen on 2026-11-14; the relicense landed
+2026-11-16 as PR #49 and the holder line is settled on the organization rather
+than an individual.

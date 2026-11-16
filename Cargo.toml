@@ -16,7 +16,7 @@ edition = "2021"
 rust-version = "1.98"
 authors = ["Axonibyte Innovations, LLC"]
 repository = "https://forge.axonibyte.com/axonibyte/witness-marks"
-license = "BSD-2-Clause"
+license = "BlueOak-1.0.0"
 
 # Ranges here; EXACT versions live in Cargo.lock, which is committed, and CI
 # builds with --locked so a drift in the lockfile is a failure, not a surprise.
