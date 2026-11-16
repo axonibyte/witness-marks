@@ -1,0 +1,1 @@
+        stiffness_error: (actual / nominal).powi(3) - 1.0,

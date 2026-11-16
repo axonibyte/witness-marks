@@ -1,0 +1,3 @@
+    let n = if floor {
+        exact.floor()
+    } else {

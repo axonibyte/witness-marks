@@ -417,3 +417,202 @@ mod critical_angle_tests {
         assert!(is_self_supporting(&proc_with(0.1, 0.4), 44.0).expect("declared"));
     }
 }
+
+// ---------------------------------------------------------------------------
+// Quantization. A thickness is a whole number of layers.
+// ---------------------------------------------------------------------------
+
+/// What a nominal thickness actually becomes when printed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Quantized {
+    pub nominal: f64,
+    pub layers: u32,
+    /// `layers * layer_h`: the thickness that will exist.
+    pub actual: f64,
+    /// `actual - nominal`, signed. Negative means thinner than asked.
+    pub error: f64,
+    /// `(actual / nominal)^3 - 1`, the change in BENDING STIFFNESS, signed.
+    /// Negative is a loss.
+    pub stiffness_error: f64,
+}
+
+impl Quantized {
+    /// True when the nominal thickness was already a whole number of layers.
+    pub fn is_exact(&self) -> bool {
+        self.error.abs() <= 1e-9
+    }
+}
+
+/// Quantize a thickness in the BENDING direction to whole layers.
+///
+/// # Why the cubed error is the number that matters
+///
+/// Bending stiffness goes as thickness CUBED, so a quantization that looks
+/// like rounding noise is not. The harness incident: a 0.9 mm leaf at 0.20 mm
+/// layers is 4.5 layers, which cannot exist. It prints as 4 layers, 0.80 mm --
+/// an 11.1% loss of thickness and a **29.77% loss of stiffness**. The clamp
+/// that was designed on 0.9 mm delivered about seven tenths of its force, and
+/// nothing in the model said so.
+///
+/// Reporting only `error` would show 0.1 mm and invite the reader to shrug.
+///
+/// # Rounding is to NEAREST, and that is a choice worth stating
+///
+/// A slicer lays whole layers; 4.5 goes to 4 or 5 depending on the slicer and
+/// the surrounding geometry. Nearest is reported as the expectation, and
+/// [`quantize_floor`] is available for the conservative reading. Ties go DOWN,
+/// because the thinner outcome is the one that loses force, and a tool whose
+/// optimistic rounding hides a 30% loss is worse than no tool.
+pub fn quantize(p: &Process, nominal: f64) -> Result<Quantized, Missing> {
+    let h = p.need("layer_h", "quantize")?.value;
+    quantize_with(h, nominal, false)
+}
+
+/// Quantize downward: the conservative reading, never more material than asked.
+pub fn quantize_floor(p: &Process, nominal: f64) -> Result<Quantized, Missing> {
+    let h = p.need("layer_h", "quantize")?.value;
+    quantize_with(h, nominal, true)
+}
+
+fn quantize_with(h: f64, nominal: f64, floor: bool) -> Result<Quantized, Missing> {
+    if !h.is_finite() || h <= 0.0 || !nominal.is_finite() || nominal <= 0.0 {
+        return Err(Missing {
+            wanted: format!("a positive, finite layer_h and nominal (got {h} and {nominal})"),
+            by: "quantize",
+        });
+    }
+    let exact = nominal / h;
+    // TIES GO DOWN. `f64::round` rounds half AWAY from zero, so 4.5 would
+    // become 5 and the 0.9 mm incident would report no loss at all -- the
+    // optimistic answer, for the case that produced the rule.
+    let n = if floor {
+        exact.floor()
+    } else {
+        let r = exact.fract();
+        if (r - 0.5).abs() <= 1e-9 {
+            exact.floor()
+        } else {
+            exact.round()
+        }
+    };
+    let layers = n.max(1.0) as u32;
+    let actual = f64::from(layers) * h;
+    Ok(Quantized {
+        nominal,
+        layers,
+        actual,
+        error: actual - nominal,
+        stiffness_error: (actual / nominal).powi(3) - 1.0,
+    })
+}
+
+#[cfg(test)]
+mod quantize_tests {
+    use super::*;
+
+    fn at(h: f64) -> Process {
+        let mut p = Process::new();
+        p.layer_h = Some(Declared::measured(h, "the profile"));
+        p
+    }
+
+    /// THE HARNESS INCIDENT, as the vector. 0.9 mm at 0.20 is 4.5 layers,
+    /// which cannot exist; it prints 0.80 and loses 29.77% of its stiffness.
+    #[test]
+    fn the_point_nine_leaf_loses_thirty_percent_of_its_stiffness() {
+        let q = quantize(&at(0.20), 0.9).expect("declared");
+        assert_eq!(q.layers, 4, "4.5 layers cannot exist and ties go DOWN");
+        assert!((q.actual - 0.80).abs() < 1e-12);
+        assert!((q.error - -0.10).abs() < 1e-12, "0.1 mm thinner");
+        assert!(
+            (q.stiffness_error - -0.297_668).abs() < 1e-6,
+            "cubed, that is a 29.77% loss, got {}",
+            q.stiffness_error
+        );
+        assert!(!q.is_exact());
+    }
+
+    /// REPORTING ONLY THE THICKNESS ERROR INVITES A SHRUG. 0.1 mm sounds like
+    /// nothing; the cube is what makes it a third of the clamp.
+    #[test]
+    fn the_cubed_error_is_far_larger_than_the_thickness_error() {
+        let q = quantize(&at(0.20), 0.9).expect("declared");
+        let thickness_frac = (q.error / q.nominal).abs();
+        assert!(
+            q.stiffness_error.abs() > thickness_frac * 2.5,
+            "11.1% of thickness is 29.8% of stiffness: {thickness_frac} vs {}",
+            q.stiffness_error
+        );
+    }
+
+    /// TIES GO DOWN, and this is the arm that pins it. `f64::round` rounds
+    /// half away from zero, so 4.5 would become 5, `actual` would be 1.0, and
+    /// the incident would report a stiffness GAIN.
+    #[test]
+    fn a_tie_rounds_down_rather_than_reporting_a_gain() {
+        let q = quantize(&at(0.20), 0.9).expect("declared");
+        assert!(
+            q.stiffness_error < 0.0,
+            "the 0.9 mm case must report a LOSS, got {}",
+            q.stiffness_error
+        );
+    }
+
+    #[test]
+    fn an_exact_multiple_has_no_error_at_all() {
+        let q = quantize(&at(0.20), 0.8).expect("declared");
+        assert_eq!(q.layers, 4);
+        assert!(q.is_exact());
+        assert!(q.error.abs() < 1e-12 && q.stiffness_error.abs() < 1e-12);
+    }
+
+    /// Rounding UP is a real outcome too, and it is a stiffness GAIN. A tool
+    /// that only ever reported losses would be wrong half the time.
+    #[test]
+    fn rounding_up_reports_a_gain() {
+        let q = quantize(&at(0.20), 0.75).expect("declared");
+        assert_eq!(q.layers, 4, "3.75 rounds to 4");
+        assert!(q.actual > q.nominal);
+        assert!(q.stiffness_error > 0.0, "thicker is stiffer");
+    }
+
+    /// The conservative reading never gives more material than asked.
+    #[test]
+    fn the_floor_reading_never_exceeds_the_nominal() {
+        let q = quantize_floor(&at(0.20), 0.75).expect("declared");
+        assert_eq!(q.layers, 3);
+        assert!(q.actual <= q.nominal);
+        assert!(q.stiffness_error < 0.0);
+    }
+
+    /// A thickness under one layer still prints as ONE layer. Reporting zero
+    /// would say the feature does not exist, when what actually happens is
+    /// that it comes out far too thick.
+    #[test]
+    fn a_sub_layer_thickness_becomes_one_layer_not_zero() {
+        let q = quantize(&at(0.20), 0.05).expect("declared");
+        assert_eq!(q.layers, 1);
+        assert!((q.actual - 0.20).abs() < 1e-12);
+        assert!(
+            q.stiffness_error > 50.0,
+            "0.05 asked, 0.20 printed, 64x stiffer"
+        );
+    }
+
+    #[test]
+    fn it_refuses_without_a_declared_layer_height() {
+        assert_eq!(
+            quantize(&Process::new(), 0.9)
+                .expect_err("must refuse")
+                .wanted,
+            "layer_h"
+        );
+    }
+
+    #[test]
+    fn a_nonpositive_or_nan_nominal_is_refused() {
+        for n in [0.0, -0.9, f64::NAN] {
+            assert!(quantize(&at(0.2), n).is_err(), "{n} must be refused");
+        }
+    }
+}

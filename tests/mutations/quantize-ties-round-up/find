@@ -1,0 +1,6 @@
+        let r = exact.fract();
+        if (r - 0.5).abs() <= 1e-9 {
+            exact.floor()
+        } else {
+            exact.round()
+        }
