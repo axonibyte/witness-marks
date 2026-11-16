@@ -12,3 +12,9 @@
 *.curlrc
 *.age
 age-identity*
+
+# OrcaSlicer writes result.json into the CURRENT directory, so running
+# `orca-slicer --info` from a fixture directory drops one there. It was swept
+# into a commit by `git add -A` on 2026-11-16 and removed in the next one.
+# Ignored rather than remembered.
+result.json
