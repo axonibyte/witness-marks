@@ -5,6 +5,7 @@
 //! mating pair has the sign the design intended.
 
 pub mod fits;
+pub mod insert;
 pub mod travel;
 
 pub const LAYER: &str = "wm-asm";
