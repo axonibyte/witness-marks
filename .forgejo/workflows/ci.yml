@@ -20,7 +20,10 @@ jobs:
           set -o pipefail
           echo "uname   $(uname -a)"
           echo "whoami  $(whoami)"
-          for t in git cargo rustc rustup uv; do
+          # openscad is probed because tools/tests/vectors-arms.sh needs it and
+          # is NOT in the t_*.sh glob below until this line answers. A probe is
+          # information; guessing would be a decision.
+          for t in git cargo rustc rustup uv openscad; do
             p=$(command -v "$t" 2>/dev/null) && echo "$t  FOUND  $p" || echo "$t  ABSENT"
           done
           timeout 20 rustc --version 2>/dev/null || echo "rustc: none or did not answer in 20s"

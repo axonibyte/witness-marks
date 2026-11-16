@@ -46,6 +46,14 @@ unmeasured.
 | the tooling is tested before it is trusted | `tools/tests/t_*.sh` | *the tooling's own arms* |
 | a green has tests behind it | `tools/test-count.sh`, `tools/ci-report-count.sh` | *build and test, locked* |
 
+`tools/tests/vectors-arms.sh` is deliberately NOT in that `t_*.sh` glob, and
+this is a narrowing with a reason that covers exactly what it narrows: those
+arms need `openscad`, and nothing yet establishes that the forge runner has it.
+CI's probe step now looks for it, so the next run answers the question. Until
+then the vectors run locally and under reaper, and saying so is better than a
+CI step that is green because it never ran. The arms REFUSE rather than skip
+when openscad is absent, so wherever they do run, absence is reported.
+
 Nothing else is mechanized yet. Where a rule above has no row, it is carried by
 the reviewer and by the pull request body, and saying so is better than implying
 a gate that does not exist.

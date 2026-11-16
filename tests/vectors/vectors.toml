@@ -1,0 +1,138 @@
+# Cross-implementation vectors. See README.md.
+
+# EVERY EXPECTATION HERE WAS RECORDED FROM A RUN AND THEN COMMITTED.
+# Do not edit an expectation to make a run pass; that is the one edit that
+# turns a vector into a restatement of whatever the code currently does.
+
+[[vector]]
+id = "cube-volume"
+n = 1
+question = "volume"
+fn = 0
+why = """
+A cube's volume is a closed form and the MATHEMATICS is the oracle, not either implementation. If this disagrees, nothing below is worth reading."""
+model = """
+cube([10, 10, 10]);"""
+expected = 1000.0
+tolerance = 1e-09
+
+[[vector]]
+id = "cube-bbox"
+n = 2
+question = "bbox"
+fn = 0
+why = """
+The bounding box of an axis-aligned cube. Closed form."""
+model = """
+cube([10, 20, 30]);"""
+expected = [10.0, 20.0, 30.0]
+tolerance = 1e-09
+
+[[vector]]
+id = "rotated-cube-bbox"
+n = 3
+question = "bbox"
+fn = 0
+why = """
+A cube turned 45 degrees about z. The box becomes the diagonal, 10*sqrt(2) = 14.142136, and the height is unchanged. Closed form, and it catches a kernel that rotates the BOX instead of the solid."""
+model = """
+rotate([0, 0, 45]) cube([10, 10, 10], center = true);"""
+expected = [14.142136, 14.142136, 10.0]
+tolerance = 1e-05
+
+[[vector]]
+id = "two-cubes-facets"
+n = 4
+question = "facets"
+fn = 0
+why = """
+Two disjoint 5 mm cubes, 12 triangles each."""
+model = """
+cube(5); translate([20, 0, 0]) cube(5);"""
+note = """
+THE QUESTION THIS VECTOR CANNOT ASK is the one it was commissioned for: component count. A triangle soup carries no component structure, so neither side can answer 'how many separate bodies' from an STL -- not us, and not the provider, which exports and does not measure. That is a finding about the FORMAT rather than about either implementation, and it is recorded here instead of being quietly dropped."""
+expected = 24
+tolerance = 0
+
+[[vector]]
+id = "overlap-intersection"
+n = 5
+question = "volume"
+fn = 0
+why = """
+Two axis-aligned cubes offset by 5 in x: the intersection is 5 x 10 x 10. Closed form."""
+model = """
+intersection() { cube([10, 10, 10]); translate([5, 0, 0]) cube([10, 10, 10]); }"""
+expected = 500.0
+tolerance = 1e-09
+
+[[vector]]
+id = "sphere-fn64-facets"
+n = 6
+question = "facets"
+fn = 64
+why = """
+A sphere at $fn=64, as BINARY STL triangles. Tessellation, so no closed form: the recorded count is the agreement."""
+model = """
+$fn = 64; sphere(r = 10);"""
+note = """
+FACETS IS NOT A WELL-POSED QUESTION WITHOUT NAMING THE FORMAT, and this vector is where that was found. The live provider reported 1986 facets for this exact model; our CLI reports 4092. Both are right and the difference is the export: OFF keeps 1984 quads plus two 64-gon polar caps, which is 1986 faces, and triangulating them gives 1984*2 + 2*62 = 4092. MEASURED on both sides: our OFF export is 1986 faces too, and the exported bytes are IDENTICAL, sha256 a968dcfd9c6cdb05641864ff3499066945874cc4752be04fec65f05855de534a, 93544 bytes -- across OpenSCAD 2026.10.14 (ours) and 2026.11.05.nightly (the provider's). Same model, same tessellation, two legitimate counts."""
+expected = 4092
+tolerance = 0
+
+[[vector]]
+id = "sphere-fn64-volume"
+n = 7
+question = "volume"
+fn = 64
+why = """
+The same sphere's POLYHEDRON volume. It must be UNDER the analytic 4188.790205 because the tessellation is inscribed; a value at or above it means the mesh is not the solid it claims to approximate."""
+model = """
+$fn = 64; sphere(r = 10);"""
+note = """
+analytic 4188.790205; the recorded value is 0.401% under it"""
+expected = 4171.998709
+tolerance = 0.0001
+
+[[vector]]
+id = "cylinder-fn128-volume"
+n = 8
+question = "volume"
+fn = 128
+why = """
+A cylinder at $fn=128, inscribed likewise: under pi*r^2*h = 785.398163."""
+model = """
+$fn = 128; cylinder(r = 5, h = 10);"""
+note = """
+analytic 785.398163; the recorded value is 0.040% under it"""
+expected = 785.082777
+tolerance = 0.0001
+
+[[vector]]
+id = "stage-blade-seat"
+n = 9
+question = "volume"
+fn = 0
+why = """
+The can-cutter stage intersected with the blade in place: the blade seated in its pocket, a deliberate interference and not a defect."""
+model = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+intersection() { blade_stage(); blade_in_place(); }"""
+note = """
+tests/fixtures/can_cutter/MANIFEST.toml records 0.1063 mm3 for the same probe"""
+expected = 0.106258
+tolerance = 0.001
+
+[[vector]]
+id = "frame-blade-empty"
+n = 10
+question = "volume"
+fn = 0
+why = """
+The frame intersected with the blade: EMPTY, and empty is a VALUE."""
+model = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+intersection() { frame(); blade_in_place(); }"""
+note = """
+OpenSCAD reports an empty 3D result as 'Current top level object is empty', exits 0, and writes NO FILE. This vector exists to pin that the runner reports emptiness rather than an error or, worse, the previous run's number. Reading absence as zero is only safe because the target is deleted first; corpus entry mcp-026 is the incident where four probes read a stale STL and reported 52.800 mm3 of material that was not there."""
+expect_empty = true
