@@ -1,0 +1,7 @@
+        if s == 0.0 {
+            return Err(
+                "zero stress at this deflection: there is no margin to report, \
+                 which is not the same as infinite margin"
+                    .into(),
+            );
+        }

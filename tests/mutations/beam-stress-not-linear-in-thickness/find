@@ -1,0 +1,1 @@
+        let base = 3.0 * self.e_mpa * deflection_mm * self.t_mm / (2.0 * self.l_mm.powi(2));
