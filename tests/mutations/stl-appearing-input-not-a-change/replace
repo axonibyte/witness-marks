@@ -1,0 +1,6 @@
+            (None, Some(_a)) if false => changes.push(Change {
+                input: String::new(),
+                before: 0.0,
+                after: 0.0,
+            }),
+            (None, Some(a)) if false => changes.push(Change {

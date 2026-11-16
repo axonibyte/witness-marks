@@ -1,0 +1,5 @@
+        .max_by(|a, b| {
+            a.margin
+                .partial_cmp(&b.margin)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })

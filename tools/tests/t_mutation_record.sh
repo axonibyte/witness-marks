@@ -11,6 +11,11 @@
 set -u
 SRC=${RECORD_SRC:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/check-mutation-record.sh}
 EV=$(CDPATH= cd -- "$(dirname -- "$0")/../../tests/fixtures/push-events" && pwd)
+# RESOLVED HERE, with SRC and EV, because this script changes directory later
+# and `dirname $0` then resolves against the wrong place -- it landed at / and
+# swept the filesystem root, which the blind-sweep guard caught.
+MUT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)/mutate.sh
+MUTDIR=$(CDPATH= cd -- "$(dirname -- "$0")/../../tests/mutations" && pwd)
 pass=0; fail=0
 say() { if [ "$1" = yes ]; then pass=$((pass+1)); printf '  ok   %-52s %s\n' "$2" "$3"
         else fail=$((fail+1)); printf '  FAIL %-52s %s\n' "$2" "$3"; fi; }
@@ -86,6 +91,42 @@ out=$(GITHUB_EVENT_PATH="$R/not-a-file.json" sh "$SRC" --from-event addtest 2>&1
 ok=yes; [ "$rc" = 66 ] || ok=no
 case "$out" in *"not readable"*) ;; *) ok=no ;; esac
 say "$ok" 'an unreadable event file REFUSES' "rc=$rc"
+
+# EVERY CARGO MUTANT MUST CARRY --no-fail-fast, including the default.
+#
+# Without it cargo stops at the FIRST failing target, so a mutation whose
+# effect reaches two crates runs only the first one's tests and the arm the
+# mutant NAMES may never execute -- which refusal 4 reports as a MISFIRE,
+# a red battery for a reason that has nothing to do with the code.
+#
+# MEASURED 2026-11-16: mech-thickness-cubed-to-squared had no test-cmd, took
+# the default, and passed for weeks. Then wm-claims grew an elasticity test
+# that ALSO detects a broken cubic, cargo stopped there, and wm-mech's named
+# arm never ran. The instance was two mutants; the class is the default.
+ok=yes
+/usr/bin/grep -q "cmd='cargo test --locked --workspace --no-fail-fast'" "$MUT" || ok=no
+say "$ok" "mutate.sh's default test command carries --no-fail-fast" ""
+
+bad=""
+count=0
+for d in "$MUTDIR"/*/; do
+    [ -d "$d" ] || continue
+    [ -r "$d/test-cmd" ] || { bad="$bad $(basename "$d")(none)"; continue; }
+    case "$(cat "$d/test-cmd")" in
+        *cargo*)
+            count=$((count + 1))
+            /usr/bin/grep -q -- '--no-fail-fast' "$d/test-cmd" \
+                || bad="$bad $(basename "$d")" ;;
+        *) ;;
+    esac
+done
+ok=yes; [ -z "$bad" ] || ok=no
+say "$ok" "every cargo mutant names --no-fail-fast" "$count checked;${bad:- none missing}"
+
+# REFUSE A BLIND SWEEP. Zero cargo mutants found means the directory or the
+# pattern moved, and "none missing" would be a green with nothing behind it.
+ok=yes; [ "$count" -ge 1 ] || ok=no
+say "$ok" "the sweep found cargo mutants to check" "count=$count"
 
 printf -- '-- %d/%d arms pass\n' "$pass" $((pass+fail))
 [ "$fail" = 0 ] || exit 1

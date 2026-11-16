@@ -1,0 +1,5 @@
+        let step = if input.value == 0.0 {
+            PROBE_FRACTION
+        } else {
+            input.value.abs() * PROBE_FRACTION
+        };

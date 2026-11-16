@@ -1,0 +1,2 @@
+            .or(Some(0.0))
+            .ok_or_else(|| format!("no input named `{name}`; refusing rather than assuming one"))

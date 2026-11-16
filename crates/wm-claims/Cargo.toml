@@ -12,3 +12,5 @@ workspace = true
 [dependencies]
 serde = { workspace = true }
 wm-envelope = { workspace = true }
+wm-mech = { workspace = true }
+wm-process = { workspace = true }

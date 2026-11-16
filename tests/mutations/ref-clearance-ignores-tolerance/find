@@ -1,0 +1,1 @@
+    Ok(gap_mm - tol >= needs_at_least_mm)

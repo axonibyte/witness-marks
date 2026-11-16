@@ -2,6 +2,47 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-16
+
+Milestone 3, Claims. The spec calls this the product: "everything else here is
+plumbing that makes it possible." All seven issues.
+
+### Added
+- `wm-claims::claim`: named assertions with a range, a unit and a `because`,
+  and a dependency set DERIVED by perturbation rather than trusted from a
+  declaration. The declaration is checked against it in both directions.
+- `wm-claims::stale`: propagation. E 3500 -> 2000 invalidates 6 of 12 claims;
+  `clip_clamps` falls 3.17 -> 1.81 N and leaves [2.0, 5.0]; `clip_stress`
+  moves 20.9 -> 11.9 MPa and is still fine. Invalidated and failing are
+  counted separately, and a claim that cannot be evaluated is neither.
+- `wm-claims::dominance`: elasticity (the dimensionless power-law exponent),
+  share of variance, and the quantization flag. Thickness reads 3.0 and
+  modulus 1.0 without being told the formula.
+- `wm-claims::fanout`: one symbol, several jobs, with relatedness MEASURED as
+  opposing elasticity signs rather than declared as a taxonomy.
+- `wm-claims::provenance`: measured | literature | assumed | derived, a
+  derived value inheriting the weakest of its sources, and "what would I have
+  to measure to trust this".
+- `wm-claims::refusals`: the four the spec names.
+
+### Fixed
+- Pinned by measurement: a forward difference on a cubic carries a
+  first-order error that reads as a real asymmetry between inputs. The central
+  difference reads thickness at 3.0000 and modulus at 1.0000; the forward one
+  does not, and `dom-forward-difference` dies on it.
+
+### Known gaps
+- Carried: the FreeBSD reaper guest has no Rust toolchain; the vector arms and
+  `provider-audit.py` sit outside what the forge jail can run.
+- Carried: #50 (a stale provider snapshot passes the claims arm) and #51
+  (`model.diff` regions via sections).
+- `claim.assert`/`verify` take a Rust `fn` as the expression. Issue #36 names
+  evaluation "via provider `scad_eval`", which would let a claim be written in
+  the model's own scope; that is not wired. What is here is the claim
+  machinery with the expression supplied by the caller.
+- `claim.fanout`'s index is built from the claims given to it, not from
+  provider `trace` over a project. Issue #37 names `trace` as a source.
+
 ## [0.6.0] - 2026-11-16
 
 Milestone 2d, the remnants wired. Milestone 2b shipped four tools as judgment

@@ -1,0 +1,3 @@
+pub fn derived_inputs(claim: &Claim, inputs: &Inputs) -> Vec<String> {
+    return claim.declared_inputs.clone();
+    #[allow(unreachable_code)]

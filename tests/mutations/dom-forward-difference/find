@@ -1,0 +1,4 @@
+        let slope = match (up, down) {
+            (Ok(u), Ok(d)) if u.is_finite() && d.is_finite() => (u - d) / (2.0 * step),
+            _ => continue,
+        };

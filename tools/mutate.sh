@@ -74,7 +74,15 @@ run_one() {
         return 70
     fi
     subj=$(cat "$d/subject")
-    cmd='cargo test --locked --workspace'
+    # THE DEFAULT CARRIES --no-fail-fast, and that is load-bearing rather than
+    # tidy. Without it cargo stops at the FIRST failing target, so a mutation
+    # whose effect reaches two crates runs only the first one's tests -- and
+    # the arm the mutant NAMES may never execute, which refusal 4 then reports
+    # as a MISFIRE. Measured 2026-11-16: mech-thickness-cubed-to-squared had
+    # no test-cmd and passed for weeks, until wm-claims grew an elasticity
+    # test that ALSO detects the broken cubic. Cargo then stopped in wm-claims
+    # and wm-mech's named arm never ran.
+    cmd='cargo test --locked --workspace --no-fail-fast'
     [ -r "$d/test-cmd" ] && cmd=$(cat "$d/test-cmd")
     name=$(basename "$d")
     [ -r "$ROOT/$subj" ] || { echo "mutate: $name: subject '$subj' is not readable" >&2; return 70; }

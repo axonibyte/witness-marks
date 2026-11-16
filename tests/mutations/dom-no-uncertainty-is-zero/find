@@ -1,0 +1,1 @@
+            contribution: input.uncertainty.map(|s| (slope * s).abs()),

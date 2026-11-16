@@ -1,0 +1,1 @@
+            contribution: Some((slope * input.uncertainty.unwrap_or(0.0)).abs()),
