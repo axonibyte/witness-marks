@@ -31,6 +31,7 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use wm_envelope::{Controls, Envelope, Observed, Provenance, Status, Subject};
 
 /// Present so the crate has one exported symbol and one test from day one.
 pub const LAYER: &str = "wm-provider";
@@ -431,6 +432,92 @@ impl Provider {
     }
 }
 
+impl ToolAnswer {
+    /// The measured extent, where the provider reported one.
+    ///
+    /// REQUIRES BOTH CORNERS. A payload carrying only `bbox_min` is not a box,
+    /// and inventing the other corner as the origin would manufacture an
+    /// extent the provider never claimed.
+    pub fn bbox(&self) -> Option<[[f64; 3]; 2]> {
+        fn triple(v: &Value) -> Option<[f64; 3]> {
+            let a = v.as_array()?;
+            if a.len() != 3 {
+                return None;
+            }
+            Some([a[0].as_f64()?, a[1].as_f64()?, a[2].as_f64()?])
+        }
+        let lo = triple(self.payload.get("bbox_min")?)?;
+        let hi = triple(self.payload.get("bbox_max")?)?;
+        Some([lo, hi])
+    }
+
+    /// True when any value in the payload is the provider's `UNRESOLVED`
+    /// marker, at any depth.
+    ///
+    /// SEARCHED RECURSIVELY on purpose. The marker turns up inside nested
+    /// per-part and per-component records, and a top-level-only check would
+    /// report a clean measurement whose inputs never resolved.
+    pub fn has_unresolved(&self) -> bool {
+        fn walk(v: &Value) -> bool {
+            match v {
+                Value::String(s) => s.contains("UNRESOLVED"),
+                Value::Array(a) => a.iter().any(walk),
+                Value::Object(m) => m.values().any(walk),
+                _ => false,
+            }
+        }
+        walk(&self.payload)
+    }
+
+    /// `validate`'s verdict, where the payload carries one.
+    pub fn valid(&self) -> Option<bool> {
+        self.payload.get("valid").and_then(Value::as_bool)
+    }
+
+    /// What the status derivation sees.
+    pub fn observed(&self) -> Observed<'_> {
+        Observed {
+            empty: self.is_empty_result(),
+            is_error: self.is_error,
+            valid: self.valid(),
+            unresolved: self.has_unresolved(),
+            errors: &self.diagnostics.errors,
+            bbox: self.bbox(),
+        }
+    }
+
+    /// Wrap this answer in the envelope every result travels in.
+    ///
+    /// The subject is attached ONLY when the provider reported an extent, so
+    /// an envelope never carries a box the provider did not measure.
+    pub fn envelope<T>(
+        &self,
+        value: Option<T>,
+        model: &str,
+        params: &str,
+        kernel: &str,
+        timestamp: &str,
+        controls: Controls,
+    ) -> Envelope<T> {
+        let status = Status::derive(&self.observed());
+        let subject = self.bbox().map(Subject::from_bbox);
+        let mut warnings = self.diagnostics.warnings.clone();
+        warnings.extend(self.diagnostics.hints.iter().cloned());
+        warnings.extend(self.diagnostics.deprecated.iter().cloned());
+        Envelope {
+            // A VALUE IS CARRIED ONLY BY AN `Ok`. Returning a number beside
+            // `refused` or `failed` invites a caller to read the number and
+            // ignore the word, which is the whole shape of a stale claim.
+            value: if status == Status::Ok { value } else { None },
+            status,
+            subject,
+            provenance: Provenance::of(model, params, kernel, timestamp),
+            controls,
+            warnings,
+        }
+    }
+}
+
 /// Hand-written rather than derived, and it prints what the client is TALKING
 /// TO. A test that asserts a refusal needs `Debug`, and the useful thing to see
 /// when a refusal does not happen is which server answered.
@@ -630,5 +717,156 @@ mcp_protocol = "2024-11-05"
     fn the_six_tools_are_named() {
         assert_eq!(TOOLS.len(), 6);
         assert!(TOOLS.contains(&"measure") && TOOLS.contains(&"get_project_files"));
+    }
+}
+
+#[cfg(test)]
+mod envelope_tests {
+    use super::*;
+
+    fn answer(payload: Value, is_error: bool) -> ToolAnswer {
+        let diagnostics = Diagnostics::from_payload(&payload);
+        ToolAnswer {
+            tool: "measure".into(),
+            payload,
+            diagnostics,
+            is_error,
+        }
+    }
+
+    fn wrap(a: &ToolAnswer) -> Envelope<f64> {
+        a.envelope(
+            Some(1000.0),
+            "cube(10);",
+            "{}",
+            "openscad 2026.10.14",
+            "2026-11-16T00:00:00Z",
+            Controls { ran: 1, bit: 1 },
+        )
+    }
+
+    const SOLID: &str = r#"{
+        "volume": 1000.0, "empty": false,
+        "bbox_min": [0.0, 0.0, 0.0], "bbox_max": [10.0, 10.0, 10.0],
+        "errors": [], "warnings": [], "hints": [], "deprecated": []
+    }"#;
+
+    #[test]
+    fn a_measured_solid_becomes_an_ok_envelope_with_its_subject() {
+        let a = answer(serde_json::from_str(SOLID).expect("fixture parses"), false);
+        let e = wrap(&a);
+        assert_eq!(e.status, Status::Ok);
+        assert_eq!(e.value, Some(1000.0));
+        let s = e.subject.expect("a measured solid has a subject");
+        assert_eq!(s.bbox[1][0], 10.0);
+        assert_eq!(e.provenance.kernel, "openscad 2026.10.14");
+        assert_eq!(e.provenance.model_hash.len(), 64);
+    }
+
+    /// A box the provider never reported must not be invented. Half a box is
+    /// not a box: filling the missing corner with the origin would manufacture
+    /// an extent, and an extent is what the Ok verdict rests on.
+    #[test]
+    fn half_a_bounding_box_is_no_bounding_box() {
+        let a = answer(json!({"volume": 1.0, "bbox_min": [0.0, 0.0, 0.0]}), false);
+        assert_eq!(a.bbox(), None);
+        let e = wrap(&a);
+        assert_eq!(e.status, Status::Refused, "no extent is not a pass");
+        assert!(e.subject.is_none(), "no box reported, no subject attached");
+    }
+
+    /// mcp note 30, as an envelope: a probe that measured empty space.
+    #[test]
+    fn a_zero_extent_subject_is_refused_and_carries_no_value() {
+        let a = answer(
+            json!({"volume": 0.0, "bbox_min": [0.0, 0.0, 0.0], "bbox_max": [10.0, 10.0, 0.0]}),
+            false,
+        );
+        let e = wrap(&a);
+        assert_eq!(e.status, Status::Refused);
+        assert_eq!(e.value, None, "a refusal must not carry a number");
+    }
+
+    /// The provider's real empty answer: the flag, the note, and the hint that
+    /// says why. All three survive into the envelope.
+    #[test]
+    fn the_providers_empty_answer_becomes_an_empty_envelope_keeping_its_hint() {
+        let a = answer(
+            json!({
+                "empty": true, "volume": 0.0,
+                "bbox_min": [0.0, 0.0, 0.0], "bbox_max": [0.0, 0.0, 0.0],
+                "errors": [], "warnings": [],
+                "hints": [{"code": "empty_output", "hint": "A difference() may have removed everything."}],
+                "deprecated": []
+            }),
+            false,
+        );
+        let e = wrap(&a);
+        assert_eq!(e.status, Status::Empty);
+        assert_eq!(e.value, None);
+        assert!(
+            e.warnings.iter().any(|w| w.contains("difference()")),
+            "the hint explaining the emptiness must reach the caller: {:?}",
+            e.warnings
+        );
+    }
+
+    /// UNRESOLVED nested inside a per-part record. A top-level-only check
+    /// reports a clean measurement whose inputs never resolved.
+    #[test]
+    fn unresolved_is_found_at_any_depth() {
+        let a = answer(
+            json!({
+                "volume": 1.0,
+                "bbox_min": [0.0, 0.0, 0.0], "bbox_max": [1.0, 1.0, 1.0],
+                "parts": [{"name": "stage", "thickness": "UNRESOLVED"}]
+            }),
+            false,
+        );
+        assert!(a.has_unresolved(), "the marker is nested, not top level");
+        assert_eq!(wrap(&a).status, Status::Refused);
+    }
+
+    #[test]
+    fn an_errored_call_is_a_failed_envelope_with_no_value() {
+        let a = answer(
+            json!({"text": "1 validation error for call[measure]"}),
+            true,
+        );
+        let e = wrap(&a);
+        assert_eq!(e.status, Status::Failed);
+        assert_eq!(e.value, None, "a failure must not carry a number");
+    }
+
+    #[test]
+    fn an_invalid_model_is_refused() {
+        let a = answer(
+            json!({"valid": false, "bbox_min": [0.0,0.0,0.0], "bbox_max": [1.0,1.0,1.0]}),
+            false,
+        );
+        assert_eq!(wrap(&a).status, Status::Refused);
+    }
+
+    /// Every envelope serializes with its status present, whatever the
+    /// verdict. A consumer reading only `value` still cannot mistake a
+    /// refusal for a measurement, because `value` is null for both and the
+    /// word that distinguishes them is always there.
+    #[test]
+    fn every_verdict_serializes_with_its_status() {
+        for (payload, is_err, want) in [
+            (
+                serde_json::from_str::<Value>(SOLID).expect("parses"),
+                false,
+                "ok",
+            ),
+            (json!({"empty": true}), false, "empty"),
+            (json!({"valid": false}), false, "refused"),
+            (json!({"text": "boom"}), true, "failed"),
+        ] {
+            let e = wrap(&answer(payload, is_err));
+            let j = serde_json::to_value(&e).expect("serializes");
+            assert_eq!(j["status"], want);
+            assert!(j.get("status").is_some(), "status is never absent");
+        }
     }
 }

@@ -1,0 +1,3 @@
+        if o.unresolved {
+            return Status::Refused;
+        }

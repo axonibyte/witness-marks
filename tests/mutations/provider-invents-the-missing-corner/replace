@@ -1,0 +1,1 @@
+        let hi = triple(self.payload.get("bbox_max").unwrap_or(&Value::Null)).unwrap_or([0.0, 0.0, 0.0]);

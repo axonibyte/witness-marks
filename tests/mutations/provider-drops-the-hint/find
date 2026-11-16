@@ -1,0 +1,1 @@
+        warnings.extend(self.diagnostics.hints.iter().cloned());

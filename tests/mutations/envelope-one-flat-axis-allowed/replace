@@ -1,0 +1,1 @@
+    (0..3).all(|i| (bbox[1][i] - bbox[0][i]).abs() <= f64::EPSILON)
