@@ -1,8 +1,9 @@
 # witness-marks as a reaper tenant. Shape copied from reaper's own manifest:
 # an Ubuntu guest runs the Rust battery in a pinned toolchain image; the FreeBSD
 # guest is host-execution so the platform the server actually ships on is the
-# one that is exercised. Image digest to be resolved from the registry when the
-# first run is attempted -- it is deliberately NOT a tag.
+# one that is exercised. The image is pinned BY DIGEST and never by tag: a tag
+# is a name the registry may repoint, so a tag-pinned build is reproducible
+# until somebody else decides it is not.
 schema = 1
 project = "witness-marks"
 exec = "container"
@@ -10,9 +11,27 @@ exec = "container"
 [[guests]]
 name = "ubuntu-26.04"
 [guests.build]
-# TODO(first run): pin by digest. rust:1.98 resolved from docker.io, then
-# written here as image = "docker.io/library/rust@sha256:...".
-image = "docker.io/library/rust:1.98"
+# RESOLVED FROM THE REGISTRY 2026-11-16, and this is the OCI image INDEX digest
+# rather than a single-architecture manifest, so the pin covers every platform
+# the tag covered: linux on amd64, arm/v7, arm64/v8, 386, ppc64le, riscv64 and
+# s390x.
+#
+# VERIFIED, not assumed: the amd64 manifest under this index has a config blob
+# whose environment reads RUST_VERSION=1.98.1, which is exactly the channel
+# rust-toolchain.toml pins. Pinning an image because its TAG says 1.98 would
+# have left the thing that actually matters -- the toolchain inside it --
+# unchecked, and `1.98` resolved to 1.98.1 rather than 1.98.0.
+#
+#   tag at resolution time: docker.io/library/rust:1.98
+#   index digest:           sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546
+#   amd64 manifest:         sha256:f31fa9eaac4e417505e10009786ec0c636558e02dff3fa662cc92c10894ba065
+#   RUST_VERSION in it:     1.98.1
+#
+# To move this deliberately, resolve a new digest and re-check RUST_VERSION
+# against rust-toolchain.toml in the same sitting. tools/tests/t_reaper_pin.sh
+# refuses a tag here, so a drift back to one is a test failure rather than a
+# quiet loss of reproducibility.
+image = "docker.io/library/rust@sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546"
 cmd = """
 CARGO_HOME=$REAPER_CACHE_CARGO \
 CARGO_TARGET_DIR=$REAPER_CACHE_TARGET \
@@ -24,4 +43,26 @@ name = "freebsd-15.1"
 exec = "host"
 
 [run]
-cmd = "cargo test --locked --workspace && cargo clippy --locked --workspace --all-targets -- -D warnings"
+# THE CARGO CHECK IS NOT CEREMONY. MEASURED on the first `reaper test`,
+# 2026-11-16: the ubuntu guest ran the whole battery green, and the freebsd
+# guest died with `/tmp/reaper-job.sh: cargo: not found` and rc 127 -- a bare
+# 127 that reads like a broken run command rather than what it is. Template
+# 9004 (guest freebsd-15.1) carries no Rust toolchain.
+#
+# THAT IS A PROVISIONING FINDING AND NOT A CODE ONE, and it is cal's template
+# rather than this repo's, so this manifest does not try to fix it: it NAMES
+# it, in the words that say whose it is, and exits 127 deliberately so the
+# session still fails. The same distinction ci.yml draws on the forge runner.
+#
+# The server ships on FreeBSD, so running the battery there is the point of the
+# guest existing; until the template carries a toolchain, that arm is absent
+# rather than passing, and the message says which.
+cmd = """
+command -v cargo >/dev/null 2>&1 || {
+  echo "no cargo on PATH: a PROVISIONING finding about this guest's template,"
+  echo "not a defect in this tree. The freebsd-15.1 template needs a Rust"
+  echo "toolchain before the battery can run on the platform the server ships"
+  echo "on. Until then this arm is ABSENT, not green."
+  exit 127
+}
+cargo test --locked --workspace && cargo clippy --locked --workspace --all-targets -- -D warnings"""
