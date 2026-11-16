@@ -2,6 +2,63 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+Milestone 2b, Geometry over the provider: the ten tools that need a geometry
+kernel underneath them. Where 2a could be checked against arithmetic, every
+call here is a question about a shape, and most of them exist because a
+plausible cheaper instrument gives the wrong answer.
+
+### Added
+- `wm-csg::tree`: the OpenSCAD CSG dump parsed into a tree, with
+  `derived_from` carrying which operands a node's position came from.
+- `wm-csg::bbox` / `bbox_at`: a box with three states -- known, empty, and
+  unknown-with-a-reason -- because an unmeasurable box is not an empty one.
+  `bbox_at` applies ancestor transforms, with the destination handled before
+  accumulation so it is not applied twice.
+- `wm-csg::eats`: which subtractions remove material from a feature, compared
+  in the ROOT frame. The first version compared local boxes and reported that
+  the mouth cut did not reach the socket.
+- `wm-csg::coincident`: a derived position landing on another feature's
+  boundary. The dovetail sockets sat at exactly the mouth cut's half-angle.
+- `wm-csg::flank`: material between a feature and the nearest void.
+- `wm-csg::locate` / `at`: the three ways to find nothing -- no such module,
+  declared and never called, called and then consumed -- and the boundary as
+  its own answer rather than a rounding of its neighbors.
+- `wm-asm::fits`: the mating-pair matrix with the sign checked. A retainer
+  modeled with a clearance retains nothing.
+- `wm-asm::travel`: what stops a part first. The blade's static interference
+  at rest was exactly zero and it still could not travel.
+- `wm-asm::insert`: whether it can be gotten IN, which a clear operating sweep
+  is not evidence about. Both directions of that mistake have happened.
+- `wm-model::diff`: geometric diff where an empty diff is an answer. A
+  bit-identical result after an edit is the edit not applying -- `-D` appends
+  an assignment, so a misspelled name defines a variable nothing reads, which
+  is legal and draws no warning.
+- `wm-process::support`: the slicer's criterion, with the angle convention in
+  the type.
+
+### Changed
+- New crate `wm-model`, holding Layer E's one tool the provider does not have.
+  The rest of Layer E exists upstream and is better than what this project
+  would write.
+
+### Fixed
+- Measured and recorded: a 45-degree test cannot catch an inverted overhang
+  convention. With `d = layer_h * tan(theta)` in place of `/`, the 45-degree
+  fixture passes and the 26.565-degree one fails. tan(45) is 1, so the angle
+  everyone quotes is the one angle that cannot test the thing everyone gets
+  wrong.
+
+### Known gaps
+- Carried: the FreeBSD reaper guest has no Rust toolchain; the vector arms sit
+  outside the glob CI runs pending the openscad probe.
+- `solid.locate`/`at` and `proc.support` take their geometry as already-
+  measured inputs -- attributions, signed distances, regions. Wiring them to
+  the provider's probe and section calls is milestone 4's work, and until then
+  these are the judgment half of each tool with the measurement half mocked in
+  the fixtures.
+
 ## [0.3.0] - 2026-11-16
 
 Milestone 2a, Owned layers: mechanics and process. The ten closed-form calls
