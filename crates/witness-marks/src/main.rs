@@ -8,6 +8,8 @@ use std::io::{self, BufRead, Write};
 
 use serde_json::{json, Value};
 
+pub mod budget;
+
 const PROTOCOL: &str = "2025-06-18";
 
 fn dispatch(method: &str, _params: Option<&Value>) -> Result<Value, (i64, String)> {

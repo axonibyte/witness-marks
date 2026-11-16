@@ -1,0 +1,1 @@
+pub const PER_TOOL_CAP: usize = 2_500;

@@ -1,0 +1,1 @@
+    for (name, n) in s.per_tool.iter().take(1) {
