@@ -34,6 +34,7 @@ use serde_json::{json, Map, Value};
 use wm_envelope::{Controls, Envelope, Observed, Provenance, Status, Subject};
 
 /// Present so the crate has one exported symbol and one test from day one.
+pub mod artifact;
 pub mod controls;
 pub mod view;
 
