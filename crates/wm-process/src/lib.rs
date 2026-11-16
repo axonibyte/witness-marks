@@ -616,3 +616,215 @@ mod quantize_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Firmware: commanded is not achieved. Spec §05.
+// ---------------------------------------------------------------------------
+
+/// What actually happens when a speed is asked for.
+///
+/// `commanded` and `achieved` are separate fields on purpose. A result that
+/// returned one number would be read as the speed, and the whole point is that
+/// there are two of them and they differ.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Reachable {
+    /// What the slicer asked for.
+    pub commanded: f64,
+    /// What the move actually reaches.
+    pub achieved: f64,
+    /// Which limit decided. `None` means the command governed: nothing got in
+    /// its way.
+    pub governed_by: Option<String>,
+    /// `achieved / commanded`. 1.0 when the command was met.
+    pub fraction: f64,
+}
+
+impl Reachable {
+    /// True when the firmware, not the command, decided the outcome.
+    pub fn was_capped(&self) -> bool {
+        self.governed_by.is_some()
+    }
+}
+
+/// The fastest a retraction of `length_mm` can actually go.
+///
+/// # The physics, and why length is the governing term
+///
+/// A retraction accelerates from rest and decelerates to rest over its whole
+/// length, so its peak is `v = sqrt(a * L)`. The acceleration is
+/// `max_extrude_only_accel`, which applies to moves of the extruder alone.
+/// Nothing in that expression is the commanded speed: a SHORTER retraction is
+/// a SLOWER one, which is the opposite of the intuition that short moves are
+/// quick.
+///
+/// # The harness instance
+///
+/// Nobody set `max_extrude_only_accel` on the printer, so Klipper computed 399
+/// mm/s^2 from `max_accel`. The PETG profile asks for 40 mm/s at 0.8 mm and
+/// gets **17.87**. Every retraction speed above about 20 mm/s on that machine
+/// is decorative, and no part of the slicer's output says so.
+pub fn reachable_retract_speed(
+    p: &Process,
+    commanded: f64,
+    length_mm: f64,
+) -> Result<Reachable, Missing> {
+    let a = p
+        .need("max_extrude_only_accel", "reachable_retract_speed")?
+        .value;
+    if !a.is_finite()
+        || a <= 0.0
+        || !length_mm.is_finite()
+        || length_mm <= 0.0
+        || !commanded.is_finite()
+        || commanded <= 0.0
+    {
+        return Err(Missing {
+            wanted: format!(
+                "positive, finite accel, length and command (got {a}, {length_mm}, {commanded})"
+            ),
+            by: "reachable_retract_speed",
+        });
+    }
+    let ceiling = (a * length_mm).sqrt();
+    let (achieved, governed_by) = if commanded <= ceiling {
+        (commanded, None)
+    } else {
+        (
+            ceiling,
+            Some(format!(
+                "max_extrude_only_accel {a} mm/s^2 over {length_mm} mm: v = sqrt(a*L)"
+            )),
+        )
+    };
+    Ok(Reachable {
+        commanded,
+        achieved,
+        fraction: achieved / commanded,
+        governed_by,
+    })
+}
+
+#[cfg(test)]
+mod firmware_tests {
+    use super::*;
+
+    fn klipper_default() -> Process {
+        let mut p = Process::new();
+        p.firmware.max_extrude_only_accel = Some(Declared::measured(
+            399.0,
+            "Klipper computed it from max_accel; nobody set it (kobra-neo.md)",
+        ));
+        p
+    }
+
+    /// THE THREE PUBLISHED ROWS, recomputed rather than copied: the note
+    /// rounds to 15.5, 17.9 and 20.0.
+    #[test]
+    fn the_harness_printers_reachable_retract_speeds() {
+        for (len, want) in [(0.6, 15.472_6), (0.8, 17.866_2), (1.0, 19.975_0)] {
+            let r = reachable_retract_speed(&klipper_default(), 40.0, len).expect("declared");
+            assert!(
+                (r.achieved - want).abs() < 1e-3,
+                "{len} mm should reach {want}, got {}",
+                r.achieved
+            );
+        }
+    }
+
+    /// THE HEADLINE. The PETG profile asks 40 at 0.8 mm and gets 17.87, which
+    /// is 45% of what it asked for, and the slicer says nothing.
+    #[test]
+    fn forty_commanded_is_seventeen_achieved_and_the_limit_is_named() {
+        let r = reachable_retract_speed(&klipper_default(), 40.0, 0.8).expect("declared");
+        assert_eq!(r.commanded, 40.0);
+        assert!((r.achieved - 17.866_2).abs() < 1e-3);
+        assert!(r.was_capped());
+        let why = r.governed_by.clone().expect("capped means a reason");
+        assert!(
+            why.contains("max_extrude_only_accel") && why.contains("399"),
+            "the limit must be named with its value: {why}"
+        );
+        assert!(
+            (r.fraction - 0.4466).abs() < 1e-3,
+            "it got 45% of what it asked: {}",
+            r.fraction
+        );
+    }
+
+    /// COMMANDED AND ACHIEVED ARE SEPARATE FIELDS. A single number would be
+    /// read as "the speed", and the whole finding is that there are two.
+    #[test]
+    fn a_commanded_value_is_never_reported_as_achieved() {
+        let r = reachable_retract_speed(&klipper_default(), 40.0, 0.8).expect("declared");
+        assert_ne!(
+            r.commanded, r.achieved,
+            "the two must not collapse into one number"
+        );
+        assert!(r.achieved < r.commanded);
+    }
+
+    /// A command the machine can meet is met, and nothing is said to have
+    /// governed it. Reporting a cap here would be as wrong as hiding one.
+    #[test]
+    fn a_reachable_command_is_delivered_and_nothing_governed_it() {
+        let r = reachable_retract_speed(&klipper_default(), 10.0, 0.8).expect("declared");
+        assert_eq!(r.achieved, 10.0);
+        assert!(!r.was_capped());
+        assert!(r.governed_by.is_none());
+        assert!((r.fraction - 1.0).abs() < 1e-12);
+    }
+
+    /// A SHORTER RETRACTION IS A SLOWER ONE, which is the opposite of the
+    /// intuition that short moves are quick.
+    #[test]
+    fn a_shorter_retraction_reaches_a_lower_speed() {
+        let p = klipper_default();
+        let short = reachable_retract_speed(&p, 40.0, 0.4).expect("declared");
+        let long = reachable_retract_speed(&p, 40.0, 1.6).expect("declared");
+        assert!(
+            short.achieved < long.achieved,
+            "sqrt(a*L) rises with L: {} vs {}",
+            short.achieved,
+            long.achieved
+        );
+    }
+
+    /// Raising the acceleration is the fix the note proposes, and it makes the
+    /// commanded speed reachable.
+    #[test]
+    fn raising_the_acceleration_makes_the_command_reachable() {
+        let mut p = klipper_default();
+        p.firmware.max_extrude_only_accel = Some(Declared::assumed(2000.0, "the proposed setting"));
+        let r = reachable_retract_speed(&p, 40.0, 0.8).expect("declared");
+        assert!(
+            !r.was_capped(),
+            "2000 mm/s^2 over 0.8 mm reaches {}, above the 40 asked",
+            (2000.0f64 * 0.8).sqrt()
+        );
+        assert_eq!(r.achieved, 40.0);
+    }
+
+    #[test]
+    fn it_refuses_without_the_declared_acceleration() {
+        let e = reachable_retract_speed(&Process::new(), 40.0, 0.8).expect_err("must refuse");
+        assert_eq!(e.wanted, "max_extrude_only_accel");
+        assert_eq!(e.by, "reachable_retract_speed");
+    }
+
+    #[test]
+    fn nonpositive_and_nan_inputs_are_refused() {
+        let p = klipper_default();
+        for (c, l) in [
+            (0.0, 0.8),
+            (40.0, 0.0),
+            (-1.0, 0.8),
+            (f64::NAN, 0.8),
+            (40.0, f64::NAN),
+        ] {
+            assert!(
+                reachable_retract_speed(&p, c, l).is_err(),
+                "command {c} length {l} must be refused"
+            );
+        }
+    }
+}

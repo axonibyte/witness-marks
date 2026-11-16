@@ -1,0 +1,3 @@
+            Some(format!(
+                "max_extrude_only_accel {a} mm/s^2 over {length_mm} mm: v = sqrt(a*L)"
+            )),
