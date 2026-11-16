@@ -1,0 +1,5 @@
+    let path = export
+        .get("output_path")
+        .and_then(Value::as_str)
+        .or(Some(""))
+        .ok_or_else(|| {

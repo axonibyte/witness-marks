@@ -1,0 +1,293 @@
+{
+ "after": {
+  "export": {
+   "deprecated": [],
+   "echo_output": [],
+   "errors": [],
+   "file_size_bytes": 56593,
+   "format": "stl",
+   "mesh_health": {
+    "facets": 272,
+    "manifold": null,
+    "note": "CGAL manifold check not performed (single primitive or preview path); manifoldness unknown",
+    "vertices": 136
+   },
+   "output_path": "/tmp/openscad-mcp/exports/export_698c29e5.stl",
+   "success": true,
+   "warnings": []
+  },
+  "measure": {
+   "bbox_max": [
+    20.0,
+    20.0,
+    10.0
+   ],
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "cavity_count": 0,
+   "center": [
+    10.0,
+    10.0,
+    5.0
+   ],
+   "component_count": 1,
+   "components": [
+    {
+     "bbox_max": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "centroid": [
+      10.0,
+      10.0,
+      5.0
+     ],
+     "dimensions": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "index": 0,
+     "is_cavity": false,
+     "is_closed": true,
+     "surface_area": 1750.8569,
+     "triangle_count": 272,
+     "volume": 3498.1522
+    }
+   ],
+   "components_omitted": 0,
+   "degenerate_triangle_count": 0,
+   "deprecated": [],
+   "dimensions": [
+    20.0,
+    20.0,
+    10.0
+   ],
+   "echo_output": [],
+   "errors": [],
+   "is_manifold": true,
+   "is_watertight": true,
+   "mesh_health": {
+    "facets": 272,
+    "manifold": null,
+    "note": "CGAL manifold check not performed (single primitive or preview path); manifoldness unknown",
+    "vertices": 136
+   },
+   "mode": "model",
+   "non_manifold_edge_count": 0,
+   "open_edge_count": 0,
+   "solid_count": 1,
+   "success": true,
+   "surface_area": 1750.8569,
+   "triangle_count": 272,
+   "units": "mm",
+   "vertex_count": 136,
+   "volume": 3498.1522,
+   "warnings": []
+  },
+  "sha256_of_bytes": "e5e148807c2cc81619d2a185ef34ed1186fa0267e430c62da766ab7324c3cb14"
+ },
+ "before": {
+  "export": {
+   "deprecated": [],
+   "echo_output": [],
+   "errors": [],
+   "file_size_bytes": 56723,
+   "format": "stl",
+   "mesh_health": {
+    "facets": 272,
+    "manifold": null,
+    "note": "CGAL manifold check not performed (single primitive or preview path); manifoldness unknown",
+    "vertices": 136
+   },
+   "output_path": "/tmp/openscad-mcp/exports/export_d0db0b60.stl",
+   "success": true,
+   "warnings": []
+  },
+  "measure": {
+   "bbox_max": [
+    20.0,
+    20.0,
+    10.0
+   ],
+   "bbox_min": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "cavity_count": 0,
+   "center": [
+    10.0,
+    10.0,
+    5.0
+   ],
+   "component_count": 1,
+   "components": [
+    {
+     "bbox_max": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "centroid": [
+      10.0,
+      10.0,
+      5.0
+     ],
+     "dimensions": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "index": 0,
+     "is_cavity": false,
+     "is_closed": true,
+     "surface_area": 1731.962,
+     "triangle_count": 272,
+     "volume": 3717.7106
+    }
+   ],
+   "components_omitted": 0,
+   "degenerate_triangle_count": 0,
+   "deprecated": [],
+   "dimensions": [
+    20.0,
+    20.0,
+    10.0
+   ],
+   "echo_output": [],
+   "errors": [],
+   "is_manifold": true,
+   "is_watertight": true,
+   "mesh_health": {
+    "facets": 272,
+    "manifold": null,
+    "note": "CGAL manifold check not performed (single primitive or preview path); manifoldness unknown",
+    "vertices": 136
+   },
+   "mode": "model",
+   "non_manifold_edge_count": 0,
+   "open_edge_count": 0,
+   "solid_count": 1,
+   "success": true,
+   "surface_area": 1731.962,
+   "triangle_count": 272,
+   "units": "mm",
+   "vertex_count": 136,
+   "volume": 3717.7106,
+   "warnings": []
+  },
+  "sha256_of_bytes": "44030255a827161ee1bddb76b3a645b4350261b743828b22987268f74fd2cbac"
+ },
+ "moved": {
+  "export": {
+   "deprecated": [],
+   "echo_output": [],
+   "errors": [],
+   "file_size_bytes": 56992,
+   "format": "stl",
+   "mesh_health": {
+    "facets": 272,
+    "manifold": null,
+    "note": "CGAL manifold check not performed (single primitive or preview path); manifoldness unknown",
+    "vertices": 136
+   },
+   "output_path": "/tmp/openscad-mcp/exports/export_7dcde42c.stl",
+   "success": true,
+   "warnings": []
+  },
+  "measure": {
+   "bbox_max": [
+    23.0,
+    20.0,
+    10.0
+   ],
+   "bbox_min": [
+    3.0,
+    0.0,
+    0.0
+   ],
+   "cavity_count": 0,
+   "center": [
+    13.0,
+    10.0,
+    5.0
+   ],
+   "component_count": 1,
+   "components": [
+    {
+     "bbox_max": [
+      23.0,
+      20.0,
+      10.0
+     ],
+     "bbox_min": [
+      3.0,
+      0.0,
+      0.0
+     ],
+     "centroid": [
+      13.0,
+      10.0,
+      5.0
+     ],
+     "dimensions": [
+      20.0,
+      20.0,
+      10.0
+     ],
+     "index": 0,
+     "is_cavity": false,
+     "is_closed": true,
+     "surface_area": 1731.962,
+     "triangle_count": 272,
+     "volume": 3717.7106
+    }
+   ],
+   "components_omitted": 0,
+   "degenerate_triangle_count": 0,
+   "deprecated": [],
+   "dimensions": [
+    20.0,
+    20.0,
+    10.0
+   ],
+   "echo_output": [],
+   "errors": [],
+   "is_manifold": true,
+   "is_watertight": true,
+   "mesh_health": {
+    "facets": 272,
+    "manifold": null,
+    "note": "CGAL manifold check not performed (single primitive or preview path); manifoldness unknown",
+    "vertices": 136
+   },
+   "mode": "model",
+   "non_manifold_edge_count": 0,
+   "open_edge_count": 0,
+   "solid_count": 1,
+   "success": true,
+   "surface_area": 1731.962,
+   "triangle_count": 272,
+   "units": "mm",
+   "vertex_count": 136,
+   "volume": 3717.7106,
+   "warnings": []
+  },
+  "sha256_of_bytes": "1bc830005e32b251bdefbbc4647b5e689822ccff45647073fd6aedda152e69ac"
+ }
+}

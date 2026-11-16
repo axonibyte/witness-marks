@@ -1,0 +1,5 @@
+    let volume = measure
+        .get("volume")
+        .and_then(Value::as_f64)
+        .or(Some(0.0))
+        .ok_or_else(|| {

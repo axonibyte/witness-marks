@@ -7,3 +7,4 @@
 //! silently did nothing.
 
 pub mod diff;
+pub mod wire;
