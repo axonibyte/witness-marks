@@ -1,0 +1,1 @@
+if !tol_mm.is_finite() || tol_mm <= 0.0 {

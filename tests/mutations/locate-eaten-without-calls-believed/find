@@ -1,0 +1,3 @@
+if !a.eaten_by.is_empty() {
+            return Err(format!(
+                "`{}` is declared, instantiated nowhere

@@ -1,0 +1,4 @@
+None => Ok(Located::Consumed {
+            call_sites: a.call_sites,
+            by: a.eaten_by.clone(),
+        }),

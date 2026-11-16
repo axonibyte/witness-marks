@@ -1,0 +1,2 @@
+if contributing.is_empty() {
+            return Err(

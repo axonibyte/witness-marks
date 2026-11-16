@@ -9,6 +9,7 @@ pub mod coincident;
 pub mod derive;
 pub mod eats;
 pub mod flank;
+pub mod locate;
 pub mod tree;
 
 pub const LAYER: &str = "wm-csg";
