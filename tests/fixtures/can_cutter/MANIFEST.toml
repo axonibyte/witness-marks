@@ -1,0 +1,118 @@
+# The can-cutter harness, vendored as the fixture model.
+#
+# WHY IT IS HERE. This is the model that generated the incident logs the
+# rediscovery corpus is built from. A corpus of 108 defects is only testable
+# against the artifact that exhibited them, and that artifact lives outside
+# this repository and keeps changing, so a COPY is pinned here with the state
+# it was pinned at.
+#
+# THE NUMBERS BELOW WERE MEASURED ON THESE EXACT FILES, 2026-11-16, with
+# OpenSCAD 2026.10.14 on FreeBSD. They are not copied from the logs. Where a
+# log figure and a measurement disagree, the disagreement is recorded rather
+# than resolved in favour of either.
+
+[source]
+# the working copies these were taken from; they move, this does not
+can_cutter = "/data/projects/tech/designs/arts/can_cutter.scad"
+print_stage = "/data/projects/tech/designs/arts/print_stage.scad"
+overhang_scan = "/data/projects/tech/designs/overhang-scan.scad"
+vendored_on = "2026-11-16"
+openscad = "2026.10.14"
+
+[hashes]
+"can_cutter.scad" = "19ccb568472f0119fdcc6e7d4cf1fbf6"
+"print_stage.scad" = "51e28a92e50bb5e1c280c6c29204d7f4"
+"overhang-scan.scad" = "718c3f03560773e64619a92b30fc20fd"
+
+# ---------------------------------------------------------------------------
+# MEASURED, at press = 0 (rest) and press = 2.209 (the tail stop)
+# ---------------------------------------------------------------------------
+
+[[measurement]]
+name = "stage triangles and vertices"
+at_rest = { triangles = 806, vertices = 396 }
+at_stop = { triangles = 810, vertices = 396 }
+note = """
+The issue that commissioned this vendoring cited "stage 490 tri / 247 verts at
+the verified state". That figure appears in NEITHER incident log, and it
+describes a part that no longer exists: the stage was redesigned from a
+parallel flexure into a single-hinge lever on 2026-11-15/16. 806 is this
+model's count. The old figure is recorded here as uncited rather than carried
+forward as though it were evidence."""
+
+[[measurement]]
+name = "stage INTERSECT blade"
+at_rest = 0.1063
+at_stop = 0.1063
+unit = "mm3"
+note = """
+This is the blade seated in its pocket, and it is the one cited figure that
+SURVIVED the redesign: the issue says 0.106 mm3 at seated press and the
+measurement is 0.1063. It is a deliberate seating interference, not a defect."""
+
+[[measurement]]
+name = "frame INTERSECT blade"
+at_rest = 0.0
+at_stop = 0.0
+unit = "mm3"
+note = """
+The issue cites 0.009 mm3 at 1.0 mm of advance, from buildability entry 74: the
+blade's edge swept outward in angle as it advanced and fouled the mouth jambs,
+about 0.65 mm of usable travel. MEASURED NOW: empty at every press through
+5.0 degrees, which is 1.922 mm of advance -- past the 0.787 mm the tail stop
+allows and well past the 1.0 mm the old figure was taken at. Entry 75 widened
+the mouth to the dovetail sockets' outboard flanks, and this is that fix
+holding. The old number is kept because a corpus entry whose defect has been
+fixed is exactly what the rediscovery gate re-finds."""
+
+[[measurement]]
+name = "frame INTERSECT stage"
+at_rest = 0.0
+at_stop = 0.0
+unit = "mm3"
+
+[[measurement]]
+name = "blade advance at the tail stop"
+value = 0.787
+unit = "mm"
+note = "Edge radius 32.700 at rest to 31.913 at press 2.209."
+
+[[measurement]]
+name = "unsupported area, slicer criterion"
+value = 0.0
+unit = "mm2"
+layer_height = 0.15
+critical_angle_deg = 36.87
+layers = 207
+note = """
+Run with overhang-scan.scad, which slices and subtracts an offset of the layer
+below -- the test a slicer actually performs -- rather than reading facet
+normals. It agrees with an independent facet-normal scan of the same STL, which
+also found zero facets below 36.87 degrees. Two methods, one answer.
+
+The scan wrote NO FILE, and that IS the pass condition: OpenSCAD reports an
+empty result as "Current top level object is empty" at exit 0 and writes
+nothing. Reading the absence of a file as a pass is only safe because the
+target is deleted first; mcp-notes entry 26 is the incident where four probes
+read a stale STL instead."""
+
+# ---------------------------------------------------------------------------
+# A FIGURE THE COMMISSIONING ISSUE GOT BACKWARDS
+# ---------------------------------------------------------------------------
+
+[[correction]]
+figure = "52.800 mm3, four flank probes"
+note = """
+The issue asks for "four flank probes at 52.800" as a known-good number. It is
+the opposite: that reading is the LIE.
+
+52.800 appears in two incidents with opposite meanings. In mcp-notes entry 26,
+FOUR flank probes all reported 52.800 mm3 of material in a box whose radii put
+it outside the body wall -- every one of them a stale STL, and the sharpest
+instance of failure class B in the logs. In buildability entry 66, the corrected
+run read ZERO on the two mouth-side flanks and 52.800 on the two outboard ones,
+which is what diagnosed a dovetail socket sheared in half by a coincident cut.
+
+So the known-good reading is TWO zeros and TWO at 52.800. Four at 52.800 is the
+stale-file signature. Vendoring it as a good value would have put the corpus's
+own example of a lying instrument into the corpus as truth."""
