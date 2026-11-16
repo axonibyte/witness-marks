@@ -1,0 +1,1 @@
+if !t.is_finite() || t < 0.0 {

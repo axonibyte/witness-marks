@@ -1,0 +1,1 @@
+if !max_bridge_mm.is_finite() || max_bridge_mm < 0.0 {

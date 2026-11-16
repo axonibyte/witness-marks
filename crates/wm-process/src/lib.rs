@@ -16,6 +16,8 @@
 
 use wm_envelope::ProvenanceKind;
 
+pub mod support;
+
 pub const LAYER: &str = "wm-process";
 
 /// One declared quantity: its value, where it came from, and who said so.
