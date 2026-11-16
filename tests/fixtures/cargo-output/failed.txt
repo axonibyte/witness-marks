@@ -1,0 +1,25 @@
+   Compiling fixgen v0.0.0 (/tmp/claude-1001/-data-projects-tech-code-iot-merlin/6bf09d48-0b4c-476c-b37f-a1210adab1ad/scratchpad/fixgen)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running unittests src/lib.rs (target/debug/deps/fixgen-69f4fa0ffb295345)
+
+running 2 tests
+test tests::fails ... FAILED
+test tests::passes ... ok
+
+failures:
+
+---- tests::fails stdout ----
+
+thread 'tests::fails' (1057380) panicked at src/lib.rs:5:27:
+assertion `left == right` failed
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::fails
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`

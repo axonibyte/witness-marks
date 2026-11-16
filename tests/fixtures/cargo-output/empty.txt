@@ -1,0 +1,14 @@
+   Compiling fixgen v0.0.0 (/tmp/claude-1001/-data-projects-tech-code-iot-merlin/6bf09d48-0b4c-476c-b37f-a1210adab1ad/scratchpad/fixgen)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running unittests src/lib.rs (target/debug/deps/fixgen-69f4fa0ffb295345)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests fixgen
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

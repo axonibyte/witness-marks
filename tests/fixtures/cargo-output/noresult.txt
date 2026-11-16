@@ -1,0 +1,13 @@
+   Compiling fixgen v0.0.0 (/tmp/claude-1001/-data-projects-tech-code-iot-merlin/6bf09d48-0b4c-476c-b37f-a1210adab1ad/scratchpad/fixgen)
+error[E0308]: mismatched types
+ --> src/lib.rs:1:26
+  |
+1 | pub fn broken() -> i32 { "not an int" }
+  |                    ---   ^^^^^^^^^^^^ expected `i32`, found `&str`
+  |                    |
+  |                    expected `i32` because of return type
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `fixgen` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `fixgen` (lib) due to 1 previous error

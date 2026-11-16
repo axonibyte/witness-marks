@@ -38,6 +38,21 @@ jobs:
           echo "HEAD $(timeout 30 git rev-parse HEAD)"
           test -f Cargo.lock || { echo "no Cargo.lock: wrong tree, or the lockfile was not committed"; exit 1; }
 
+      # THE COUNTER IS TESTED BEFORE IT IS TRUSTED. The passing-test count is
+      # this job's proof that execution happened, so the thing that computes it
+      # cannot be the one unexercised part of the run. Its arms use committed
+      # cargo transcripts, four of them real captures, and they assert stdout as
+      # well as rc -- a refusal that printed a number would read as a count.
+      - name: the counter's own arms
+        run: |
+          set -o pipefail
+          cd src-tree
+          rc=0; timeout 120 sh tools/tests/t_test_count.sh >count.out 2>&1 || rc=$?
+          cat count.out
+          test "$rc" -eq 0 || exit "$rc"
+          grep -qE '^-- [0-9]+/[0-9]+ arms pass' count.out \
+            || { echo "the arms produced no count of their own: they did not run"; exit 1; }
+
       - name: build and test, locked
         run: |
           set -o pipefail
@@ -46,11 +61,16 @@ jobs:
           echo "toolchain $(timeout 30 cargo --version)"
           rc=0; timeout 1500 cargo test --locked --workspace >test.out 2>&1 || rc=$?
           test "$rc" -eq 124 && { echo "HANG: cargo test exceeded 1500s"; tail -40 test.out; exit 124; }
-          # a value only execution could have produced: the count of passing tests
-          passed=$(grep -E '^test result: ok' test.out | sed -E 's/.* ([0-9]+) passed.*/\1/' | paste -sd+ - | bc)
-          echo "tests passed: ${passed:-0}"
-          test "$rc" -eq 0 || { tail -60 test.out; exit "$rc"; }
-          test "${passed:-0}" -gt 0 || { echo "zero tests ran: a green with nothing behind it"; exit 1; }
+          # A VALUE ONLY EXECUTION COULD HAVE PRODUCED -- and a refusal where the
+          # value would be a lie. This was an inline grep|sed|paste|bc pipeline
+          # whose `${passed:-0}` made a missing bc, a build failure and a real
+          # empty suite into the same 0, under a message that asserted the third.
+          # test-count.sh gives each its own exit, so the log names the state it
+          # actually found. Measured on a real mixed transcript: the old pipeline
+          # printed "tests passed: 3" for a run that FAILED, because it summed
+          # the ok suites and skipped the FAILED line, and only the rc check
+          # below kept that from being acted on.
+          sh tools/ci-report-count.sh test.out "$rc" || { tail -60 test.out; exit 1; }
 
       - name: clippy and fmt
         run: |

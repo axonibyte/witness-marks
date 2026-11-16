@@ -1,0 +1,33 @@
+   Compiling fixgen2 v0.0.0 (/tmp/claude-1001/-data-projects-tech-code-iot-merlin/6bf09d48-0b4c-476c-b37f-a1210adab1ad/scratchpad/fixgen2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.43s
+     Running unittests src/lib.rs (target/debug/deps/fixgen2-17653cbeaac76315)
+
+running 3 tests
+test tests::a ... ok
+test tests::b ... ok
+test tests::c ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-086e8ed701baf562)
+
+running 1 test
+test integration_fails ... FAILED
+
+failures:
+
+---- integration_fails stdout ----
+
+thread 'integration_fails' (1057993) panicked at tests/integration.rs:1:34:
+assertion `left == right` failed
+  left: 1
+ right: 99
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    integration_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test integration`
