@@ -34,11 +34,34 @@ vector set that assumes the pin while talking to a different version is
 comparing against something the manifest does not describe. Recorded here
 rather than resolved, because which one is wrong is not this file's call.
 
-**A question neither side can answer.** The issue asked for component count
-among the first ten. A triangle soup carries no component structure, and the
-provider exports rather than measures, so neither side can say how many
-separate bodies an STL holds. `two-cubes-facets` records that as a finding
-about the FORMAT instead of dropping the question quietly.
+**A question only the PROVIDER can answer, and I got this backwards first.**
+This section originally said neither side could compute component count,
+"and not the provider, which exports and does not measure". That was committed
+and it was wrong. The provider's `measure` tool returns `component_count`, and
+on two disjoint cubes it returns 2, driven over MCP on 2026-11-16.
+
+The finding is therefore about OUR side. A binary STL is a triangle soup with
+no component structure, so the mesh reader this runner uses cannot answer the
+question at all, while the provider computes it upstream of the export. That is
+exactly the case this file opens with: a vector only one side can compute is a
+finding about the other side, and here the other side is ours.
+
+**Where both sides can be compared, they agree.** Measured on the pinned
+provider and recorded as `provider = { ... }` beside each vector:
+
+| vector | ours | provider |
+| --- | --- | --- |
+| cube volume | 1000.0 | 1000.0 |
+| rotated cube bbox | 14.142136 | 14.1421 |
+| overlap intersection volume | 500.0 | 500.0 |
+| two cubes facets | 24 | 24 |
+| sphere $fn=64 facets | 4092 | 4092 |
+| sphere $fn=64 volume | 4171.998709 | 4171.9988 |
+| cylinder $fn=128 volume | 785.082777 | 785.0828 |
+
+The provider rounds to four decimals; the agreement is to the digits it
+reports. Nothing here is the oracle: five of these have closed forms, and for
+those the arithmetic is.
 
 ## Running them
 

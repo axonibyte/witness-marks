@@ -1,11 +1,18 @@
 # Cross-implementation vectors. See README.md.
 
+# THE `provider = { ... }` LINES ARE THE OTHER SIDE, measured 2026-11-16 by
+# speaking MCP to the pinned openscad-mcp and calling its `measure` tool on the
+# same model. They are recorded, not asserted: the runner computes OUR side and
+# compares it to `expected`. Where the two disagree the disagreement is the
+# finding, and where only one side can answer at all, that is a finding too.
+
 # EVERY EXPECTATION HERE WAS RECORDED FROM A RUN AND THEN COMMITTED.
 # Do not edit an expectation to make a run pass; that is the one edit that
 # turns a vector into a restatement of whatever the code currently does.
 
 [[vector]]
 id = "cube-volume"
+provider = { volume = 1000.0, component_count = 1, is_watertight = true }
 n = 1
 question = "volume"
 fn = 0
@@ -30,6 +37,7 @@ tolerance = 1e-09
 
 [[vector]]
 id = "rotated-cube-bbox"
+provider = { dimensions = [14.1421, 14.1421, 10.0] }
 n = 3
 question = "bbox"
 fn = 0
@@ -42,6 +50,7 @@ tolerance = 1e-05
 
 [[vector]]
 id = "two-cubes-facets"
+provider = { component_count = 2, triangle_count = 24, volume = 250.0 }
 n = 4
 question = "facets"
 fn = 0
@@ -50,12 +59,26 @@ Two disjoint 5 mm cubes, 12 triangles each."""
 model = """
 cube(5); translate([20, 0, 0]) cube(5);"""
 note = """
-THE QUESTION THIS VECTOR CANNOT ASK is the one it was commissioned for: component count. A triangle soup carries no component structure, so neither side can answer 'how many separate bodies' from an STL -- not us, and not the provider, which exports and does not measure. That is a finding about the FORMAT rather than about either implementation, and it is recorded here instead of being quietly dropped."""
+A CORRECTION TO WHAT THIS NOTE FIRST SAID, which was committed and wrong. It
+claimed neither side could answer component count, "not us, and not the
+provider, which exports and does not measure". The provider DOES measure: its
+`measure` tool returns component_count, and on this exact model it returns 2.
+Driven 2026-11-16 against the pinned server over MCP.
+
+So the finding is about OUR side, not the format and not the provider. A
+binary STL is a triangle soup with no component structure, so the mesh reader
+this runner uses cannot answer the question at all; the provider computes it
+upstream of the export. That is the issue's own case -- a vector only one side
+can compute is a finding about the other -- and here the other side is ours.
+
+provider_component_count = 2, and this vector's own expectation stays the
+facet count, which both sides agree on at 24."""
 expected = 24
 tolerance = 0
 
 [[vector]]
 id = "overlap-intersection"
+provider = { volume = 500.0, component_count = 1 }
 n = 5
 question = "volume"
 fn = 0
@@ -68,6 +91,7 @@ tolerance = 1e-09
 
 [[vector]]
 id = "sphere-fn64-facets"
+provider = { triangle_count = 4092, volume = 4171.9988, component_count = 1 }
 n = 6
 question = "facets"
 fn = 64
@@ -82,6 +106,7 @@ tolerance = 0
 
 [[vector]]
 id = "sphere-fn64-volume"
+provider = { volume = 4171.9988 }
 n = 7
 question = "volume"
 fn = 64
@@ -96,6 +121,7 @@ tolerance = 0.0001
 
 [[vector]]
 id = "cylinder-fn128-volume"
+provider = { volume = 785.0828, triangle_count = 508 }
 n = 8
 question = "volume"
 fn = 128
