@@ -68,6 +68,13 @@ Skeleton. Every crate exports one symbol and one test; `wm-envelope` and
 `initialize`, `ping` and `tools/list` (empty) over stdio. Nothing measures yet.
 Work is tracked as issues on the forge.
 
+## Contributing
+
+`docs/testing-methodology.md` is normative here. `CONTRIBUTING.md` is its short
+form and, more usefully, the table of which rules are actually mechanized and
+which are carried by the reviewer -- stated that way round so the document does
+not imply a gate that does not exist.
+
 ## License
 
 Copyright Axonibyte Innovations, LLC. This repository is licensed **in parts**,
