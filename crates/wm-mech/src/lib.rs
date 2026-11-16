@@ -6,8 +6,17 @@
 /// thick (bending about the thin axis), `L` long, modulus `e` in MPa.
 /// k = 3EI/L^3 with I = w*t^3/12.
 pub fn cantilever_stiffness(e_mpa: f64, l_mm: f64, w_mm: f64, t_mm: f64) -> f64 {
-    let i = w_mm * t_mm.powi(3) / 12.0;
-    3.0 * e_mpa * i / l_mm.powi(3)
+    // ONE COPY OF THE FORMULA. This had its own inline `w*t^3/12` until
+    // `second_moment` was added beside it, and then there were two. The
+    // duplication was found by `tools/mutate.sh --all` refusing to apply a
+    // mutant recorded back in Foundations: its find text had stopped being
+    // unique, so the mutation could not be placed and the tool said so
+    // instead of patching one of them and reporting a kill.
+    //
+    // That is refusal 1 doing exactly what it is for, in a case nobody would
+    // otherwise have noticed: a recorded kill quietly becoming unverifiable
+    // because unrelated code grew a second copy of the same expression.
+    3.0 * e_mpa * second_moment(w_mm, t_mm) / l_mm.powi(3)
 }
 
 #[cfg(test)]
