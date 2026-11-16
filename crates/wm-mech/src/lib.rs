@@ -625,3 +625,258 @@ mod screw_tests {
         assert!(harness(0.3).under(-1.0).is_err());
     }
 }
+
+// ---------------------------------------------------------------------------
+// Friction chains: which interface gives way first. Spec §05.
+// ---------------------------------------------------------------------------
+
+/// One friction interface in a chain.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Interface {
+    pub name: String,
+    /// EFFECTIVE friction radius, mm. For an annular land this is
+    /// [`annular_effective_radius`] and NOT the mean of the two radii: the
+    /// outer part of the land carries more torque per unit area because it is
+    /// further out, and the mean under-reports it.
+    pub r_mm: f64,
+    pub mu: f64,
+    /// Normal force, N.
+    pub normal_n: f64,
+}
+
+impl Interface {
+    /// Torque this interface can carry before it slips, N*mm.
+    pub fn capacity(&self) -> Result<f64, String> {
+        for (n, v) in [
+            ("r_mm", self.r_mm),
+            ("mu", self.mu),
+            ("normal_n", self.normal_n),
+        ] {
+            if !v.is_finite() || v < 0.0 {
+                return Err(format!(
+                    "{} : {n} must be finite and non-negative, got {v}",
+                    self.name
+                ));
+            }
+        }
+        Ok(self.mu * self.normal_n * self.r_mm)
+    }
+}
+
+/// The effective friction radius of an annular land under uniform pressure.
+///
+/// `(2/3) * (ro^3 - ri^3) / (ro^2 - ri^2)`
+///
+/// NOT THE MEAN RADIUS. For a 5 to 11 mm land the mean is 8.0 and the
+/// effective radius is 8.375, which is 4.7% higher: area further out carries
+/// proportionally more torque. Using the mean under-reports every capacity.
+pub fn annular_effective_radius(ri_mm: f64, ro_mm: f64) -> Result<f64, String> {
+    if !ri_mm.is_finite() || !ro_mm.is_finite() || ri_mm < 0.0 || ro_mm <= ri_mm {
+        return Err(format!("need 0 <= ri < ro, got {ri_mm} and {ro_mm}"));
+    }
+    Ok((2.0 / 3.0) * (ro_mm.powi(3) - ri_mm.powi(3)) / (ro_mm.powi(2) - ri_mm.powi(2)))
+}
+
+/// Which interface in a chain gives way first, and by how much.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChainResult {
+    /// The name of the interface that slips first: the lowest capacity.
+    pub first_to_slip: String,
+    /// Its capacity, N*mm.
+    pub weakest_capacity: f64,
+    /// Every interface's capacity as a multiple of the weakest. The weakest is
+    /// 1.0 by construction.
+    pub margins: Vec<(String, f64)>,
+}
+
+/// Rank a chain of interfaces by the torque each can carry.
+///
+/// # Load and friction cancel when they are shared
+///
+/// If every interface in a chain sees the same normal force and the same
+/// friction coefficient, `mu*N*r` reduces to `r`, and the ranking is PURELY
+/// GEOMETRIC. That is the useful case and it is why the harness analysis could
+/// be done without knowing either number. An arm asserts the cancellation
+/// rather than leaving it as a remark.
+pub fn rank(chain: &[Interface]) -> Result<ChainResult, String> {
+    if chain.is_empty() {
+        return Err(
+            "an empty chain has no interface to slip; refusing rather than \
+                    reporting that nothing gives way"
+                .into(),
+        );
+    }
+    let mut caps: Vec<(String, f64)> = Vec::with_capacity(chain.len());
+    for i in chain {
+        caps.push((i.name.clone(), i.capacity()?));
+    }
+    let weakest = caps.iter().map(|(_, c)| *c).fold(f64::INFINITY, f64::min);
+    if weakest <= 0.0 {
+        return Err(format!(
+            "the weakest interface carries {weakest} N*mm: with zero capacity every \
+             margin is infinite, which is not a useful answer"
+        ));
+    }
+    let first = caps
+        .iter()
+        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .map(|(n, _)| n.clone())
+        .unwrap_or_default();
+    Ok(ChainResult {
+        first_to_slip: first,
+        weakest_capacity: weakest,
+        margins: caps.into_iter().map(|(n, c)| (n, c / weakest)).collect(),
+    })
+}
+
+#[cfg(test)]
+mod friction_tests {
+    use super::*;
+
+    fn iface(name: &str, r: f64) -> Interface {
+        Interface {
+            name: name.into(),
+            r_mm: r,
+            mu: 0.3,
+            normal_n: 20.0,
+        }
+    }
+
+    /// The log's 8.4 is the EFFECTIVE radius of a 5 to 11 mm land, not the
+    /// mean of 8.0. The log did the right physics and this pins it.
+    #[test]
+    fn the_logged_land_radius_is_the_effective_one_not_the_mean() {
+        let eff = annular_effective_radius(5.0, 11.0).expect("valid");
+        assert!(
+            (eff - 8.375).abs() < 1e-9,
+            "a 5-11 land is 8.375 effective, got {eff}"
+        );
+        assert!(
+            (eff - 8.0).abs() > 0.3,
+            "and it is NOT the mean radius of 8.0"
+        );
+    }
+
+    /// THE PUCK AGAINST THE THREAD, computed from the log's own radii.
+    ///
+    /// A DISCREPANCY IN THE LOG, recorded rather than reconciled: buildability
+    /// entry 72 says the thread out-resists the puck's land "3.7:1" with the
+    /// land at 8.4 mm and the thread at 34 mm. Those radii give **4.05:1**.
+    /// Reaching 3.7 would need a thread radius of 31.08 or a land radius of
+    /// 9.19, and the entry states neither. The entry's OTHER ratio, the fused
+    /// 34 against 26, does check out at 1.308. One figure in that sentence
+    /// does not follow from the others, and this test asserts the arithmetic
+    /// rather than the prose.
+    #[test]
+    fn the_thread_out_resists_the_pucks_land_by_the_ratio_of_their_radii() {
+        let chain = [iface("puck thrust land", 8.4), iface("thread", 34.0)];
+        let r = rank(&chain).expect("valid");
+        assert_eq!(r.first_to_slip, "puck thrust land");
+        let thread = r
+            .margins
+            .iter()
+            .find(|(n, _)| n == "thread")
+            .expect("in the chain")
+            .1;
+        assert!(
+            (thread - 34.0 / 8.4).abs() < 1e-12,
+            "the margin is the ratio of radii"
+        );
+        assert!(
+            (thread - 4.047_6).abs() < 1e-3,
+            "which is 4.05:1, NOT the 3.7:1 the log states; got {thread}"
+        );
+    }
+
+    /// The fused case, which the log gets right: 34 against 26 is 1.308.
+    #[test]
+    fn the_fused_case_matches_the_log() {
+        let chain = [iface("can on the carrier top", 26.0), iface("thread", 34.0)];
+        let r = rank(&chain).expect("valid");
+        assert_eq!(r.first_to_slip, "can on the carrier top");
+        let thread = r
+            .margins
+            .iter()
+            .find(|(n, _)| n == "thread")
+            .expect("there")
+            .1;
+        assert!(
+            (thread - 1.307_7).abs() < 1e-3,
+            "the log says about 1.3:1, got {thread}"
+        );
+    }
+
+    /// LOAD AND FRICTION CANCEL when they are shared, so the ranking is PURELY
+    /// GEOMETRIC. This is why the harness analysis could be done without
+    /// knowing either number, and it is asserted rather than remarked upon.
+    #[test]
+    fn a_shared_load_and_friction_cancel_out_of_the_margins() {
+        let a = [iface("small", 8.4), iface("large", 34.0)];
+        let mut b = a.clone();
+        for i in b.iter_mut() {
+            i.mu = 0.05;
+            i.normal_n = 900.0;
+        }
+        let ra = rank(&a).expect("valid");
+        let rb = rank(&b).expect("valid");
+        assert_eq!(ra.first_to_slip, rb.first_to_slip);
+        for ((na, ma), (nb, mb)) in ra.margins.iter().zip(rb.margins.iter()) {
+            assert_eq!(na, nb);
+            assert!(
+                (ma - mb).abs() < 1e-12,
+                "a 18x change in load and a 6x change in mu must not move the margin"
+            );
+        }
+        assert!(
+            ra.weakest_capacity != rb.weakest_capacity,
+            "the capacity DOES move"
+        );
+    }
+
+    /// An interface with a smaller radius but far more load can still win,
+    /// which is the case the geometric shortcut does NOT cover.
+    #[test]
+    fn an_unshared_load_breaks_the_geometric_shortcut() {
+        let chain = [
+            Interface {
+                normal_n: 500.0,
+                ..iface("small but clamped hard", 8.4)
+            },
+            iface("large but barely loaded", 34.0),
+        ];
+        let r = rank(&chain).expect("valid");
+        assert_eq!(
+            r.first_to_slip, "large but barely loaded",
+            "with loads unshared the bigger radius can still be the weak link"
+        );
+    }
+
+    /// AN EMPTY CHAIN HAS NOTHING TO SLIP, and reporting that nothing gives
+    /// way would read as a part that cannot fail.
+    #[test]
+    fn an_empty_chain_is_refused_rather_than_reported_as_safe() {
+        let e = rank(&[]).expect_err("must refuse");
+        assert!(e.contains("refusing"), "{e}");
+    }
+
+    /// A zero-capacity interface makes every margin infinite, which is not a
+    /// useful answer and is refused.
+    #[test]
+    fn a_zero_capacity_interface_is_refused() {
+        let chain = [
+            Interface {
+                normal_n: 0.0,
+                ..iface("unloaded", 8.4)
+            },
+            iface("thread", 34.0),
+        ];
+        assert!(rank(&chain).is_err());
+    }
+
+    #[test]
+    fn the_effective_radius_refuses_a_backwards_annulus() {
+        assert!(annular_effective_radius(11.0, 5.0).is_err());
+        assert!(annular_effective_radius(5.0, 5.0).is_err());
+        assert!(annular_effective_radius(f64::NAN, 11.0).is_err());
+    }
+}

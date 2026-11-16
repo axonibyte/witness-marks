@@ -1,0 +1,7 @@
+    if chain.is_empty() {
+        return Err(
+            "an empty chain has no interface to slip; refusing rather than \
+                    reporting that nothing gives way"
+                .into(),
+        );
+    }

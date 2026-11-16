@@ -1,0 +1,1 @@
+        margins: caps.into_iter().map(|(n, c)| (n, c / weakest)).collect(),
