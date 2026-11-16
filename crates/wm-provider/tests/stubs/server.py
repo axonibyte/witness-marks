@@ -16,6 +16,9 @@ The behaviours are chosen because each one broke a client somewhere:
   texterror    return a tools/call result with isError and a non-JSON text body
   echoargs     return the call's own arguments, so a test can assert what was
                SENT rather than only what the client computed
+  deadprobe    answer EVERY measure with an empty result, the way a probe that
+               is not running does -- so the control arm is driven in its
+               failing direction and not only its passing one
 """
 import json
 import os
@@ -70,6 +73,12 @@ def main():
                 out({"jsonrpc": "2.0", "id": req["id"], "result": {
                     "isError": True,
                     "content": [{"type": "text", "text": "1 validation error for call[measure]"}]}})
+                continue
+            if MODE == "deadprobe":
+                out({"jsonrpc": "2.0", "id": req["id"], "result": {
+                    "structuredContent": {
+                        "empty": True, "volume": 0.0, "triangle_count": 0,
+                        "errors": [], "warnings": [], "hints": [], "deprecated": []}}})
                 continue
             if MODE == "echoargs":
                 out({"jsonrpc": "2.0", "id": req["id"], "result": {

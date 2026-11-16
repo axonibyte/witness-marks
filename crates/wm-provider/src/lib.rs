@@ -34,6 +34,7 @@ use serde_json::{json, Map, Value};
 use wm_envelope::{Controls, Envelope, Observed, Provenance, Status, Subject};
 
 /// Present so the crate has one exported symbol and one test from day one.
+pub mod controls;
 pub mod view;
 
 pub const LAYER: &str = "wm-provider";
@@ -447,6 +448,32 @@ impl Provider {
         }
         let answer = self.call("measure", Value::Object(args))?;
         Ok((answer, plan))
+    }
+
+    /// Measure a subject WITH its known-positive controls, in the same
+    /// session, through the same code path.
+    ///
+    /// The controls are measured first on purpose. If the probe is broken, the
+    /// caller learns that before reading anything about the subject, and the
+    /// subject's result arrives already labelled as unverified rather than
+    /// being presented and retracted.
+    ///
+    /// Returns the subject's answer, the control tally, and the verdict. A
+    /// [`controls::Trust::Blind`] verdict means a clear result from this probe
+    /// means NOTHING, and the reasons say which control was silent.
+    pub fn measure_with_controls(
+        &mut self,
+        scad: &str,
+        ctls: &[controls::Control],
+    ) -> Result<(ToolAnswer, wm_envelope::Controls, controls::Trust)> {
+        let mut results = Vec::with_capacity(ctls.len());
+        for c in ctls {
+            let a = self.measure(c.model)?;
+            results.push((*c, controls::bit(&a.payload)));
+        }
+        let (tally, trust) = controls::tally(&results);
+        let subject = self.measure(scad)?;
+        Ok((subject, tally, trust))
     }
 
     pub fn validate(&mut self, scad: &str) -> Result<ToolAnswer> {

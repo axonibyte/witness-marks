@@ -13,7 +13,7 @@
 //! that is not the pinned one, and a server that stops answering.
 
 use std::time::Duration;
-use wm_provider::{Expect, Provider, Spawn};
+use wm_provider::{controls, Expect, Provider, Spawn};
 
 const TOML: &str = r#"
 server_info_name = "OpenSCAD MCP Server"
@@ -174,4 +174,44 @@ fn a_model_without_view_state_sends_no_variables_at_all() {
         "no view state means no variables key: {}",
         a.payload["echoed_arguments"]
     );
+}
+
+/// A WORKING probe: both controls bite, so a clear subject result is worth
+/// something.
+#[test]
+fn controls_run_through_the_same_path_as_the_subject() {
+    let mut p = Provider::start(&spawn("plain", 20), &expect()).expect("starts");
+    let (subject, tally, trust) = p
+        .measure_with_controls("cube(10);", &[controls::OVERLAP, controls::LEDGE])
+        .expect("measures");
+    assert_eq!(tally, wm_envelope::Controls { ran: 2, bit: 2 });
+    assert_eq!(trust, controls::Trust::Trustworthy);
+    assert_eq!(subject.payload["volume"], 1000.0);
+}
+
+/// THE ARM THIS MECHANISM EXISTS FOR, driven end to end. A probe that answers
+/// everything as empty looks exactly like a probe reporting a clean subject.
+/// The controls are what tell the two apart, and the verdict must be BLIND
+/// rather than clear.
+#[test]
+fn a_probe_that_reports_everything_empty_is_blind_not_clear() {
+    let mut p = Provider::start(&spawn("deadprobe", 20), &expect()).expect("starts");
+    let (subject, tally, trust) = p
+        .measure_with_controls("cube(10);", &[controls::OVERLAP, controls::LEDGE])
+        .expect("measures");
+    assert!(
+        subject.is_empty_result(),
+        "the subject reads clear, which is the trap"
+    );
+    assert_eq!(tally, wm_envelope::Controls { ran: 2, bit: 0 });
+    match trust {
+        controls::Trust::Blind(why) => {
+            assert_eq!(why.len(), 2, "both dead controls are named: {why:?}");
+            assert!(why.iter().any(|w| w.contains("deliberate-overlap")));
+            assert!(why.iter().any(|w| w.contains("deliberate-ledge")));
+        }
+        controls::Trust::Trustworthy => {
+            panic!("a probe that saw nothing, including its own positives, is not trustworthy")
+        }
+    }
 }
