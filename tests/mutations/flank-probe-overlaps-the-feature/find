@@ -1,0 +1,3 @@
+    if dir.positive() {
+        plo[a] = hi[a];
+        phi[a] = hi[a] + depth;

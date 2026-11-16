@@ -1,0 +1,2 @@
+    let (lo, hi) = (&[0.0f64; 3], &[1.0f64; 3]);
+    let Bbox::Known { lo: _, hi: _, .. } = b else {
