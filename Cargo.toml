@@ -6,6 +6,7 @@ members = [
   "crates/wm-csg",        # Layer 1b: the construction tree -- eats, flank, coincident
   "crates/wm-mech",       # Layer 3: closed-form mechanics
   "crates/wm-process",    # Layer 4: printer, material, firmware, slicer criterion
+  "crates/wm-model",      # Layer E: the one edit tool the provider lacks -- geometric diff
   "crates/wm-asm",     # Layer 2: assembly -- pairs, and time
   "crates/wm-claims",     # Layer 5: assertions, staleness, dominance, fan-out
   "crates/witness-marks", # the server binary: NDJSON JSON-RPC over stdio

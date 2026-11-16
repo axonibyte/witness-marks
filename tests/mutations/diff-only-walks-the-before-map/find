@@ -1,0 +1,5 @@
+    for k in after.params.keys() {
+        if !before.params.contains_key(k) {
+            names.push(k);
+        }
+    }

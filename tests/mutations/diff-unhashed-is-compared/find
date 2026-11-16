@@ -1,0 +1,1 @@
+if s.mesh_hash.trim().is_empty() {

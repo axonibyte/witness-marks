@@ -1,0 +1,5 @@
+if !changed_names.is_empty() {
+                findings.push(Finding::ParametersWentNowhere {
+                    names: changed_names,
+                });
+            }

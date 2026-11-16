@@ -1,0 +1,1 @@
+let identical = before.mesh_hash == after.mesh_hash;
