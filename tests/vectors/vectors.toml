@@ -256,3 +256,148 @@ cube([7, 11, 13]);""",
   """
 translate([40, 0, 0]) cube([3, 5, 2]);""",
 ]
+
+# ---------------------------------------------------------------------------
+# RELATIONS ON GEOMETRY WITH NO CLOSED FORM, 2026-11-17.
+#
+# These were written to test whether metamorphic relations deserve a TIER in
+# docs/testing-methodology.md. THEY DO NOT, measured twice, and the tier was
+# proposed, written, broadcast to the room, and withdrawn the same night. The
+# relations are kept because they hold real invariants cheaply; the TIER was
+# removed because it could not meet the document's own admission rule --
+# "a tier that cannot answer a question the tier below it already answers is a
+# tier to delete".
+#
+# ROUND 1. Six relations on cube([7,11,13]) and unions of cubes -- which is the
+# VECTOR tier's own domain, so the test was aimed inside its competitor's
+# strength. Round 2 re-aimed six more at the can cutter's real parts, a
+# minkowski sum and a convex hull, where `expected = N` is unavailable by
+# construction: nobody hand-computes 57932.72 mm3, so any figure would have to
+# be recorded from a run, which this file's own header calls the one edit that
+# turns a vector into a restatement.
+#
+#   defect in the mesh reader   vectors  closed-form rel  RE-AIMED rel
+#   abs() removed                 0/10        0/6             0/6
+#   triangle area halved          0/10        0/6             0/6
+#   volume from the bbox          3/10        1/6             2/6
+#   volume x1.5                   5/10        0/6             0/6
+#   volume squared                5/10        2/6             3/6
+#   last triangle dropped         4/10        2/6             2/6
+#
+# IN SIX DEFECTS THE RELATIONS CAUGHT NOTHING THE VECTORS MISSED, and the
+# vectors caught strictly more wherever anything was caught.
+#
+# WHY THE TEST CANNOT SETTLE THE CLAIM, which is the more useful finding. The
+# subject is OUR mesh reader -- thirty lines of arithmetic over a triangle
+# list, shared by every shape. A defect there appears on a cube exactly as it
+# appears on the frame, so complexity is irrelevant to it and the closed-form
+# vectors will always win. A relation tier would earn its row only against a
+# failure mode that NEEDS complex geometry: a spatial-index bug above some
+# triangle count, a hull or minkowski-specific error, a tessellation-dependent
+# drift. Our reader has no such mode, so the right subject was never our reader
+# -- it is the provider, whose measurements we consume and cannot verify, and
+# which cannot be mutated from here.
+#
+# TO REVISIT IT, the condition is specific rather than a hunch: find a defect
+# that manifests ONLY on geometry no vector can cover, and show a relation
+# catching it where the vectors cannot. Until such a defect exists, a tier is
+# an argument and these are tests.
+#
+# Two defects nobody caught at all, worth keeping in view: a removed abs() (the
+# kernel writes outward normals even after a mirror, so the sign never
+# surfaces) and a halved triangle area (a constant factor cancels in a ratio by
+# construction, and the closed-form area vectors do not cover area).
+
+[[relation]]
+id = "frame-scale-volume-8x"
+question = "volume"
+factor = 8.0
+tolerance = 1e-06
+why = """
+The can cutter's frame: 47 multmatrix nodes, nine polygons, two rotate_extrudes. NOBODY CAN COMPUTE ITS VOLUME, so no vector for it can exist -- `expected` would have to be recorded from a run, which makes it a restatement of whatever the code did. The ratio is available without the figure."""
+base = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+frame();"""
+transformed = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+scale([2, 2, 2]) frame();"""
+
+[[relation]]
+id = "frame-rotate-conserves-volume"
+question = "volume"
+factor = 1.0
+tolerance = 1e-06
+why = """
+A rigid rotation of a real part. The angle is 37 degrees, not 90: a right angle on an axis-aligned part can hold for the wrong reason, and 37 forces every facet to move."""
+base = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+frame();"""
+transformed = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+rotate([0, 0, 37]) frame();"""
+
+[[relation]]
+id = "minkowski-scale-volume-8x"
+question = "volume"
+factor = 8.0
+tolerance = 1e-06
+why = """
+A minkowski sum of a cuboid and a sphere. Its volume HAS a closed form in principle -- Steiner's formula -- and not at a given tessellation, which is the case that matters: the figure OpenSCAD produces at $fn=16 is not the analytic one, so a vector would have to record the run."""
+base = """
+minkowski() { cube([7, 11, 13]); sphere(r = 2, $fn = 16); }"""
+transformed = """
+scale([2, 2, 2]) minkowski() { cube([7, 11, 13]); sphere(r = 2, $fn = 16); }"""
+
+[[relation]]
+id = "hull-scale-area-4x"
+question = "area"
+factor = 4.0
+tolerance = 1e-06
+why = """
+The convex hull of four spheres at irregular offsets. No closed form at any tessellation, and surface area rather than volume so the exponent differs from the relations above."""
+base = """
+hull() {
+  translate([0, 0, 0]) sphere(r = 3, $fn = 24);
+  translate([13, 2, 1]) sphere(r = 5, $fn = 24);
+  translate([4, 17, 3]) sphere(r = 2, $fn = 24);
+  translate([9, 6, 11]) sphere(r = 4, $fn = 24);
+}"""
+transformed = """
+scale([2, 2, 2]) hull() {
+  translate([0, 0, 0]) sphere(r = 3, $fn = 24);
+  translate([13, 2, 1]) sphere(r = 5, $fn = 24);
+  translate([4, 17, 3]) sphere(r = 2, $fn = 24);
+  translate([9, 6, 11]) sphere(r = 4, $fn = 24);
+}"""
+
+[[relation]]
+id = "stage-translate-conserves-volume"
+question = "volume"
+factor = 1.0
+tolerance = 1e-06
+why = """
+The blade stage, which carries the dovetail sockets and the tenons -- the part the 2b work was built from. A part that moved has the volume it had, on geometry nobody has measured by hand."""
+base = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+blade_stage();"""
+transformed = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+translate([41, -23, 7]) blade_stage();"""
+
+[[relation]]
+id = "frame-plus-stage-disjoint-sums"
+question = "volume"
+tolerance = 1e-06
+why = """
+Two real parts, moved far enough apart to be disjoint. Additivity over disjoint parts is the one relation that separated a mesh volume from a bounding-box volume in the earlier measurement, and here neither side has a closed form."""
+base = """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+union() { frame(); translate([400, 0, 0]) blade_stage(); }"""
+sum_of = [
+  """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+frame();""",
+  """
+use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+translate([400, 0, 0]) blade_stage();""",
+]

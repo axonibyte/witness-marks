@@ -32,7 +32,6 @@ So every tier here is justified by a question no cheaper tier can answer:
 |---|---|
 | Pure unit | Is this calculation right, at its boundaries? |
 | Cross-language vectors | Do two independent implementations agree? |
-| Metamorphic relations | Is this right when nobody can compute what right is? |
 | Component conformance | Did the rendered output drift? |
 | Source-as-data | Does the code's *structure* still hold its claims? |
 | Server contract | Do the authorization and enum rules hold, in isolation? |
@@ -115,86 +114,6 @@ hostile environment default.** In yasss the credential vectors run once
 normally and once with a non-UTF-8 default charset (`charsetTest`), because
 under a UTF-8 default the suite passes whether or not the encoding is actually
 pinned — so the ordinary run cannot see the bug at all.
-
-### Metamorphic relations
-
-Every tier above needs one of three things: a known expected value, a second
-implementation, or a willingness to settle for "it did not crash." Some
-questions have none of them available. What is the correct support area for an
-arbitrary mesh? Nobody knows. There is no closed form, no reference
-implementation worth trusting, and no crash to catch.
-
-So assert the **relation between outputs** rather than any output. You cannot
-compute the answer; you know exactly how the answer must *change*.
-
-| Transform the input | The output must |
-|---|---|
-| scale by 2 | area ×4, volume ×8 |
-| translate | be unchanged; the bounding box shifts exactly |
-| rotate 90° about an axis | permute the dimensions, conserve the volume |
-| mirror | conserve the volume |
-| union two disjoint solids | sum the volumes |
-| reverse a sweep's direction | meet the same obstacle at `range − t` |
-| probe a point, moving point and model together | keep the same inside/outside verdict |
-
-None of these needs an oracle. All of them run on geometry nobody has ever
-measured by hand.
-
-**What it catches that the vector tier cannot.** Golden vectors find the case
-where two implementations are each self-consistent and disagree. They are blind
-to the case where two implementations *agree and are both wrong*, because
-agreement is evidence about what the two share — usually a method, sometimes a
-misreading of the same specification. A metamorphic relation does not care what
-anyone agrees about: either the output scales by eight or it does not.
-
-**The incident.** Witness Marks measured a 30° cone's overhang two ways and got
-362.64 mm² against 131.1. The differential found the disagreement; it took
-arithmetic — π·R·(R/cos 30°) = 362.76 — to establish that one side was reporting
-down-facing *surface area* and the other *area with nothing under it*. Both were
-right about different questions. Had the shape been anything without a closed
-form, the differential would have reported "they disagree" and nothing could
-have adjudicated it. Scaling the cone decides it without knowing either answer.
-
-**The trap, and it is the same trap as everywhere else in this document: a
-relation that cannot fail.** If volume is computed by summing signed tetrahedra,
-scale-linearity falls out of the arithmetic and the relation is satisfied *by
-construction* — it will pass on a thoroughly broken implementation. Such a
-relation is a control that never bites, dressed as a property.
-
-So a metamorphic relation earns its place the same way every other assertion
-here does: **break the implementation and confirm the relation notices.** If no
-plausible defect makes it fail, it is documentation, not a test. Mutation-check
-each relation and record the kill.
-
-**What this tier structurally cannot do, measured rather than reasoned.** A
-relation compares two measurements, so it is **blind to any error that scales
-both of them equally**. Three damaged mesh readers were driven against six
-relations:
-
-| the damage | what the relations caught |
-|---|---|
-| the volume's `abs()` removed | nothing; all arms passed |
-| every triangle's area halved | nothing; all arms passed |
-| volume read from the bounding box | only the disjoint-union additivity relation |
-
-The second is permanent and not a gap to fix: a constant factor cancels in a
-ratio by construction. The third is the tier earning its place — no
-single-model vector can tell a mesh volume from a bounding-box volume, because
-for one convex solid they are not far apart, and only *additivity over disjoint
-parts* separates them. The first is a reminder that a defect can be unreachable
-through the interface under test: OpenSCAD writes outward-facing normals even
-after a mirror, so a sign error never surfaces.
-
-So this tier sits **beside** the vector tier rather than above it. Vectors
-catch absolute error and are blind to shape; relations catch shape error and
-are blind to scale. Neither subsumes the other, which is the portfolio's whole
-thesis restated one tier down.
-
-**Non-negotiables inherited.** The transform is applied to the *input* and the
-original is re-measured, never reused from a cache — a relation computed over a
-stale artifact tests the cache. And an empty or refused result on either side
-is a refusal, not a pass: two results that cannot be compared have not been
-shown to agree.
 
 ---
 
