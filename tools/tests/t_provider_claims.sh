@@ -83,6 +83,22 @@ else
     no "the surface's server_info does not match PROVIDER.toml's server_info_name"
 fi
 
+# THE SURFACE MUST CARRY A VERIFIED PIN. Issue 57: PROVIDER.toml recorded a
+# pypi sdist hash and a git tag sha for three days and NOTHING READ EITHER, so
+# the pin was a version string plus two decorative hashes. The audit now
+# verifies before it captures and records the verdict; this arm makes that
+# record load-bearing rather than decorative, which is the only thing that
+# stops it going the same way.
+if python3 -c "
+import json, sys
+s = json.load(open('$SURFACE'))
+sys.exit(0 if (s.get('pin') or {}).get('verified') is True else 1)
+"; then
+    ok "the surface was captured against a VERIFIED pin"
+else
+    no "the surface's pin did not verify, or carries no verdict at all; re-run tools/provider-audit.py and read what tools/provider-verify.py says"
+fi
+
 # AND THE CHECKER'S REFUSALS ARE DRIVEN, because a refusal that has never
 # fired is a comment.
 FIX=$(mktemp -d) || { no "no fixture dir"; fin; }

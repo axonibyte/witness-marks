@@ -128,5 +128,31 @@ say "$ok" "every cargo mutant names --no-fail-fast" "$count checked;${bad:- none
 ok=yes; [ "$count" -ge 1 ] || ok=no
 say "$ok" "the sweep found cargo mutants to check" "count=$count"
 
+# NO MUTANT IN THE CI GLOB MAY NEED THE NETWORK.
+#
+# CI runs `mutate.sh --all`, which globs tests/mutations/*/. A mutant whose
+# test-cmd reaches pypi.org or github.com makes that gate fail, or flake, for a
+# reason with nothing to do with the code. The network ones live in
+# tests/mutations-net/ and the battery runs them separately.
+#
+# This arm exists because I put five of them in the glob first and only noticed
+# on reading the test-cmd back -- the same mistake, one layer down, as putting
+# network arms into the t_*.sh suite CI runs.
+netbad=""
+netn=0
+for d in "$MUTDIR"/*/; do
+    [ -d "$d" ] || continue
+    [ -r "$d/test-cmd" ] || continue
+    netn=$((netn + 1))
+    if /usr/bin/grep -qE 'pin-arms|pypi\.org|github\.com|ls-remote' "$d/test-cmd"; then
+        netbad="$netbad $(basename "$d")"
+    fi
+done
+ok=yes; [ -z "$netbad" ] || ok=no
+say "$ok" "no mutant in the CI glob needs the network" "$netn checked;${netbad:- none}"
+
+ok=yes; [ "$netn" -ge 1 ] || ok=no
+say "$ok" "the network sweep found mutants to check" "count=$netn"
+
 printf -- '-- %d/%d arms pass\n' "$pass" $((pass+fail))
 [ "$fail" = 0 ] || exit 1

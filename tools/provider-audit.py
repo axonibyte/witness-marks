@@ -34,6 +34,35 @@ E_IDENTITY = 4
 E_EMPTY = 5
 
 
+def verify_pin(provider_dir):
+    """Run tools/provider-verify.py and return its verdict for the surface.
+
+    A MISMATCH REFUSES THE CAPTURE. A surface attributed to an artifact whose
+    hash disagrees with the registry is a reading of something we cannot name,
+    which is the whole failure this audit was written after.
+
+    AN UNREACHABLE REGISTRY DOES NOT refuse, but it is RECORDED as unverified
+    rather than quietly omitted -- and t_provider_claims.sh fails on a surface
+    whose pin did not verify, so the record is load-bearing instead of
+    decorative. That distinction is the point: issue 57 exists because two
+    hashes sat in PROVIDER.toml for three days with nothing reading them.
+    """
+    verifier = Path(__file__).with_name("provider-verify.py")
+    if not verifier.is_file():
+        return {"verified": False, "why": "tools/provider-verify.py is missing"}
+    proc = subprocess.run(
+        [sys.executable, str(verifier), "--provider-dir", str(provider_dir), "--json"],
+        capture_output=True, text=True,
+    )
+    if proc.returncode == 0:
+        return {"verified": True, "why": "pypi sdist, tag peel and kernel all match"}
+    detail = (proc.stderr or proc.stdout or "").strip().splitlines()
+    why = detail[-1][:200] if detail else f"verifier exited {proc.returncode}"
+    # 3 is unreachable; everything else is a real disagreement.
+    return {"verified": False, "unreachable": proc.returncode == 3,
+            "rc": proc.returncode, "why": why}
+
+
 def read_pin(provider_dir):
     """The two version numbers and the protocol, from PROVIDER.toml."""
     text = (provider_dir / "PROVIDER.toml").read_text(encoding="utf-8")
@@ -216,6 +245,16 @@ def main():
         return E_UNREACHABLE
     pin = read_pin(provider_dir)
 
+    # THE PIN IS VERIFIED BEFORE THE PROVIDER IS SPOKEN TO. Capturing first and
+    # checking after would mean a surface exists on disk, attributed to an
+    # artifact we had already failed to identify.
+    verdict = verify_pin(provider_dir)
+    if not verdict["verified"] and not verdict.get("unreachable"):
+        print(f"provider-audit: THE PIN DOES NOT VERIFY -- {verdict['why']}. Refusing to "
+              f"capture a surface attributed to an artifact whose record disagrees with "
+              f"the registry", file=sys.stderr)
+        return E_IDENTITY
+
     server, protocol, tools, err, schema_bytes, behaviors = speak(provider_dir)
     if err:
         print(f"provider-audit: UNREACHABLE -- {err}. This is NOT 'no claims failed': "
@@ -245,6 +284,7 @@ def main():
         "protocol_version": protocol,
         "pinned": {"version": pin.get("version"), "mcp_protocol": pin.get("mcp_protocol")},
         "behaviors": behaviors,
+        "pin": verdict,
         "tool_count": len(tools),
         "schema_bytes": schema_bytes,
         "tools": {

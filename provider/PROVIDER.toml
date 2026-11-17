@@ -22,6 +22,23 @@ mcp_protocol = "2024-11-05"
 pypi_sdist_sha256 = "3a899b16676e5d8fa7255ae90183a1bca459a41f6c3bafaf144d59b736c08fcd"
 git_tag_sha = "258c8a4553b62d0d1df1a37aa54c218ef3de5689"
 pinned_on = "2026-11-14"
+# THE KERNEL IS PART OF THE PIN, added 2026-11-17 (issue 56). PROVIDER.toml
+# pinned the provider and said nothing about OpenSCAD, so every figure this
+# project recorded was attributed to "the pinned provider" while the kernel
+# underneath was whatever happened to be installed -- and the provider's own CI
+# gates on 2021.01, five years off what this box runs. That combination has
+# never been tested by anyone, which is where issue 53 lives.
+#
+# `kernel_version` IS THE KERNEL THESE FIGURES WERE TAKEN ON, and
+# tools/provider-verify.py REFUSES when the running one differs. That refusal
+# is the point: a measurement on a different kernel is a different
+# measurement, so moving to one is a deliberate act -- re-record this line and
+# re-run the vectors -- rather than something that happens quietly on a new box.
+kernel_version = "2026.10.14"
+# What the provider's own CI tests against, for contrast rather than for
+# comparison. Recorded so the gap is visible in the file instead of having to
+# be rediscovered from their workflow.
+kernel_ci_pin = "2021.01"
 # What this version was observed to lack, and therefore what Witness Marks owns
 # (spec §03 audit): mechanics, staleness propagation, dominance, input
 # provenance, slicer-criterion printability, csg.eats/coincident, async jobs.

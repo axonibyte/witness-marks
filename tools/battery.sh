@@ -83,6 +83,18 @@ gate "clippy -D warnings" timeout 900 cargo clippy --locked --workspace --all-ta
 gate "cargo fmt --check" timeout 300 cargo fmt --all -- --check
 if [ "$mutants" = yes ]; then
     gate "every recorded mutant still kills" timeout 3600 sh tools/mutate.sh --all
+    # THE NETWORK MUTANTS, outside the --all glob because CI runs that one and a
+    # gate must not depend on pypi.org being reachable. See
+    # tests/mutations-net/README.md.
+    net_mutants() {
+        bad=0
+        for d in tests/mutations-net/*/; do
+            [ -d "$d" ] || continue
+            timeout 900 sh tools/mutate.sh "${d%/}" || bad=1
+        done
+        return "$bad"
+    }
+    gate "every network mutant still kills" net_mutants
 fi
 
 printf '\n'

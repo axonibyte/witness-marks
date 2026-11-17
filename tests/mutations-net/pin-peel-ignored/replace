@@ -1,0 +1,4 @@
+    if plain:
+        return plain, None
+    if peeled:
+        return peeled, None

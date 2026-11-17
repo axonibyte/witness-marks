@@ -23,6 +23,10 @@
    "success": true
   }
  },
+ "pin": {
+  "verified": true,
+  "why": "pypi sdist, tag peel and kernel all match"
+ },
  "pinned": {
   "mcp_protocol": "2024-11-05",
   "version": "0.6.1"
