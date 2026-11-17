@@ -162,3 +162,97 @@ intersection() { frame(); blade_in_place(); }"""
 note = """
 OpenSCAD reports an empty 3D result as 'Current top level object is empty', exits 0, and writes NO FILE. This vector exists to pin that the runner reports emptiness rather than an error or, worse, the previous run's number. Reading absence as zero is only safe because the target is deleted first; corpus entry mcp-026 is the incident where four probes read a stale STL and reported 52.800 mm3 of material that was not there."""
 expect_empty = true
+
+# ---------------------------------------------------------------------------
+# METAMORPHIC RELATIONS. docs/testing-methodology.md, Tier 1.
+#
+# These assert the RELATION between two measurements, never either one, so they
+# need no oracle: nobody knows the correct volume of an arbitrary mesh, and
+# everybody knows that scaling it by two must multiply that volume by eight.
+#
+# WHAT THEY CATCH THAT THE VECTORS ABOVE CANNOT. A golden vector finds two
+# implementations that are each self-consistent and disagree. It is blind to
+# two that AGREE AND ARE BOTH WRONG, because agreement is evidence about what
+# the two share. A relation does not care what anyone agrees: either the figure
+# scales by eight or it does not.
+#
+# EVERY MODEL HERE IS DELIBERATELY NOT ROUND. 7 x 11 x 13 rather than
+# 10 x 10 x 10, because a cube has symmetries that make a rotation relation
+# hold for the wrong reason -- permuting the dimensions of a cube changes
+# nothing, so the relation would pass against a reader that ignored the
+# rotation entirely.
+
+[[relation]]
+id = "scale-2x-volume-8x"
+question = "volume"
+factor = 8.0
+tolerance = 1e-09
+why = """
+Volume is cubic in a uniform scale. No oracle: 1001 mm3 is the base's volume and nobody needs to know it."""
+base = """
+cube([7, 11, 13]);"""
+transformed = """
+scale([2, 2, 2]) cube([7, 11, 13]);"""
+
+[[relation]]
+id = "scale-2x-area-4x"
+question = "area"
+factor = 4.0
+tolerance = 1e-09
+why = """
+Surface area is quadratic in a uniform scale. This and the volume relation above fail in DIFFERENT directions if a reader confuses the two."""
+base = """
+cube([7, 11, 13]);"""
+transformed = """
+scale([2, 2, 2]) cube([7, 11, 13]);"""
+
+[[relation]]
+id = "translate-conserves-volume"
+question = "volume"
+factor = 1.0
+tolerance = 1e-09
+why = """
+A part that moved has the volume it had. This is the relation the 2d finding turned on: the provider measured a translated part at 3717.7106 mm3, exactly its original, which is why a volume-keyed diff reports no change for a pure translation."""
+base = """
+cube([7, 11, 13]);"""
+transformed = """
+translate([31, -17, 5]) cube([7, 11, 13]);"""
+
+[[relation]]
+id = "rotate-90-conserves-volume"
+question = "volume"
+factor = 1.0
+tolerance = 1e-09
+why = """
+A rigid rotation conserves volume. The box is 7 x 11 x 13 on purpose: a cube would satisfy this against a reader that ignored the rotation."""
+base = """
+cube([7, 11, 13]);"""
+transformed = """
+rotate([0, 0, 90]) cube([7, 11, 13]);"""
+
+[[relation]]
+id = "mirror-conserves-volume"
+question = "volume"
+factor = 1.0
+tolerance = 1e-09
+why = """
+A mirror conserves volume. MEASURED CORRECTION 2026-11-17: an earlier version of this comment claimed the relation catches a reader that sums signed tetrahedra without taking the absolute value. It does not. OpenSCAD writes outward-facing normals even after a mirror, so the signed volume stays positive and that defect is unreachable through this interface -- driven by dropping abs() from the reader, after which all sixteen arms still passed."""
+base = """
+cube([7, 11, 13]);"""
+transformed = """
+mirror([1, 0, 0]) cube([7, 11, 13]);"""
+
+[[relation]]
+id = "disjoint-union-sums-volume"
+question = "volume"
+tolerance = 1e-09
+why = """
+Two solids that do not touch have the volume of their parts. A kernel that welds or double-counts at the boundary fails this, and no single-model vector can see it. The two boxes are different sizes so a half-counting defect cannot cancel."""
+base = """
+union() { cube([7, 11, 13]); translate([40, 0, 0]) cube([3, 5, 2]); }"""
+sum_of = [
+  """
+cube([7, 11, 13]);""",
+  """
+translate([40, 0, 0]) cube([3, 5, 2]);""",
+]
