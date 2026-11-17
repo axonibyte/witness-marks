@@ -154,4 +154,43 @@ else
     no "tools/provider-audit.py is missing"
 fi
 
+# THE BACKEND REFUSAL. A separate axis from the version, and the one that
+# decides whether the CGAL banner exists -- which is issue 53.
+mkdir -p "$PINFIX/badbackend"
+/usr/bin/sed 's/^kernel_backend = ".*"/kernel_backend = "CGAL"/' \
+    "$ROOT/provider/PROVIDER.toml" > "$PINFIX/badbackend/PROVIDER.toml"
+python3 "$VER" --provider-dir "$PINFIX/badbackend" >/dev/null 2>&1
+rc=$?
+if [ "$rc" -eq 8 ]; then
+    ok "a backend differing from the recorded one is refused with its own code (rc 8)"
+elif [ "$rc" -eq 3 ]; then
+    no "a registry was unreachable, so the backend refusal could not be driven -- a PROVISIONING finding, not a pass"
+else
+    no "a wrong backend did not refuse with rc 8 (got $rc)"
+fi
+
+# AND THE BACKEND ACTUALLY DECIDES THE BANNER, measured rather than asserted.
+# This is issue 53's mechanism: the provider parses CGAL statistics, and only
+# the CGAL backend prints them.
+BK=$(python3 - <<'BKEOF'
+import subprocess, tempfile, pathlib, re
+src = "difference(){ cube([10,10,10]); translate([5,5,-1]) cylinder(h=12,r=3,$fn=32); }"
+out = {}
+with tempfile.TemporaryDirectory() as d:
+    scad = pathlib.Path(d) / "p.scad"
+    scad.write_text(src)
+    for flag, name in (("--backend=CGAL", "cgal"), ("--backend=Manifold", "manifold")):
+        p = subprocess.run(["openscad", flag, "-o", str(pathlib.Path(d) / "p.stl"), str(scad)],
+                           capture_output=True, text=True, timeout=300)
+        text = (p.stdout or "") + (p.stderr or "")
+        out[name] = bool(re.search(r"^\s*Simple:", text, re.M))
+print("CGAL", out["cgal"], "MANIFOLD", out["manifold"])
+BKEOF
+) || { no "the banner probe did not run"; fin; }
+case "$BK" in
+    "CGAL True MANIFOLD False")
+        ok "only the CGAL backend prints the Simple:/Volumes: banner (issue 53's mechanism)" ;;
+    *)  no "the backend/banner relationship has changed: $BK" ;;
+esac
+
 fin

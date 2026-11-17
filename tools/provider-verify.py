@@ -36,6 +36,8 @@ exit codes, each DISTINCT because they mean different things:
   5  the tag and the recorded commit disagree
   6  a pin is missing from PROVIDER.toml, so there was nothing to verify
   7  the OpenSCAD kernel differs from the one recorded
+  8  the geometry BACKEND differs from the one recorded -- a separate axis from
+     the version, and the one that decides whether the CGAL banner exists
 """
 import hashlib
 import json
@@ -51,13 +53,14 @@ E_SDIST = 4
 E_TAG = 5
 E_MISSING_PIN = 6
 E_KERNEL = 7
+E_BACKEND = 8
 
 
 def pins(provider_dir):
     text = (provider_dir / "PROVIDER.toml").read_text(encoding="utf-8")
     out = {}
     for key in ("name", "upstream", "version", "pypi_sdist_sha256", "git_tag_sha",
-                "kernel_version", "kernel_ci_pin"):
+                "kernel_version", "kernel_ci_pin", "kernel_backend"):
         m = re.search(rf'^{key}\s*=\s*"([^"]*)"', text, re.M)
         if m:
             out[key] = m.group(1)
@@ -103,6 +106,48 @@ def tag_commit(upstream, tag, timeout=120):
     if plain:
         return plain, None
     return None, f"{upstream} serves no tag {tag}"
+
+
+def kernel_backend(timeout=120):
+    """Which geometry backend the kernel actually used, by probing it.
+
+    THE BACKEND IS A SEPARATE AXIS FROM THE VERSION and it changes both the
+    geometry and the diagnostics. OpenSCAD 2026.10.14 takes
+    `--backend=CGAL|Manifold`, defaults to Manifold on this build, and only
+    CGAL emits the `Simple:` / `Volumes:` banner that the provider's
+    diagnostics parse. That is issue 53: `mesh_health.manifold` goes null not
+    because the binary changed name but because its default backend changed.
+    So pinning `kernel_version` alone leaves the thing that actually decides
+    the answer unpinned -- the third time this pin has been incomplete, after
+    the provider and the kernel themselves.
+
+    Detected rather than asked: there is no `--print-backend`, so a trivial
+    model is rendered and the banner's presence is the reading. CGAL prints it;
+    Manifold does not.
+    """
+    import tempfile
+
+    src = "difference(){ cube([10,10,10]); translate([5,5,-1]) cylinder(h=12,r=3,$fn=32); }"
+    with tempfile.TemporaryDirectory() as d:
+        scad = Path(d) / "probe.scad"
+        scad.write_text(src, encoding="utf-8")
+        try:
+            p = subprocess.run(["openscad", "-o", str(Path(d) / "probe.stl"), str(scad)],
+                               capture_output=True, text=True, timeout=timeout)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return None, f"the backend probe could not run: {e}"
+    text = (p.stdout or "") + (p.stderr or "")
+    # THE BANNER IS INDENTED: the line is "   Simple:     yes", three leading
+    # spaces. An anchored ^Simple: never matched, so this returned "Manifold"
+    # unconditionally and PASSED because that is what PROVIDER.toml recorded --
+    # a detector broken in the direction of its own expectation. The arm that
+    # asserts CGAL prints the banner and Manifold does not is what caught it.
+    if re.search(r"^\s*Simple:", text, re.M):
+        return "CGAL", None
+    # ABSENCE IS THE READING HERE, which is weaker than a positive one and is
+    # said so: any future backend that also prints no CGAL banner reads as
+    # Manifold. The alternative is inventing a flag OpenSCAD does not have.
+    return "Manifold", None
 
 
 def kernel_version(timeout=60):
@@ -183,6 +228,18 @@ def main():
         record("kernel", True, f"{running} matches")
     else:
         record("kernel", True, f"{running} (PROVIDER.toml records none; see issue 56)")
+
+    # THE BACKEND, which decides whether the CGAL banner exists at all.
+    backend, err = kernel_backend()
+    if backend is None:
+        record("backend", False, err)
+        return E_UNREACHABLE
+    want_b = p.get("kernel_backend")
+    if want_b and backend != want_b:
+        record("backend", False, f"running {backend}, recorded {want_b}")
+        return E_BACKEND
+    record("backend", True, f"{backend}" + ("" if want_b else " (PROVIDER.toml records none)"))
+    report["pins"]["detected_backend"] = backend
 
     if as_json:
         print(json.dumps(report, indent=1, sort_keys=True))

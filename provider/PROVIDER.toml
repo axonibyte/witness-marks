@@ -39,6 +39,15 @@ kernel_version = "2026.10.14"
 # comparison. Recorded so the gap is visible in the file instead of having to
 # be rediscovered from their workflow.
 kernel_ci_pin = "2021.01"
+# THE BACKEND IS A THIRD AXIS, added 2026-11-17. OpenSCAD 2026.10.14 takes
+# `--backend=CGAL|Manifold` and defaults to Manifold on this build. Only CGAL
+# emits the `Simple:` / `Volumes:` banner the provider's diagnostics parse, so
+# this line -- not kernel_version -- is what decides whether
+# mesh_health.manifold has a value at all. MEASURED: the same model under
+# --backend=CGAL prints `Simple: yes  Volumes: 2`, and under Manifold or the
+# default prints neither. That is issue 53, and it is a flag rather than a
+# defect.
+kernel_backend = "Manifold"
 # What this version was observed to lack, and therefore what Witness Marks owns
 # (spec §03 audit): mechanics, staleness propagation, dominance, input
 # provenance, slicer-criterion printability, csg.eats/coincident, async jobs.

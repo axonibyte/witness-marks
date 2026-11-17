@@ -1,0 +1,5 @@
+            inside = "/" not in ref and (fixtures / ref).exists()
+            if not inside:
+                for cand in fixtures.rglob(ref):
+                    inside = True
+                    break
