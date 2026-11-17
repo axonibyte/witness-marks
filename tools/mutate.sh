@@ -169,6 +169,17 @@ PY
         echo "  KILLED    $name -- by $want"
     elif printf '%s' "$out" | grep -qE "^ *FAIL .*$want"; then
         echo "  KILLED    $name -- by the arm: $want"
+    # THE THIRD FAILURE SHAPE: pytest. A cargo test dies as `test X ... FAILED`,
+    # a tools/tests arm as `  FAIL X`, and pytest as `FAILED <path>::X` -- where
+    # FAIL is followed by ED rather than a space, so the arm matcher above does
+    # not reach it. Added when the first mutant with a subject in the provider
+    # fork MISFIRED on a real kill, exactly as the Python-subject mutants did
+    # before the arm shape was taught.
+    #
+    # Refusal 4's guarantee is unchanged in all three: the expected label must
+    # appear IN A FAILURE LINE, never merely somewhere in the transcript.
+    elif printf '%s' "$out" | grep -qE "^FAILED .*::$want( |$|\[)"; then
+        echo "  KILLED    $name -- by pytest: $want"
     else
         echo "  MISFIRED  $name -- the suite failed but '$want' is not named in the failure;"
         echo "            a mutant that breaks the BUILD fails every arm and looks like a kill"
