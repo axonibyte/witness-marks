@@ -147,6 +147,19 @@ print(p.get('verified'), repr(p.get('why','')))
                 ok "a freshly captured surface records the verifier's own verdict" ;;
             *)  no "the captured surface's pin verdict is not the verifier's: $got" ;;
         esac
+        # AND THE WHOLE PIN, not a subset. A surface recording only the version
+        # cannot be checked against a re-pin of the kernel, the backend or
+        # either hash -- which is issue 50, and was the state of this file
+        # until 2026-11-17.
+        nfields=$(python3 -c "
+import json
+print(len((json.load(open('$fresh')).get('pinned') or {})))
+" 2>/dev/null)
+        if [ "${nfields:-0}" -ge 8 ]; then
+            ok "a freshly captured surface records the whole pin ($nfields fields)"
+        else
+            no "a freshly captured surface records fewer pin fields than the pin has (${nfields:-0} of 8), so a re-pin could not be caught as drift"
+        fi
     else
         no "the audit could not capture a surface, so the verdict could not be checked -- a PROVISIONING finding, not a pass"
     fi

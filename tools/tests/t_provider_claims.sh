@@ -83,6 +83,66 @@ else
     no "the surface's server_info does not match PROVIDER.toml's server_info_name"
 fi
 
+# THE SNAPSHOT'S PIN MUST STILL BE THE PIN. Issue 50: a STALE snapshot passes
+# this arm, because the claims are judged against whatever was captured. The
+# audit now records the whole pin it captured against -- version, protocol,
+# serverInfo, both hashes, kernel, backend -- and this compares that to the
+# live PROVIDER.toml. A re-pin without a recapture then fails here instead of
+# going unnoticed.
+#
+# Needs no network: both sides are files.
+DRIFT=$(python3 - "$SURFACE" "$ROOT/provider/PROVIDER.toml" <<'DRIFTEOF'
+import json, re, sys
+surface = json.load(open(sys.argv[1]))
+text = open(sys.argv[2], encoding="utf-8").read()
+recorded = surface.get("pinned") or {}
+if not recorded:
+    print("BLIND the surface records no pin at all")
+    raise SystemExit
+bad = []
+for key, was in sorted(recorded.items()):
+    m = re.search(rf'^{key}\s*=\s*"([^"]*)"', text, re.M)
+    now = m.group(1) if m else None
+    if now != was:
+        bad.append(f"{key}: snapshot {was!r}, PROVIDER.toml {now!r}")
+print("DRIFT " + "; ".join(bad) if bad else f"OK {len(recorded)} pin field(s) agree")
+DRIFTEOF
+) || { no "the pin-drift comparison did not run"; fin; }
+case "$DRIFT" in
+    OK*)    ok "the snapshot's pin still matches PROVIDER.toml -- ${DRIFT#OK }" ;;
+    BLIND*) no "$DRIFT; re-run tools/provider-audit.py" ;;
+    *)      no "the snapshot was captured against a DIFFERENT pin than PROVIDER.toml now records, so the claims below describe an artifact we no longer consume (issue 50): ${DRIFT#DRIFT }" ;;
+esac
+
+# AND THE DRIFT COMPARISON CAN FAIL, driven against a surface whose recorded
+# pin is deliberately stale. A comparison that has never caught anything is
+# indistinguishable from one that cannot.
+STALE=$(mktemp) || { no "no temp file for the stale surface"; fin; }
+python3 - "$SURFACE" "$STALE" <<'STALEEOF'
+import json, sys
+s = json.load(open(sys.argv[1]))
+s.setdefault("pinned", {})["kernel_backend"] = "CGAL"   # the pin says Manifold
+json.dump(s, open(sys.argv[2], "w"))
+STALEEOF
+SD=$(python3 - "$STALE" "$ROOT/provider/PROVIDER.toml" <<'SDEOF'
+import json, re, sys
+surface = json.load(open(sys.argv[1]))
+text = open(sys.argv[2], encoding="utf-8").read()
+bad = []
+for key, was in sorted((surface.get("pinned") or {}).items()):
+    m = re.search(rf'^{key}\s*=\s*"([^"]*)"', text, re.M)
+    now = m.group(1) if m else None
+    if now != was:
+        bad.append(key)
+print("DRIFT " + ",".join(bad) if bad else "OK")
+SDEOF
+)
+rm -f "$STALE"
+case "$SD" in
+    *kernel_backend*) ok "a snapshot pinned to a different backend is caught as drift" ;;
+    *) no "a deliberately stale pin was NOT caught as drift ($SD); the comparison cannot fail" ;;
+esac
+
 # THE SURFACE MUST CARRY A VERIFIED PIN. Issue 57: PROVIDER.toml recorded a
 # pypi sdist hash and a git tag sha for three days and NOTHING READ EITHER, so
 # the pin was a version string plus two decorative hashes. The audit now

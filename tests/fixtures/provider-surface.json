@@ -23,12 +23,19 @@
    "success": true
   }
  },
+ "captured_at": "2026-11-17T23:29:23+00:00",
  "pin": {
   "verified": true,
   "why": "pypi sdist, tag peel and kernel all match"
  },
  "pinned": {
+  "git_tag_sha": "258c8a4553b62d0d1df1a37aa54c218ef3de5689",
+  "kernel_backend": "Manifold",
+  "kernel_version": "2026.10.14",
   "mcp_protocol": "2024-11-05",
+  "pypi_sdist_sha256": "3a899b16676e5d8fa7255ae90183a1bca459a41f6c3bafaf144d59b736c08fcd",
+  "server_info_name": "OpenSCAD MCP Server",
+  "server_info_version": "4.2.0",
   "version": "0.6.1"
  },
  "protocol_version": "2024-11-05",

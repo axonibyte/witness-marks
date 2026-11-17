@@ -64,10 +64,21 @@ def verify_pin(provider_dir):
 
 
 def read_pin(provider_dir):
-    """The two version numbers and the protocol, from PROVIDER.toml."""
+    """Every field the pin consists of, from PROVIDER.toml.
+
+    Named "the two version numbers and the protocol" until 2026-11-17, which
+    had stopped being true twice over -- the hashes were never read and the
+    kernel and backend had since been added. A docstring describing a subset
+    is how the surface came to record a pin it could not be checked against.
+    """
     text = (provider_dir / "PROVIDER.toml").read_text(encoding="utf-8")
     out = {}
-    for key in ("server_info_name", "server_info_version", "mcp_protocol", "version", "name"):
+    # EVERY FIELD THE PIN CONSISTS OF, so the surface can record what it was
+    # captured against and the claims arm can refuse on drift (issue 50). A
+    # subset here silently narrowed what a stale snapshot could be caught by.
+    for key in ("server_info_name", "server_info_version", "mcp_protocol", "version",
+                "name", "pypi_sdist_sha256", "git_tag_sha", "kernel_version",
+                "kernel_backend"):
         m = re.search(rf'^{key}\s*=\s*"([^"]*)"', text, re.M)
         if m:
             out[key] = m.group(1)
@@ -282,7 +293,21 @@ def main():
     surface = {
         "server_info": server,
         "protocol_version": protocol,
-        "pinned": {"version": pin.get("version"), "mcp_protocol": pin.get("mcp_protocol")},
+        # THE WHOLE PIN, not two fields of it. A surface recording only the
+        # version cannot detect a re-pin of the kernel, the backend or either
+        # hash -- and a stale snapshot passes the claims arm silently, which is
+        # issue 50. Everything the pin consists of is recorded here so the arm
+        # can compare it against PROVIDER.toml and refuse on drift.
+        "pinned": {
+            k: pin.get(k)
+            for k in ("version", "mcp_protocol", "server_info_name",
+                      "server_info_version", "pypi_sdist_sha256", "git_tag_sha",
+                      "kernel_version", "kernel_backend")
+            if pin.get(k) is not None
+        },
+        "captured_at": __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc
+        ).isoformat(timespec="seconds"),
         "behaviors": behaviors,
         "pin": verdict,
         "tool_count": len(tools),

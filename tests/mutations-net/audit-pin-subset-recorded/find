@@ -1,0 +1,3 @@
+            for k in ("version", "mcp_protocol", "server_info_name",
+                      "server_info_version", "pypi_sdist_sha256", "git_tag_sha",
+                      "kernel_version", "kernel_backend")

@@ -307,6 +307,28 @@ translate([40, 0, 0]) cube([3, 5, 2]);""",
 # kernel writes outward normals even after a mirror, so the sign never
 # surfaces) and a halved triangle area (a constant factor cancels in a ratio by
 # construction, and the closed-form area vectors do not cover area).
+#
+# AND THE STRONGEST DEGENERATE IS NOT ONE OF MINE. fable, coop main/966:
+# "a reader returning zero volume satisfies scale, translation and disjoint
+# union, which is why relations need an anchor from the vector tier."
+# Verified -- every relation here passes against a reader that returns 0:
+#
+#   scale 2x -> 8x       0 == 0 * 8    True
+#   area  2x -> 4x       0 == 0 * 4    True
+#   translate -> 1x      0 == 0 * 1    True
+#   rotate    -> 1x      0 == 0 * 1    True
+#   mirror    -> 1x      0 == 0 * 1    True
+#   disjoint union sum   0 == 0 + 0    True
+#
+# Six for six, and a BETTER degenerate than the three damaged readers above:
+# those were wrong-but-nonzero, so arithmetic still had to catch them. This one
+# is trivially broken and passes BY CONSTRUCTION.
+#
+# It also names the structural reason rather than an instance: a ratio cannot
+# establish that a quantity is nonzero, so a relation needs an ANCHOR from the
+# vector tier. "They sit beside each other" was the right conclusion; this is
+# why, in a form a test can hold. The closed-form vectors above ARE that
+# anchor, which is why they must not be removed in favour of relations.
 
 [[relation]]
 id = "frame-scale-volume-8x"
