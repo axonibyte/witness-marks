@@ -1,0 +1,6 @@
+    out = {}
+    for key in REQUIRED + ("kernel_version", "kernel_backend"):
+        m = re.search(rf'^{key}\s*=\s*"([^"]*)"', text, re.M)
+        if m:
+            out[key] = m.group(1)
+    return out

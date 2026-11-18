@@ -1,0 +1,1 @@
+    return "asciistl" if b"solid" in bytes(head) else "binstl"

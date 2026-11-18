@@ -206,4 +206,78 @@ case "$BK" in
     *)  no "the backend/banner relationship has changed: $BK" ;;
 esac
 
+# ---------------------------------------------------------------------------
+# THE AXES ISSUE 58 ENUMERATED. Each refusal sits BEHIND the pypi, tag, kernel
+# and backend checks, so each arm below is an end-to-end run of the verifier
+# with one axis perturbed -- which is why they are here and not in the glob.
+# The rc is the assertion: the codes are distinct because they mean different
+# things, and an arm that accepted any non-zero rc would pass on the wrong
+# refusal.
+PROV="$ROOT/provider"
+rc_of() {  # rc_of <provider-dir> [VAR=VAL ...] -> the verifier's rc
+    # `env` RATHER THAN A PREFIX ASSIGNMENT, and the difference is not
+    # cosmetic: `VAR=x some_function` sets a SHELL variable, which an exec'd
+    # python3 never sees. Measured -- the first three arms here came back rc 0,
+    # the verifier having run in an environment with none of the knobs set, and
+    # a rc-0 arm asserting a refusal reads exactly like a missing refusal.
+    _d=$1; shift
+    ( cd "$ROOT" && env "$@" python3 "$VER" --provider-dir "$_d" >/dev/null 2>&1 ); echo $?
+}
+
+# -- rc 11: a knob that defeats a pin above it
+got=$(rc_of "$PROV" MCP_HARD_WARNINGS=true)
+[ "$got" = 11 ] && ok "a knob set against the record refuses with rc 11 (MCP_HARD_WARNINGS)" \
+                || no "MCP_HARD_WARNINGS=true gave rc $got, wanted 11"
+
+# -- rc 11 again, and this one is the reason the axis exists: OPENSCAD_PATH
+#    chooses the binary, so the kernel pin would otherwise verify a binary that
+#    is not the one the provider runs.
+got=$(rc_of "$PROV" OPENSCAD_PATH=/nonexistent/openscad)
+[ "$got" = 11 ] && ok "OPENSCAD_PATH set refuses: the kernel pin cannot speak for a binary it did not run" \
+                || no "OPENSCAD_PATH gave rc $got, wanted 11"
+
+# -- rc 10: a library at a version the record does not name
+LIBDIR=$(mktemp -d) || { no "mktemp failed"; fin; }
+mkdir -p "$LIBDIR/BOSL2"
+printf 'BOSL_VERSION = [9,9,999];\n' > "$LIBDIR/BOSL2/version.scad"
+got=$(rc_of "$PROV" OPENSCADPATH="$LIBDIR")
+# OPENSCADPATH is itself recorded as must-be-unset, and the library check runs
+# FIRST, so a wrong library version is what this sees. Both refusals are
+# correct; the arm asserts the EARLIER one, which is the more specific.
+[ "$got" = 10 ] && ok "a library at an unrecorded version refuses with rc 10 (BOSL2 9.9.999)" \
+                || no "a wrong BOSL2 version gave rc $got, wanted 10"
+rm -rf "$LIBDIR"
+
+# -- rc 12: a .env reachable from the working directory
+ENVDIR=$(mktemp -d) || { no "mktemp failed"; fin; }
+cp "$PROV/PROVIDER.toml" "$ENVDIR/PROVIDER.toml"
+printf 'MCP_HARD_WARNINGS=true\n' > "$ENVDIR/.env"
+got=$( ( cd "$ENVDIR" && python3 "$VER" --provider-dir "$ENVDIR" >/dev/null 2>&1 ); echo $? )
+[ "$got" = 12 ] && ok "a .env reachable from the working directory refuses with rc 12" \
+                || no "a reachable .env gave rc $got, wanted 12"
+rm -rf "$ENVDIR"
+
+# -- rc 9: the STL flavor. THE RECORD IS PERTURBED HERE, NOT THE WORLD, because
+#    OpenSCAD's default is what it is and the arm must not depend on being able
+#    to change it. Recording binstl while the kernel writes ASCII is exactly
+#    the state the day the announced default flip lands, which is the day this
+#    refusal is for.
+FMTDIR=$(mktemp -d) || { no "mktemp failed"; fin; }
+sed 's/^kernel_export_format_stl = .*/kernel_export_format_stl = "binstl"/' \
+    "$PROV/PROVIDER.toml" > "$FMTDIR/PROVIDER.toml"
+if /usr/bin/grep -q 'kernel_export_format_stl = "binstl"' "$FMTDIR/PROVIDER.toml"; then
+    got=$(rc_of "$FMTDIR")
+    [ "$got" = 9 ] && ok "a recorded STL flavor the kernel does not write refuses with rc 9" \
+                   || no "a binstl record gave rc $got, wanted 9"
+else
+    no "the STL flavor arm could not perturb the record, so it proved nothing"
+fi
+rm -rf "$FMTDIR"
+
+# -- AND THE CLEAN RUN, which is the arm that keeps the four above honest: a
+#    verifier that refused unconditionally would pass every one of them.
+got=$(rc_of "$PROV")
+[ "$got" = 0 ] && ok "and the recorded pin verifies clean, so the refusals above are not unconditional" \
+               || no "the clean run gave rc $got, wanted 0"
+
 fin

@@ -1,0 +1,1 @@
+    return "asciistl" if bytes(head).startswith(b"solid") else "binstl"

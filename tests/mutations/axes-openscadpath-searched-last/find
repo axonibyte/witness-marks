@@ -1,0 +1,5 @@
+    dirs = []
+    for part in (os.environ.get("OPENSCADPATH") or "").split(os.pathsep):
+        if part:
+            dirs.append(Path(part))
+    dirs.append(Path.home() / ".local" / "share" / "OpenSCAD" / "libraries")

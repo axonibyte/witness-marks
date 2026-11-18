@@ -38,9 +38,22 @@ exit codes, each DISTINCT because they mean different things:
   7  the OpenSCAD kernel differs from the one recorded
   8  the geometry BACKEND differs from the one recorded -- a separate axis from
      the version, and the one that decides whether the CGAL banner exists
+  9  the STL export FLAVOR differs from the one recorded. Every digest this
+     project takes over an export is taken over those bytes, and OpenSCAD's
+     own --help announces that this default is planned to change
+ 10  a pinned LIBRARY's installed version differs, or cannot be read. BOSL2 is
+     the one the corpus uses, and its version is not a property of this
+     checkout
+ 11  an ENVIRONMENT knob diverges from the record. Not cosmetic: OPENSCAD_PATH
+     selects the binary, so a kernel pin verified against `openscad` on PATH
+     says nothing about the binary the provider will actually run
+ 12  a `.env` is reachable from the working directory. The provider calls
+     load_dotenv() on every Config.from_env(), searching upward, so such a
+     file supplies any of the knobs above invisibly
 """
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -54,17 +67,34 @@ E_TAG = 5
 E_MISSING_PIN = 6
 E_KERNEL = 7
 E_BACKEND = 8
+E_EXPORT_FORMAT = 9
+E_LIBRARY = 10
+E_ENV = 11
+E_DOTENV = 12
+
+
+#: The pin fields this refuses to run without. Everything else in the file is
+#: read whether or not this list knows about it -- see `pins`.
+REQUIRED = ("name", "upstream", "version", "pypi_sdist_sha256", "git_tag_sha")
 
 
 def pins(provider_dir):
+    """Every `key = "value"` in PROVIDER.toml, ENUMERATED RATHER THAN NAMED.
+
+    THIS USED TO NAME A SUBSET and that is a defect with a history in this very
+    tree: tools/provider-audit.py's own read_pin docstring says it, "a
+    docstring describing a subset is how the surface came to record a pin it
+    could not be checked against." A named list means every new axis has to be
+    added in two places, and the failure mode when it is not is SILENT -- the
+    field sits in the record, unread, exactly as pypi_sdist_sha256 did for
+    three days. So the reader takes what the file holds and the REQUIRED tuple
+    above carries the separate question of what may not be missing.
+
+    Section headers are cosmetic to this: the keys are flat and distinct, and
+    a `[env]` heading is there for a human reading the file."""
     text = (provider_dir / "PROVIDER.toml").read_text(encoding="utf-8")
-    out = {}
-    for key in ("name", "upstream", "version", "pypi_sdist_sha256", "git_tag_sha",
-                "kernel_version", "kernel_ci_pin", "kernel_backend"):
-        m = re.search(rf'^{key}\s*=\s*"([^"]*)"', text, re.M)
-        if m:
-            out[key] = m.group(1)
-    return out
+    return {m.group(1): m.group(2)
+            for m in re.finditer(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"([^"]*)"', text, re.M)}
 
 
 def pypi_sdist_sha(name, version, timeout=60):
@@ -162,6 +192,126 @@ def kernel_version(timeout=60):
     return (m.group(1), None) if m else (None, f"no version in {text.strip()[:80]!r}")
 
 
+def stl_export_format(timeout=120):
+    """Which STL flavor `-o x.stl` writes, read from the BYTES rather than
+    from the flag.
+
+    WHY THIS IS AN AXIS AND NOT A DETAIL. OpenSCAD's own --help says it:
+    "ASCII export is the current stl default, but binary stl is planned as the
+    future default so asciistl should be explicitly specified in scripts when
+    needed." Every digest this project records over an export -- wm-model's
+    digest_of_export and digest_of_bytes both -- is taken over those bytes, so
+    the day that default flips, every recorded digest changes and NOTHING we
+    have would say why. An announced change is the cheapest kind to pin.
+
+    MEASURED, not inferred: an ASCII STL begins with the token `solid`."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        scad, out = Path(d) / "p.scad", Path(d) / "p.stl"
+        scad.write_text("cube([10,10,10]);\n", encoding="utf-8")
+        try:
+            subprocess.run(["openscad", "-o", str(out), str(scad)],
+                           capture_output=True, timeout=timeout, check=False)
+        except FileNotFoundError:
+            return None, "openscad is not on PATH"
+        except subprocess.TimeoutExpired:
+            return None, f"openscad did not finish within {timeout}s"
+        if not out.is_file() or out.stat().st_size == 0:
+            return None, "openscad wrote no STL, so the flavor cannot be read"
+        head = out.read_bytes()[:8]
+    return stl_flavor_of(head), None
+
+
+def stl_flavor_of(head):
+    """Which STL flavor a file's first bytes say it is.
+
+    SEPARATE FROM THE RUN so it can be driven without OpenSCAD on the box: the
+    classification is the part with a rule in it, and the rule is the ASCII
+    format's own -- an ASCII STL opens with the token `solid`. A binary STL
+    opens with an 80-byte header that may contain ANYTHING, including the word
+    solid, which is why the check is `startswith` on the first token and not a
+    search."""
+    return "asciistl" if bytes(head).startswith(b"solid") else "binstl"
+
+
+#: Where a pinned library's version is written, and the pattern that holds it.
+#: One entry per `library_<name>` pin. A library whose version this cannot read
+#: is a REFUSAL rather than a skip -- see verify_libraries.
+LIBRARY_PROBES = {
+    "bosl2": ("BOSL2/version.scad", re.compile(r"BOSL_VERSION\s*=\s*\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)")),
+}
+
+
+def library_dirs():
+    """The directories OpenSCAD searches for libraries, in its own order.
+
+    OPENSCADPATH FIRST, which is the whole reason this is an axis: it is an
+    environment variable, so the library set a figure was measured against is
+    not a property of this checkout at all."""
+    dirs = []
+    for part in (os.environ.get("OPENSCADPATH") or "").split(os.pathsep):
+        if part:
+            dirs.append(Path(part))
+    dirs.append(Path.home() / ".local" / "share" / "OpenSCAD" / "libraries")
+    dirs.append(Path("/usr/local/share/openscad/libraries"))
+    return dirs
+
+
+def library_version(name):
+    """The installed version of one pinned library, or (None, why)."""
+    rel, pattern = LIBRARY_PROBES[name]
+    for d in library_dirs():
+        f = d / rel
+        if f.is_file():
+            m = pattern.search(f.read_text(encoding="utf-8", errors="replace"))
+            if m:
+                return ".".join(m.groups()), None
+            return None, f"{f} has no version this can read"
+    return None, f"{rel} is in none of: " + ", ".join(str(d) for d in library_dirs())
+
+
+def env_divergences(p):
+    """Every recorded `env_NAME` pin whose live value differs from the record.
+
+    "" MEANS MUST BE UNSET, and that is the useful half. OPENSCAD_PATH set in
+    the environment chooses which binary the provider runs, which makes the
+    kernel_version pin a statement about a binary that may not be the one used
+    -- a pin defeated by a variable rather than by a disagreement. Recording a
+    value here is the supported way to set one deliberately.
+
+    THE `env_` NAMESPACE HOLDS ENVIRONMENT VARIABLES AND NOTHING ELSE. The
+    first version of this recorded the dotenv rule as `env_dotenv_refused`,
+    and this loop dutifully looked for a variable of that name, found it
+    unset, and refused the whole run with rc 11 on its first execution. A
+    namespace that holds two kinds of thing will be read as one of them.
+    """
+    out = []
+    for key, want in sorted(p.items()):
+        if not key.startswith("env_"):
+            continue
+        name = key[4:]
+        live = os.environ.get(name, "")
+        if live != want:
+            out.append((name, want, live))
+    return out
+
+
+def dotenv_reachable(start=None):
+    """The nearest `.env` from the working directory upward, or None.
+
+    THIS IS A SURFACE NOBODY ENUMERATED. The provider's utils/config.py calls
+    `load_dotenv()` with no argument on every `Config.from_env()`, and
+    python-dotenv searches from the working directory UPWARD. So a stray .env
+    anywhere above wherever the server happens to be started silently supplies
+    every knob above, and none of it is visible in this checkout."""
+    here = Path(start or Path.cwd()).resolve()
+    for d in [here, *here.parents]:
+        f = d / ".env"
+        if f.is_file():
+            return f
+    return None
+
+
 def main():
     args = sys.argv[1:]
     provider_dir = Path("provider")
@@ -184,7 +334,7 @@ def main():
 
     # A MISSING PIN IS REFUSED, NOT SKIPPED. Skipping it silently is how a
     # verifier comes to pass over a record with nothing in it.
-    for key in ("name", "upstream", "version", "pypi_sdist_sha256", "git_tag_sha"):
+    for key in REQUIRED:
         if not p.get(key):
             print(f"provider-verify: PROVIDER.toml has no `{key}`; there is nothing to "
                   f"verify and this refuses rather than reporting a clean pin",
@@ -240,6 +390,56 @@ def main():
         return E_BACKEND
     record("backend", True, f"{backend}" + ("" if want_b else " (PROVIDER.toml records none)"))
     report["pins"]["detected_backend"] = backend
+
+    # THE AXES ISSUE 58 ENUMERATED. Each is recorded-optional for the same
+    # reason the kernel was: the script is adoptable before the record carries
+    # the field. Once recorded, a divergence refuses.
+    want_fmt = p.get("kernel_export_format_stl")
+    if want_fmt:
+        fmt, err = stl_export_format()
+        if fmt is None:
+            record("stl flavor", False, err)
+            return E_UNREACHABLE
+        if fmt != want_fmt:
+            record("stl flavor", False, f"writes {fmt}, recorded {want_fmt} -- every "
+                                       f"recorded export digest is over these bytes")
+            return E_EXPORT_FORMAT
+        record("stl flavor", True, f"{fmt} matches")
+        report["pins"]["detected_stl_flavor"] = fmt
+
+    for key in sorted(k for k in p if k.startswith("library_")):
+        name = key[len("library_"):]
+        if name not in LIBRARY_PROBES:
+            record(f"library {name}", False, "no probe knows where this library "
+                                             "writes its version")
+            return E_LIBRARY
+        got, err = library_version(name)
+        if got is None:
+            record(f"library {name}", False, err)
+            return E_LIBRARY
+        if got != p[key]:
+            record(f"library {name}", False, f"installed {got}, recorded {p[key]}")
+            return E_LIBRARY
+        record(f"library {name}", True, f"{got} matches")
+
+    diverged = env_divergences(p)
+    if diverged:
+        for name, want, live in diverged:
+            record(f"env {name}", False,
+                   (f"set to {live!r}, record says it must be unset" if want == ""
+                    else f"is {live!r}, recorded {want!r}"))
+        return E_ENV
+    recorded_env = [k for k in p if k.startswith("env_")]
+    if recorded_env:
+        record("env", True, f"{len(recorded_env)} knobs match the record")
+
+    if p.get("dotenv_refused", "") == "true":
+        found = dotenv_reachable()
+        if found is not None:
+            record("dotenv", False, f"{found} is reachable from {Path.cwd()}; the "
+                                    f"provider loads it on every Config.from_env()")
+            return E_DOTENV
+        record("dotenv", True, "none reachable from the working directory")
 
     if as_json:
         print(json.dumps(report, indent=1, sort_keys=True))

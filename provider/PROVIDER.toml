@@ -51,3 +51,70 @@ kernel_backend = "Manifold"
 # What this version was observed to lack, and therefore what Witness Marks owns
 # (spec §03 audit): mechanics, staleness propagation, dominance, input
 # provenance, slicer-criterion printability, csg.eats/coincident, async jobs.
+# ============================================================================
+# THE AXES ENUMERATED (issue 58), added 2026-11-18. cal asked for a
+# comprehensive source review of OpenSCAD and of the provider; the method here
+# is enumeration of the DOCUMENTED CONFIGURATION SURFACES instead, for the
+# reason the issue gives: `openscad --help` answers in 35 flags what a review
+# of hundreds of thousands of lines of C++ would answer more expensively, and
+# the provider's knobs are all declared in one 445-line module.
+#
+# THE SCORE, which is the argument for enumerating: three axes were found
+# before this, every one by something breaking. Seven more were found by
+# reading two documented surfaces once. Discovery-by-accident is what this
+# replaces -- the same rule the project already holds for guards, "enumerate,
+# never name".
+#
+# WHICH STL FLAVOR `-o x.stl` WRITES. MEASURED 2026-11-18: the bytes begin
+# `solid OpenSCAD_M`, 1497 bytes for cube([10,10,10]), so ASCII. This is an
+# axis rather than a detail because wm-model's digest_of_export and
+# digest_of_bytes are both taken OVER THESE BYTES -- and OpenSCAD's own --help
+# announces the change: "ASCII export is the current stl default, but binary
+# stl is planned as the future default so asciistl should be explicitly
+# specified in scripts when needed." The day that flips, every recorded digest
+# changes and nothing we hold would say why.
+kernel_export_format_stl = "asciistl"
+# THE LIBRARY SET IS NOT A PROPERTY OF THIS CHECKOUT. MEASURED 2026-11-18 from
+# BOSL2/version.scad's own BOSL_VERSION: 2.0.716, in
+# ~/.local/share/OpenSCAD/libraries, which is the same figure the fork's
+# recorded baseline names. The corpus uses BOSL2, so its version is a pin.
+library_bosl2 = "2.0.716"
+#
+# [env] -- THE KNOBS, each `env_NAME`. "" means MUST BE UNSET; recording a
+# value is the supported way to set one deliberately, per the project's rule to
+# err toward configurability with a default that derives. All MEASURED unset
+# 2026-11-18, so every figure already recorded was taken at the defaults.
+#
+# These are the ones that can change a figure or DEFEAT A PIN ABOVE:
+# OPENSCAD_PATH chooses which binary the provider runs, which would make
+# `kernel_version` a statement about a binary that is not the one used;
+# OPENSCADPATH changes which libraries resolve; MCP_HARD_WARNINGS turns a
+# warning into a failure and so changes verdicts; the timeout and the three
+# bounds turn a success into a refusal, which is a different answer and not a
+# smaller one.
+[env]
+env_OPENSCAD_PATH = ""
+env_OPENSCADPATH = ""
+env_MCP_HARD_WARNINGS = ""
+env_MCP_RENDER_TIMEOUT = ""
+env_MCP_MAX_FILE_SIZE_MB = ""
+env_MCP_MAX_MEMORY_MB = ""
+env_MCP_ALLOWED_PATHS = ""
+# A `.env` ANYWHERE ABOVE THE WORKING DIRECTORY supplies any of the above
+# invisibly: the provider calls `load_dotenv()` with no argument on every
+# Config.from_env(), and python-dotenv searches upward. MEASURED 2026-11-18:
+# none reachable from this checkout.
+dotenv_refused = "true"
+# ENUMERATED AND DELIBERATELY NOT REFUSED, so the omission is stated rather
+# than silent. MCP_CACHE_ENABLED / _SIZE_MB / _TTL_HOURS default to on, 500 MB,
+# 24 h, and the cache directory on this box holds 8 entries dated 2026-11-16 --
+# the day the provider figures were taken, which looks alarming and is not:
+# MEASURED, the cache has exactly ONE reader, `_check_cache` at server.py:944,
+# inside render_scad_to_png. It serves PNG renders and nothing else; no
+# measure, validate, check or scad_eval result is cached, and those 8 entries
+# carry /tmp/pytest-of-cpower paths from the provider's own suite. So no
+# recorded figure is implicated and a refusal here would cost precision
+# nothing. MCP_PORT, MCP_HOST, MCP_TRANSPORT, MCP_LOG_*, MCP_RATE_LIMIT,
+# MCP_MAX_IMAGE_*, MCP_MAX_CONCURRENT_RENDERS, MCP_TEMP_DIR and
+# IMAGEMAGICK_PATH are transport, logging, image-size and concurrency knobs
+# that cannot move a geometric figure.
