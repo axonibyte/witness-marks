@@ -1,0 +1,574 @@
+# THE REDISCOVERY GATE (issue 45). One verdict per corpus incident: can this
+# project's checks RE-FIND the defect, and which one does it?
+#
+# WHY THIS IS NOT "REVERT EACH FIX", which is what issue 45 asked for.
+# MEASURED across all 108 entries: 42 state no fix at all, 12 name a change to
+# the design, 1 names the provider, and 53 are prose design DECISIONS -- "Overlap
+# mating features by a real amount (0.5-1 mm)", "Clearance applied: 0.35 mm on
+# the thread". There is no revertible artifact in this repository for 107 of
+# them; those fixes live in a design file's history and in English. So the
+# executable form of the same question is RECONSTRUCT AND DETECT: build the
+# defect as a fixture, and name the check that fires.
+#
+# THE STARTING NUMBER, AND IT IS THE POINT. MEASURED 2026-11-18: exactly ONE
+# corpus id is cited by any check in this tree -- mcp-026, in vectors.toml,
+# vector-run.py, vectors-arms.sh and the mutation record. The issue says "a
+# green battery that cannot re-find the 106 is not yet measuring anything", and
+# the honest answer is that it demonstrably re-finds 1 of 108. A matrix saying
+# so is worth more than a padded one, and tools/rediscovery.py refuses any
+# verdict that cannot point at a check and a fixture that both exist.
+#
+# verdict = "re-found"   requires `by` (a check that exists) and `fixture` (a
+#                        path that exists). Nothing else may claim coverage.
+# verdict = "not-found"  a defect we have looked at and cannot currently
+#                        detect. Requires `why`.
+# verdict = "unassessed" nobody has tried yet. Requires `why`. The default, and
+#                        the number this gate exists to drive down.
+
+
+[[rediscovery]]
+id = "build-001"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-002"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-003"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-004"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-005"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-006"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-007"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-008"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-009"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-010"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-011"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-012"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-013"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-014"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-015"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-016"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-017"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-018"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-019"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-020"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-021"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-022"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-023"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-024"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-025"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-026"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-027"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-028"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-029"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-030"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-031"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-032"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-033"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-034"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-035"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-036"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-037"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-038"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-039"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-040"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-041"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-042"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-043"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-044"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-045"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-046"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-047"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-048"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-049"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-050"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-051"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-052"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-053"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-054"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-055"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-056"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-057"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-058"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-059"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-060"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-061"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-062"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-063"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-064"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-065"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-066"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-067"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-068"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-069"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-070"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-071"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-072"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-073"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-074"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-075"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-076"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "build-077"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-001"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-002"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-003"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-004"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-005"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-006"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-007"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-008"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-009"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-010"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-011"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-012"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-013"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-014"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-015"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-016"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-017"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-018"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-019"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-020"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-021"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-022"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-023"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-024"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-025"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-026"
+verdict = "re-found"
+tier = "differential vectors"
+by = "tests/vectors/vectors.toml"
+fixture = "tests/vectors/vectors.toml"
+note = """
+The stale-file guard: a run that read the PREVIOUS run's STL and reported it \
+as this one's. vector-run.py unlinks the output and $WMVEC_OUT exists so the \
+guard can be driven against a planted stale file -- which is what makes this a \
+re-finding rather than a citation."""
+
+[[rediscovery]]
+id = "mcp-027"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-028"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-029"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-030"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
+
+[[rediscovery]]
+id = "mcp-031"
+verdict = "unassessed"
+why = "no fixture reconstructs this defect yet, and no check of ours names it"
