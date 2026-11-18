@@ -1,4 +1,12 @@
 # Cross-implementation vectors. See README.md.
+#
+# `@FIXTURES@` IS EXPANDED BY tools/vector-run.py to this checkout's
+# tests/fixtures. It is a placeholder rather than a path because the committed
+# file previously carried ABSOLUTE paths into one machine's checkout -- which
+# resolved on that machine and pointed at a foreign tree everywhere else. CI
+# caught it on a fresh clone for TEN COMMITS while every local run read green,
+# because locally the absolute path happened to land inside the tree under
+# test. A committed model must name nothing outside the repository.
 
 # THE `provider = { ... }` LINES ARE THE OTHER SIDE, measured 2026-11-16 by
 # speaking MCP to the pinned openscad-mcp and calling its `measure` tool on the
@@ -166,7 +174,7 @@ fn = 0
 why = """
 The can-cutter stage intersected with the blade in place: the blade seated in its pocket, a deliberate interference and not a defect."""
 model = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 intersection() { blade_stage(); blade_in_place(); }"""
 note = """
 tests/fixtures/can_cutter/MANIFEST.toml records 0.1063 mm3 for the same probe"""
@@ -181,7 +189,7 @@ fn = 0
 why = """
 The frame intersected with the blade: EMPTY, and empty is a VALUE."""
 model = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 intersection() { frame(); blade_in_place(); }"""
 note = """
 OpenSCAD reports an empty 3D result as 'Current top level object is empty', exits 0, and writes NO FILE. This vector exists to pin that the runner reports emptiness rather than an error or, worse, the previous run's number. Reading absence as zero is only safe because the target is deleted first; corpus entry mcp-026 is the incident where four probes read a stale STL and reported 52.800 mm3 of material that was not there."""
@@ -362,10 +370,10 @@ tolerance = 1e-06
 why = """
 The can cutter's frame: 47 multmatrix nodes, nine polygons, two rotate_extrudes. NOBODY CAN COMPUTE ITS VOLUME, so no vector for it can exist -- `expected` would have to be recorded from a run, which makes it a restatement of whatever the code did. The ratio is available without the figure."""
 base = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 frame();"""
 transformed = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 scale([2, 2, 2]) frame();"""
 
 [[relation]]
@@ -376,10 +384,10 @@ tolerance = 1e-06
 why = """
 A rigid rotation of a real part. The angle is 37 degrees, not 90: a right angle on an axis-aligned part can hold for the wrong reason, and 37 forces every facet to move."""
 base = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 frame();"""
 transformed = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 rotate([0, 0, 37]) frame();"""
 
 [[relation]]
@@ -424,10 +432,10 @@ tolerance = 1e-06
 why = """
 The blade stage, which carries the dovetail sockets and the tenons -- the part the 2b work was built from. A part that moved has the volume it had, on geometry nobody has measured by hand."""
 base = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 blade_stage();"""
 transformed = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 translate([41, -23, 7]) blade_stage();"""
 
 [[relation]]
@@ -437,13 +445,13 @@ tolerance = 1e-06
 why = """
 Two real parts, moved far enough apart to be disjoint. Additivity over disjoint parts is the one relation that separated a mesh volume from a bounding-box volume in the earlier measurement, and here neither side has a closed form."""
 base = """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 union() { frame(); translate([400, 0, 0]) blade_stage(); }"""
 sum_of = [
   """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 frame();""",
   """
-use </data/projects/tech/code/ai/witness-marks/tests/fixtures/can_cutter/can_cutter.scad>;
+use <@FIXTURES@/can_cutter/can_cutter.scad>;
 translate([400, 0, 0]) blade_stage();""",
 ]

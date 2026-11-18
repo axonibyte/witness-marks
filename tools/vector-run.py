@@ -41,7 +41,45 @@ import tomllib
 OPENSCAD = os.environ.get("OPENSCAD", "openscad")
 
 
+#: Where `@FIXTURES@` in a vector model points, derived from THIS FILE's
+#: location rather than from the working directory, so the expansion is a
+#: property of the checkout and not of wherever the runner was invoked.
+FIXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "tests", "fixtures")
+
+
+def expand(src):
+    """Expand the fixture placeholder, and REFUSE a model naming an absolute
+    path of its own.
+
+    WHY THE REFUSAL IS HERE AND NOT ONLY IN THE ARM. The arm that caught this
+    (tools/tests/t_fixtures_self_contained.sh) found it by noticing a path
+    reaching outside the tree -- which only happens when the clone root
+    DIFFERS from the one baked in. On the machine where the paths were written
+    they resolved inside the tree and the arm passed, so CI was red for ten
+    commits while every local run read green. A model with an absolute path is
+    wrong wherever it is read, so the runner refuses it outright."""
+    if "@FIXTURES@" in src:
+        src = src.replace("@FIXTURES@", FIXTURES)
+    for token in ("use <", "include <"):
+        at = 0
+        while True:
+            at = src.find(token, at)
+            if at < 0:
+                break
+            end = src.find(">", at)
+            path = src[at + len(token):end] if end > 0 else ""
+            if path.startswith("/") and not path.startswith(FIXTURES):
+                raise SystemExit(
+                    f"vector-run: a model names the absolute path {path!r}, which is a "
+                    f"path on one machine rather than a fact about this repository. Use "
+                    f"@FIXTURES@ for a file under tests/fixtures/")
+            at = end if end > 0 else at + len(token)
+    return src
+
+
 def render(src, out):
+    src = expand(src)
     if os.path.exists(out):
         os.unlink(out)  # see the module docstring: absence must mean absence
     with tempfile.NamedTemporaryFile("w", suffix=".scad", delete=False) as fh:

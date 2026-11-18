@@ -42,6 +42,14 @@ def judge(where, text):
         verb, ref = m.group(1), m.group(2).strip()
         # A reference is self-contained when it resolves INSIDE the fixture
         # tree: a sibling by relative path, or an absolute path under it.
+        # THE PLACEHOLDER EXPANDS INSIDE THE TREE, SO IT IS INSIDE. A committed
+        # model names @FIXTURES@ rather than a path, precisely so the file holds
+        # no machine's checkout; tools/vector-run.py expands it. An ABSOLUTE
+        # path is still an escape and is still caught below -- which is what it
+        # was before, and what CI found on a fresh clone while this machine
+        # read green for ten commits.
+        if ref.startswith("@FIXTURES@/"):
+            continue
         p = Path(ref)
         inside = False
         if p.is_absolute():
@@ -83,6 +91,21 @@ for line in out:
     print(f"ESCAPES {line}")
 PY
 }
+
+# NO COMMITTED MODEL NAMES AN ABSOLUTE PATH, checked DIRECTLY and therefore
+# independently of where the tree sits. The escape scan below found this defect
+# only because CI's clone root DIFFERS from the one baked in -- on the machine
+# where the paths were written they resolved inside the fixture tree and the
+# scan passed, so CI was red for ten commits while every local run read green.
+# An absolute path in a committed model is wrong wherever it is read, so it gets
+# a check that does not depend on being read somewhere else.
+ABS=$(/usr/bin/grep -rnE '(use|include) *<[[:space:]]*/' \
+        "$ROOT/tests/fixtures" "$ROOT/tests/vectors" 2>/dev/null || true)
+if [ -z "$ABS" ]; then
+    ok "no committed fixture or vector model names an absolute path"
+else
+    no "a committed model names an absolute path, which is one machine's checkout rather than a fact about this repository" "$(printf '%s' "$ABS" | head -3)"
+fi
 
 OUT=$(scan "$ROOT" "$ROOT/tests/vectors/vectors.toml" 2>&1) || {
     no "the scan did not run: $OUT"; fin
