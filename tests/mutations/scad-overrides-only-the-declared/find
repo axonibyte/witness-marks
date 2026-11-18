@@ -1,0 +1,5 @@
+    inputs
+        .names()
+        .into_iter()
+        .filter_map(|n| inputs.get(&n).map(|i| (n, i.value)))
+        .collect()

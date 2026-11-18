@@ -21,4 +21,5 @@ mod tests {
     }
 }
 pub mod index;
+pub mod scad;
 pub mod wire;

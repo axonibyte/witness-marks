@@ -1,0 +1,8 @@
+            Expression::Rust(_) => {
+                return Err(
+                    "this evaluator computes claims in the model's scope and was \
+                            handed an in-process expression. Evaluating it here would \
+                            record a six-digit source for an f64 measurement"
+                        .into(),
+                )
+            }

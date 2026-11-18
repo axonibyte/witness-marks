@@ -260,6 +260,7 @@ dependencies = [
  "anyhow",
  "serde",
  "serde_json",
+ "wm-claims",
  "wm-envelope",
 ]
 

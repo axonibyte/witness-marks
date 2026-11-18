@@ -207,6 +207,47 @@ impl ToolAnswer {
     }
 }
 
+/// Evaluate one expression in a model's own variable and function scope, with
+/// variable overrides (issue 60).
+///
+/// THIS IS THE TRANSPORT HALF, and it lives here because this is the crate
+/// that launches a process. `wm-claims::scad::ScadEval` holds the parse and
+/// the refusals and takes a closure of exactly this shape -- it needs no
+/// dependency on this crate, because the signature is `&str`, a map of numbers
+/// and a `Value`.
+///
+/// `variables` IS THE PERTURBATION MECHANISM. MEASURED against the pinned
+/// provider and `arts/can_cutter.scad`: `can_dia=66.0001` yields
+/// `can_r=33.0001`, with a warning naming the line it overwrote. That warning
+/// is expected -- an override that drew none would be the surprising case.
+///
+/// AND THE ANSWER IS COARSER THAN AN IN-PROCESS ONE: `scad_eval` returns
+/// numbers at OpenSCAD's six significant digits, which puts a floor near 1e-2
+/// under the elasticity a perturbation through here can see. That floor is
+/// recorded by `wm_claims::index::Source::ScadEval`, not here, because it is a
+/// property of the answer rather than of the sending.
+pub fn scad_eval_in_model(
+    provider: &mut Provider,
+    model: &str,
+    expression: &str,
+    variables: &std::collections::BTreeMap<String, f64>,
+) -> Result<Value> {
+    let answer = provider.call(
+        "scad_eval",
+        json!({
+            "scad_file": model,
+            "expressions": [expression],
+            "variables": variables,
+        }),
+    )?;
+    if answer.is_error {
+        return Err(anyhow!(
+            "scad_eval returned isError for {expression:?} against {model}"
+        ));
+    }
+    Ok(answer.payload)
+}
+
 /// How to start the provider. Separable so the protocol can be driven against
 /// a stub: the client under test must be the real one, and the only way to do
 /// that without a Python environment is to let the command be chosen.

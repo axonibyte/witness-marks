@@ -1,0 +1,1 @@
+    if row.get("evaluated").and_then(Value::as_bool) == Some(false) {
