@@ -1,0 +1,1 @@
+                if (v - base).abs() > base.abs() * 1e-12 + f64::MIN_POSITIVE {

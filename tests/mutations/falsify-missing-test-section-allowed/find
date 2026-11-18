@@ -1,0 +1,1 @@
+        /usr/bin/grep -q "^## Test $t " "$p" || why="$why [no section for test $t]"

@@ -320,6 +320,63 @@ pub fn declaration_gap(claim: &Claim, inputs: &Inputs) -> DeclarationGap {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// SPEC §10 TEST 5's SIGNAL, as a unit test rather than a plan item.
+    /// docs/falsification-plan.md names this the cheapest of the four
+    /// experiments and recommends it first; this is it.
+    ///
+    /// THE LIMIT, MEASURED. `derived_inputs` perturbs ONE INPUT AT A TIME, so
+    /// it reports what a claim reads AT THIS POINT, not what it depends on in
+    /// general. A claim taking the tighter of two constraints -- which is what
+    /// a clearance claim does -- depends on both and is moved by only one of
+    /// them at any given point. The other reads as unused.
+    ///
+    /// This is pinned rather than fixed because the fix is a choice the
+    /// project has not made: joint perturbation costs 2^n evaluations, and
+    /// declaring the dependency instead is what `declaration_gap` already
+    /// compares against. What must not happen is this limit going unrecorded,
+    /// because staleness propagation reads `inputs_used` and would not
+    /// re-check the claim when the OTHER constraint moved.
+    #[test]
+    fn a_claim_reading_the_tighter_of_two_constraints_reports_only_the_active_one() {
+        fn tighter(i: &Inputs) -> Result<f64, String> {
+            Ok(i.need("thread_clear")?.min(i.need("can_clear")?))
+        }
+        let c = Claim {
+            name: "tighter_of_two".into(),
+            declared_inputs: vec!["thread_clear".into(), "can_clear".into()],
+            range: (0.0, 10.0),
+            unit: "mm".into(),
+            because: "the assembly is limited by whichever clearance is smaller".into(),
+            eval: tighter,
+        };
+        let at = Inputs::new()
+            .with("thread_clear", Input::measured(0.35, "the model"))
+            .with("can_clear", Input::measured(0.60, "the model"));
+
+        // Perturbation sees only the active constraint.
+        assert_eq!(derived_inputs(&c, &at), vec!["thread_clear".to_string()]);
+
+        // AND THE OTHER ONE DEMONSTRABLY MATTERS, which is what makes this a
+        // limit and not a correct answer: moving the input perturbation called
+        // unused changes the claim's value.
+        let moved = Inputs::new()
+            .with("thread_clear", Input::measured(0.35, "the model"))
+            .with("can_clear", Input::measured(0.10, "the model"));
+        let before = (c.eval)(&at).expect("evaluates");
+        let after = (c.eval)(&moved).expect("evaluates");
+        assert_ne!(
+            before, after,
+            "can_clear moved the value it was reported not to reach"
+        );
+
+        // SO THE DECLARATION IS THE STRONGER STATEMENT HERE, and the gap says
+        // so: `can_clear` is declared and not read, which reads as a stale
+        // declaration and is actually the honest one.
+        let gap = declaration_gap(&c, &at);
+        assert_eq!(gap.unread, vec!["can_clear".to_string()]);
+        assert!(gap.undeclared.is_empty());
+    }
+
     use wm_mech::{Beam, End};
 
     /// THE HARNESS CLAIM, from spec §06.1. The blade clip's clamp force must

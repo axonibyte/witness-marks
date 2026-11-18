@@ -1,0 +1,2 @@
+        /usr/bin/grep -A 4 "^## Test $t " "$p" | /usr/bin/grep -q "Current evidence" \
+            || why="$why [test $t states no current evidence]"
