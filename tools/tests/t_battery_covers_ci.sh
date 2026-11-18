@@ -98,4 +98,41 @@ else
     no "the comparison did not catch a CI-only gate; it cannot fail, so its green means nothing (rc=$frc)"
     printf '%s\n' "$OUT" | sed 's/^/         /'
 fi
+
+# ---------------------------------------------------------------------------
+# ci.yml STATES A RULE ABOUT ITSELF, AND NOW SOMETHING CHECKS IT. Its header
+# says "rc 124 reported separately from a failure". On 2026-11-18 three of its
+# five timed steps did not -- including the mutant sweep, which is the step
+# most likely to meet a budget. It failed, and I could not tell a TIMEOUT from
+# a surviving mutant: the job said "Failing after 20m24s" and nothing more.
+#
+# A timeout is a CAPACITY finding and a failure is a CODE finding, and a step
+# that cannot tell them apart sends you looking in the wrong place. Which is
+# what happened: I measured the mutant sweep locally at 542s to test a
+# hypothesis the step should simply have reported.
+#
+# THE PROBE STEP IS EXEMPT BY DESIGN -- its timeouts end in `|| echo`, because
+# naming what is absent is its whole job and nothing there is fatal.
+timed_steps_report_124() {
+    python3 - "$1" <<'PY'
+import re, sys, pathlib
+y = pathlib.Path(sys.argv[1]).read_text()
+steps = re.split(r"\n      - name: ", y)[1:]
+bad = []
+for s in steps:
+    name = s.split("\n", 1)[0].strip()
+    if "non-fatal" in name:
+        continue
+    if re.search(r"timeout \d+", s) and "124" not in s:
+        bad.append(name)
+print(" ".join(f"[{b[:40]}]" for b in bad))
+PY
+}
+missing=$(timed_steps_report_124 "$CI")
+if [ -z "$missing" ]; then
+    ok "every timed step in ci.yml reports rc 124 separately, which is its own header's rule"
+else
+    no "a timed step cannot tell a timeout from a failure, against ci.yml's own stated rule: $missing"
+fi
+
 fin

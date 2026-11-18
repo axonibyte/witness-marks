@@ -1,0 +1,1 @@
+a timed step cannot tell a timeout from a failure, against ci.yml's own stated rule

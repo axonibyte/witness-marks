@@ -70,6 +70,7 @@ jobs:
             echo "== $t"
             rc=0; timeout 300 sh "$t" >arms.out 2>&1 || rc=$?
             cat arms.out
+            test "$rc" -eq 124 && { echo "HANG: $t exceeded 300s (a CAPACITY finding, not a failed arm)"; fail=1; }
             grep -qE '^-- [0-9]+/[0-9]+ arms pass' arms.out \
               || { echo "$t produced no count of its own: it did not run"; fail=1; }
             test "$rc" -eq 0 || fail=1
@@ -79,11 +80,27 @@ jobs:
       # AND THE RECORDED KILLS ARE RE-RUN, not taken on the word of a commit
       # message. A mutation record that no longer kills is a record of a test
       # that has since stopped covering what it claims.
+      # THE BUDGET IS MEASURED, AND A TIMEOUT SAYS SO. This step was
+      # `timeout 1200` with no rc handling, which breaks this file's own rule
+      # at the top -- "rc 124 reported separately from a failure" -- and it
+      # broke it on the step most likely to hit a budget. MEASURED 2026-11-18:
+      # 274 mutants take 542s on the author's box, the two green runs before
+      # this change finished the WHOLE JOB in 19m9s and 19m23s, and the run
+      # that failed died at 20m24s, which is where a 1200s kill starting ~24s
+      # in lands exactly. I could not prove it was the timeout, and that is
+      # the defect: the step could not tell me.
+      #
+      # A TIMEOUT HERE IS A CAPACITY FINDING, NOT A CODE ONE, and it must not
+      # read as "a mutant survived". The budget is raised to 2400s because the
+      # mutant count grew 227 -> 274 in one day and 1200 is now inside the
+      # noise; the timeout remains a HANG detector, which is all a timeout is.
       - name: every recorded mutant still kills
         run: |
           set -o pipefail
           cd src-tree
-          timeout 1200 sh tools/mutate.sh --all
+          rc=0; timeout 2400 sh tools/mutate.sh --all || rc=$?
+          test "$rc" -eq 124 && { echo "HANG: the mutant sweep exceeded 2400s (a CAPACITY finding; 124 proves only that 2400s elapsed, never that a mutant survived)"; exit 124; }
+          test "$rc" -eq 0
 
       - name: build and test, locked
         run: |
@@ -110,5 +127,6 @@ jobs:
           cd src-tree
           rc=0; timeout 600 cargo clippy --locked --workspace --all-targets -- -D warnings >clippy.out 2>&1 || rc=$?
           echo "clippy rc=$rc findings=$(grep -cE '^(warning|error)' clippy.out || true)"
+          test "$rc" -eq 124 && { echo "HANG: clippy exceeded 600s (a CAPACITY finding; it says nothing about findings)"; exit 124; }
           test "$rc" -eq 0 || { tail -40 clippy.out; exit "$rc"; }
           timeout 120 cargo fmt --all -- --check && echo "fmt: clean"

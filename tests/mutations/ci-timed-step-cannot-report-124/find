@@ -1,0 +1,1 @@
+          test "$rc" -eq 124 && { echo "HANG: the mutant sweep exceeded 2400s (a CAPACITY finding; 124 proves only that 2400s elapsed, never that a mutant survived)"; exit 124; }
