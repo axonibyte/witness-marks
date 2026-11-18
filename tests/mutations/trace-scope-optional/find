@@ -1,0 +1,4 @@
+    let scope = answer
+        .get("scope")
+        .and_then(Value::as_str)
+        .filter(|s| !s.trim().is_empty())

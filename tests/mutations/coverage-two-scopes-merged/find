@@ -1,0 +1,1 @@
+    if let Some(odd) = traces.iter().find(|t| t.scope != scope) {

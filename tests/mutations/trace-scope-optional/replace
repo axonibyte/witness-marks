@@ -1,0 +1,5 @@
+    let scope = answer
+        .get("scope")
+        .and_then(Value::as_str)
+        .or(Some("assumed"))
+        .filter(|s| !s.trim().is_empty())
