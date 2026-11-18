@@ -1,0 +1,7 @@
+        if claims.is_empty() {
+            return Err(
+                "an index over no claims answers `nothing depends on this` for \
+                        every symbol, which is not the same as having nothing to index"
+                    .into(),
+            );
+        }

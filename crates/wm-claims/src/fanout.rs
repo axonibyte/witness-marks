@@ -32,6 +32,7 @@
 
 use crate::claim::{Claim, Inputs, PROBE_FRACTION};
 use crate::dominance::dominance;
+use crate::index::Index;
 
 /// What one claim does with the symbol.
 #[derive(Debug, Clone, PartialEq)]
@@ -79,6 +80,29 @@ impl Fanout {
 /// claims consume through a name nobody declared, and only the first is
 /// reassuring.
 pub fn fanout(claims: &[Claim], inputs: &Inputs, symbol: &str) -> Result<Fanout, String> {
+    let index = Index::build(claims, inputs)?;
+    fanout_with(&index, claims, inputs, symbol)
+}
+
+/// The same answer, reading a prepared [`Index`] (issue 37).
+///
+/// WHY THE INDEX IS WORTH PASSING IN. Without it this scans every claim and
+/// runs `dominance` on each to find out whether the symbol appears -- the full
+/// perturbation sweep over the whole set, to answer a question about one
+/// symbol. The index already holds that fact, so the scan is replaced by a
+/// lookup and only the claims that actually read the symbol are evaluated.
+///
+/// The index is also the only place the dependency account can be CHECKED,
+/// which is why issue 37 asked for one rather than for three private
+/// derivations: issue 52 wants it cross-checked against the provider's
+/// lexical `trace`, and there is nothing to cross-check a private derivation
+/// against.
+pub fn fanout_with(
+    index: &Index,
+    claims: &[Claim],
+    inputs: &Inputs,
+    symbol: &str,
+) -> Result<Fanout, String> {
     if inputs.get(symbol).is_none() {
         return Err(format!(
             "no input named `{symbol}`. Reporting that it serves no claims would be true of \
@@ -86,14 +110,32 @@ pub fn fanout(claims: &[Claim], inputs: &Inputs, symbol: &str) -> Result<Fanout,
              and only the first of those is reassuring"
         ));
     }
+    // THE INDEX IS CROSS-CHECKED, NOT TRUSTED AS A FILTER. Filtering the
+    // scan by the index would be an optimization with no observable effect --
+    // both the index and `dominance` derive from the same perturbation, so
+    // they agree, and a mutant that removed the filter SURVIVED, which is the
+    // honest measure of filtering as a feature.
+    //
+    // What is worth having is the DISAGREEMENT. Two derivations of one fact
+    // that part company is a finding in either direction: the index listing a
+    // reader `dominance` finds no elasticity for, or `dominance` finding one
+    // the index never listed. Issue 52 wants exactly this shape against the
+    // provider's lexical `trace`, and this is the same comparison between the
+    // two sources already in the tree.
+    let readers = index.claims_reading(symbol);
+    let mut disagreed: Vec<String> = Vec::new();
     let mut serves = Vec::new();
-    for c in claims {
+    for c in claims.iter() {
         // The elasticity comes from the same perturbation `dominance` uses,
         // so there is one account of how an input drives a claim and not two.
         let Ok(d) = dominance(c, inputs, None) else {
             continue;
         };
-        let Some(s) = d.by_elasticity.iter().find(|s| s.input == symbol) else {
+        let found = d.by_elasticity.iter().find(|s| s.input == symbol);
+        if found.is_some() != readers.contains(&c.name) {
+            disagreed.push(c.name.clone());
+        }
+        let Some(s) = found else {
             continue;
         };
         let (lo, hi) = c.range;
@@ -110,6 +152,15 @@ pub fn fanout(claims: &[Claim], inputs: &Inputs, symbol: &str) -> Result<Fanout,
             "`{symbol}` is an input and no claim reads it. That is either a dead parameter \
              or a claim set that does not cover it, and this refuses rather than reporting \
              a clean fan-out over nothing"
+        ));
+    }
+    if !disagreed.is_empty() {
+        return Err(format!(
+            "the dependency index and the elasticity sweep disagree about which claims \
+             read `{symbol}`: {}. Two derivations of one fact have parted company, and \
+             reporting a fan-out from either of them would be reporting a number whose \
+             basis is in dispute",
+            disagreed.join(", ")
         ));
     }
     serves.sort_by(|a, b| a.claim.cmp(&b.claim));
@@ -170,6 +221,38 @@ pub const PROBE: f64 = PROBE_FRACTION;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// AN INDEX THAT DISAGREES WITH THE SWEEP IS REFUSED, not quietly
+    /// preferred. Built by hand from a claim set that does NOT include the
+    /// claim under test, so the index says "nothing reads this" while the
+    /// elasticity sweep finds that something does.
+    #[test]
+    fn an_index_disagreeing_with_the_elasticity_sweep_is_refused() {
+        let inputs = at(0.30);
+        let all = harness();
+        // A SECOND CALL rather than a clone: Claim holds a fn pointer and is
+        // deliberately not Clone, and adding a derive to production code to
+        // serve a test is the same inversion as adding a const to serve a
+        // mutant.
+        let mut one_missing = harness();
+        one_missing.remove(0);
+        let partial = Index::build(&one_missing, &inputs).expect("a valid smaller index");
+        let err = fanout_with(&partial, &all, &inputs, "thr_clear")
+            .expect_err("the index is missing a claim the sweep finds");
+        assert!(err.contains("disagree about which claims read"), "{err}");
+        assert!(err.contains("basis is in dispute"), "{err}");
+    }
+
+    /// AND THE AGREEING CASE STILL ANSWERS, so the refusal above is not
+    /// unconditional -- the arm that keeps it honest.
+    #[test]
+    fn an_index_built_from_the_same_set_agrees_and_answers() {
+        let inputs = at(0.30);
+        let all = harness();
+        let ix = Index::build(&all, &inputs).expect("valid");
+        let f = fanout_with(&ix, &all, &inputs, "thr_clear").expect("agreement answers");
+        assert!(!f.serves.is_empty());
+    }
     use crate::claim::Input;
 
     fn c(

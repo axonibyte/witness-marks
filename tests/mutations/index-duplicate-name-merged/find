@@ -1,0 +1,7 @@
+            if reads.contains_key(&claim.name) {
+                return Err(format!(
+                    "two claims are named `{}`; an index keyed by name would merge them \
+                     into one entry whose input set belongs to neither",
+                    claim.name
+                ));
+            }

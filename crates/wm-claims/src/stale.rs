@@ -25,6 +25,7 @@
 //! three is how an unmeasurable claim comes to look like a healthy one.
 
 use crate::claim::{verify, Claim, Inputs, Provenance, Status, Verified};
+use crate::index::Index;
 
 /// One input that moved.
 #[derive(Debug, Clone, PartialEq)]
@@ -97,6 +98,29 @@ impl Report {
 /// refuses a bit-identical edit: a propagation run over identical inputs
 /// reports zero invalidations, which reads exactly like a safe change.
 pub fn stale(claims: &[Claim], before: &Inputs, after: &Inputs) -> Result<Report, String> {
+    stale_with(None, claims, before, after)
+}
+
+/// The same report, optionally reading prepared indexes (issue 37).
+///
+/// TWO INDEXES, NOT ONE, AND THAT IS THE WHOLE REASON THIS SIGNATURE LOOKS
+/// LIKE THIS. An [`Index`] is built by perturbing one input set, so it is a
+/// fact ABOUT THAT SET. What a claim reads can differ between the two sides of
+/// a staleness comparison -- an input that appeared, one that vanished, a
+/// branch that a changed value takes -- and this function's whole job is to
+/// notice a claim that reads a changed input. Handing it a single index and
+/// using it for both sides would answer the `after` question with the `before`
+/// facts, which is precisely the stale-figure defect this module exists to
+/// catch, arriving through the index meant to organize it.
+///
+/// `None` builds both. The pair is accepted so a caller holding them already
+/// -- having just cross-checked them against `trace` -- does not perturb twice.
+pub fn stale_with(
+    indexes: Option<(&Index, &Index)>,
+    claims: &[Claim],
+    before: &Inputs,
+    after: &Inputs,
+) -> Result<Report, String> {
     if claims.is_empty() {
         return Err(
             "no claims to propagate over. 'Nothing was invalidated' and 'nothing was \
@@ -161,8 +185,23 @@ pub fn stale(claims: &[Claim], before: &Inputs, after: &Inputs) -> Result<Report
             report.unevaluable.push(c.name.clone());
             continue;
         }
-        let reads_changed = a.inputs_used.iter().any(|n| changed_names.contains(n))
-            || b.inputs_used.iter().any(|n| changed_names.contains(n));
+        // THE UNION OF BOTH SIDES. A claim that read a changed input on
+        // either side has had its basis moved, and taking only one side would
+        // miss the input that appeared or vanished.
+        let reads_changed = match indexes {
+            Some((bi, ai)) => {
+                let empty = std::collections::BTreeSet::new();
+                let br = bi.reads(&c.name).unwrap_or(&empty);
+                let ar = ai.reads(&c.name).unwrap_or(&empty);
+                changed_names
+                    .iter()
+                    .any(|n| br.contains(n) || ar.contains(n))
+            }
+            None => {
+                a.inputs_used.iter().any(|n| changed_names.contains(n))
+                    || b.inputs_used.iter().any(|n| changed_names.contains(n))
+            }
+        };
         if b.value != a.value {
             report.moved.push(Moved {
                 name: c.name.clone(),

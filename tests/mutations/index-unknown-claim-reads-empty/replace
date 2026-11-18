@@ -1,0 +1,3 @@
+            if !used.is_empty() {
+                reads.insert(claim.name.clone(), used);
+            }
