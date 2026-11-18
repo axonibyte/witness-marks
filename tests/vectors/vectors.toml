@@ -13,6 +13,9 @@
 [[vector]]
 id = "cube-volume"
 provider = { volume = 1000.0, component_count = 1, is_watertight = true }
+# One solid, closed: a cube is a single watertight component by construction.
+components = 1
+watertight = true
 n = 1
 question = "volume"
 fn = 0
@@ -51,6 +54,8 @@ tolerance = 1e-05
 [[vector]]
 id = "two-cubes-facets"
 provider = { component_count = 2, triangle_count = 24, volume = 250.0 }
+# Two cubes 20 apart with 5 mm sides cannot touch, so exactly two components.
+components = 2
 n = 4
 question = "facets"
 fn = 0
@@ -79,6 +84,8 @@ tolerance = 0
 [[vector]]
 id = "overlap-intersection"
 provider = { volume = 500.0, component_count = 1 }
+# The intersection of two overlapping convex solids is one convex solid.
+components = 1
 n = 5
 question = "volume"
 fn = 0
@@ -92,6 +99,8 @@ tolerance = 1e-09
 [[vector]]
 id = "sphere-fn64-facets"
 provider = { triangle_count = 4092, volume = 4171.9988, component_count = 1 }
+# A tessellated sphere is one closed shell.
+components = 1
 n = 6
 question = "facets"
 fn = 64
@@ -116,6 +125,21 @@ model = """
 $fn = 64; sphere(r = 10);"""
 note = """
 analytic 4188.790205; the recorded value is 0.401% under it"""
+# THE PROVIDER AND WE DISAGREE HERE, AND THE CAUSE IS IN THIS FILE ALREADY.
+# 4171.9988 is not a rounding of 4171.998709: at four reported decimals it
+# stands for [4171.99875, 4171.99885) and ours falls below that. The
+# sphere-fn64-facets note above records why -- the provider's figures were
+# measured on OpenSCAD 2026.11.05.nightly and ours on 2026.10.14, so the two
+# tessellate the same model slightly differently. BOTH still satisfy the
+# constraint this vector's `why` states, which is the actual oracle: inscribed,
+# therefore under the analytic 4188.790205. 9.1e-5 on 4172 is 2.2e-8 relative.
+#
+# This is issue 54's second outcome -- the two implementations measuring the
+# same quantity to different precision, not a defect in either -- and it is
+# recorded here so that a LARGER disagreement, or one with a different cause,
+# fails instead of passing under a tolerance wide enough to hide it. The
+# vector's own 0.0001 would have hidden exactly this.
+provider_disagrees = { max_delta = 0.0001, because = "provider measured on OpenSCAD 2026.11.05.nightly, ours on 2026.10.14; different tessellation of the same model, both under the analytic bound" }
 expected = 4171.998709
 tolerance = 0.0001
 

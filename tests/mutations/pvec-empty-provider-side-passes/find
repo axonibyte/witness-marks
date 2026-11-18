@@ -1,0 +1,4 @@
+        if checked == 0:
+            print("-- NO recorded provider figures in this file; refusing rather "
+                  "than reporting a clean run over nothing")
+            sys.exit(2)

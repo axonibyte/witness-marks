@@ -1,0 +1,4 @@
+def provider_agrees(ours, reported):
+    """Whether `ours` is a value `reported` could have been rounded from."""
+    lo, hi, _ = reported_interval(reported)
+    return lo <= decimal.Decimal(repr(float(ours))) < hi

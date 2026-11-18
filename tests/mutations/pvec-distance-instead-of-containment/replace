@@ -1,0 +1,3 @@
+def provider_agrees(ours, reported):
+    """Whether `ours` is a value `reported` could have been rounded from."""
+    return abs(float(ours) - float(reported)) <= 0.01

@@ -1,0 +1,1 @@
+            ok = worst <= decimal.Decimal(repr(float(accepted.get("max_delta", 0))))
