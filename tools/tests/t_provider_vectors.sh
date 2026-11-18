@@ -112,6 +112,59 @@ got=$(rc_of "$TMP/unjudged.toml")
 [ "$got" = 1 ] && /usr/bin/grep -q "recorded and unasserted" "$TMP/out"
 judge "a provider fact with no closed form to judge it against fails" $? "rc $got"
 
+# -- ISSUE 53, AND IT BIT THIS FILE'S OWN AUTHOR. TOML has no null, so a
+#    provider that answered `null` is recorded here as an ABSENT KEY, and the
+#    first version of check_provider skipped absent keys. The provider's own
+#    docs name the tri-state: mesh_health's `manifold` is "true, false, or null
+#    when OpenSCAD did not perform the check".
+cat > "$TMP/unanswered.toml" <<'EOF'
+[[vector]]
+id = "unanswered"
+provider = { volume = 1000.0 }
+components = 1
+watertight = true
+question = "volume"
+model = "cube([10,10,10]);"
+expected = 1000.0
+tolerance = 1e-09
+EOF
+got=$(rc_of "$TMP/unanswered.toml")
+[ "$got" = 1 ] && /usr/bin/grep -q "UNKNOWN, never a pass" "$TMP/out"
+judge "a fact the vector asks for and the provider did not answer is UNKNOWN, never a pass" $? "rc $got"
+
+# -- and an unknown DECLARED with a cause is knowledge rather than a gap
+cat > "$TMP/declared.toml" <<'EOF'
+[[vector]]
+id = "declared-unknown"
+provider = { volume = 1000.0 }
+provider_unknown = { keys = ["is_watertight"], because = "mesh_health.manifold is null on the Manifold backend" }
+watertight = true
+question = "volume"
+model = "cube([10,10,10]);"
+expected = 1000.0
+tolerance = 1e-09
+EOF
+got=$(rc_of "$TMP/declared.toml")
+[ "$got" = 0 ] && /usr/bin/grep -q "UNKNOWN, declared" "$TMP/out"
+judge "an unknown declared with a cause passes and stays visible as UNKNOWN in the output" $? "rc $got"
+
+# -- A DECLARATION THAT WENT FALSE must fail, not keep waiving. Same lesson as
+#    the README that named a path absent for weeks while reading as if it worked.
+cat > "$TMP/stale.toml" <<'EOF'
+[[vector]]
+id = "stale-declaration"
+provider = { volume = 1000.0, is_watertight = true }
+provider_unknown = { keys = ["is_watertight"], because = "a cause that has expired" }
+watertight = true
+question = "volume"
+model = "cube([10,10,10]);"
+expected = 1000.0
+tolerance = 1e-09
+EOF
+got=$(rc_of "$TMP/stale.toml")
+[ "$got" = 1 ] && /usr/bin/grep -q "gone false" "$TMP/out"
+judge "a declared unknown the provider has since answered fails: the declaration has gone false" $? "rc $got"
+
 # -- NO RESULT is a third outcome
 cat > "$TMP/none.toml" <<'EOF'
 [[vector]]
@@ -124,5 +177,28 @@ EOF
 got=$(rc_of "$TMP/none.toml")
 [ "$got" = 2 ]
 judge "a file with no recorded provider figures REFUSES rather than reporting a clean run over nothing" $? "rc $got, wanted 2"
+
+# ---------------------------------------------------------------------------
+# ISSUE 53's STANDING GREP. The issue says "anything of ours that consumes
+# mesh_health.manifold must treat null as unknown, never as a pass -- worth a
+# grep before milestone 4 work lands." A grep run once is a fact about today;
+# this is the same grep as an arm, so it answers for every day after.
+#
+# MEASURED 2026-11-18: no consumer exists. The field our vectors use is
+# `is_watertight`, which this kernel answers; `mesh_health.manifold` is the
+# provider's documented tri-state -- "true, false, or null when OpenSCAD did
+# not perform the check" -- and it goes null on the Manifold backend, which is
+# what issue 53 is. So this arm is a TRIPWIRE: it passes while there is no
+# consumer, and the moment one appears it requires that file to say what it
+# does with the unknown.
+hits=$(cd "$ROOT" && /usr/bin/grep -rln 'mesh_health' --include='*.rs' --include='*.py' crates tools 2>/dev/null \
+       | /usr/bin/grep -v '^tools/tests/' || true)
+unguarded=""
+for f in $hits; do
+    # a consumer must name the third state somewhere in the same file
+    /usr/bin/grep -qiE 'null|unknown|undecided|None' "$ROOT/$f" || unguarded="$unguarded $f"
+done
+[ -z "$unguarded" ]
+judge "every consumer of mesh_health names the unknown: null is the provider's third state, not a pass (issue 53)" $? "unguarded:$unguarded"
 
 fin

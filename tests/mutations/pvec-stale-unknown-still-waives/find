@@ -1,0 +1,5 @@
+        if pkey in declared:
+            out.append((False, f"provider {pkey}",
+                        f"declared UNKNOWN but the provider answered {p[pkey]}: the "
+                        f"declaration has gone false and must be removed"))
+            continue

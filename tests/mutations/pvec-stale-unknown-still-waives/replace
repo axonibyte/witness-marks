@@ -1,0 +1,3 @@
+        if pkey in declared:
+            out.append((True, f"provider {pkey}", "declared unknown"))
+            continue

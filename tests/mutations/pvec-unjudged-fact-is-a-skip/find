@@ -1,2 +1,2 @@
-        if field not in v:
+        if not have_v:
             out.append((False, f"provider {pkey}",

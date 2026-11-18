@@ -257,10 +257,42 @@ def check_provider(v):
 
     # THE CLOSED-FORM FACTS, which are the half a tolerance cannot help with:
     # a cube is one solid and two disjoint cubes are two, exactly.
+    #
+    # DRIVEN BY WHAT THE VECTOR ASKS, NOT BY WHAT THE PROVIDER RECORDED, and
+    # that direction is the whole of issue 53 in miniature. The first version
+    # of this loop skipped a key the provider block did not contain -- and TOML
+    # HAS NO NULL, so a provider that answered `null` is recorded here as an
+    # ABSENT KEY. MEASURED: a vector declaring `components = 1` and
+    # `watertight = true` whose provider block omitted both reported 1/1 clean.
+    # That is "null read as a pass", which is the defect issue 53 asks us to
+    # grep for, in the code written to close issue 54.
+    #
+    # The provider's own documentation names the tri-state: mesh_health's
+    # `manifold` is "true, false, or null when OpenSCAD did not perform the
+    # check". An unanswered question is UNKNOWN, and unknown is not read.
+    unknown = v.get("provider_unknown") or {}
+    declared = set(unknown.get("keys") or [])
+    because = unknown.get("because")
     for pkey, field in PROVIDER_FACTS.items():
-        if pkey not in p:
+        have_p, have_v = pkey in p, field in v
+        if not have_p and not have_v:
+            continue                      # neither side speaks to this fact
+        if not have_p:
+            if pkey in declared and because:
+                out.append((True, f"provider {pkey}",
+                            f"UNKNOWN, declared: {because[:80]}"))
+            else:
+                out.append((False, f"provider {pkey}",
+                            f"this vector states `{field}` and the provider recorded no "
+                            f"`{pkey}`: an unanswered question is UNKNOWN, never a pass "
+                            f"(issue 53). Declare it in `provider_unknown` with a cause."))
             continue
-        if field not in v:
+        if pkey in declared:
+            out.append((False, f"provider {pkey}",
+                        f"declared UNKNOWN but the provider answered {p[pkey]}: the "
+                        f"declaration has gone false and must be removed"))
+            continue
+        if not have_v:
             out.append((False, f"provider {pkey}",
                         f"recorded as {p[pkey]} and this vector states no `{field}` to "
                         f"judge it against -- recorded and unasserted is what issue 54 is"))
