@@ -30,6 +30,7 @@
 //! loudly instead of hiding a real difference.
 
 use crate::diff::Snapshot;
+use crate::regions::{Contour, Plane, Section};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -137,9 +138,248 @@ pub fn snapshot_from(
     })
 }
 
+/// Build a [`Section`] from one `measure(mode=section)` answer.
+///
+/// The plane is an ARGUMENT rather than something read out of the answer, and
+/// that is deliberate: the provider is asked to cut at
+/// `section_axis=section_offset`, so the caller is the one who knows which cut
+/// this is. Reading it back out of the reply would mean trusting the reply to
+/// say which question it answered -- the exact hazard issue 51 names, and the
+/// one issue 23 measured when printability answered a different question than
+/// the number suggested.
+///
+/// UNRESOLVED IS NOT AN EMPTY CUT. The provider's house rule, already held in
+/// [`wm_asm::wire`] for sweeps: a row it could not resolve comes back as
+/// UNRESOLVED, and an unanswered cut must not read as "no contours at this
+/// plane". An empty `contours` array IS a real answer -- the plane missed the
+/// solid -- so the two cannot be allowed to arrive the same way.
+pub fn section_from(measure: &Value, plane: Plane) -> Result<Section, String> {
+    if measure.get("success").and_then(Value::as_bool) == Some(false) {
+        return Ok(Section::Unresolved {
+            plane,
+            why: measure
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("success=false with no error given")
+                .to_string(),
+        });
+    }
+    if let Some(state) = measure.get("state").and_then(Value::as_str) {
+        if state.eq_ignore_ascii_case("UNRESOLVED") {
+            return Ok(Section::Unresolved {
+                plane,
+                why: "the provider reported UNRESOLVED for this cut".into(),
+            });
+        }
+    }
+    let rows = measure
+        .get("contours")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            "the section answer carries no `contours` array. Treating its absence as an \
+             empty cut would make an unanswered question and a plane that missed the \
+             solid the same answer"
+                .to_string()
+        })?;
+    let mut contours = Vec::with_capacity(rows.len());
+    for (n, row) in rows.iter().enumerate() {
+        let num = |k: &str| -> Result<f64, String> {
+            row.get(k)
+                .and_then(Value::as_f64)
+                .ok_or_else(|| format!("contour {n} carries no numeric `{k}`"))
+        };
+        let centroid = row
+            .get("centroid")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("contour {n} carries no `centroid`"))?;
+        if centroid.len() != 2 {
+            return Err(format!(
+                "contour {n}'s centroid has {} components; a cut contour lies in the \
+                 plane and has exactly two",
+                centroid.len()
+            ));
+        }
+        let bbox = row
+            .get("bbox")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("contour {n} carries no `bbox`"))?;
+        if bbox.len() != 4 {
+            return Err(format!(
+                "contour {n}'s bbox has {} components; an in-plane box has four",
+                bbox.len()
+            ));
+        }
+        let pick = |a: &[Value], i: usize, what: &str| -> Result<f64, String> {
+            a[i].as_f64()
+                .ok_or_else(|| format!("contour {n}'s {what}[{i}] is not a number"))
+        };
+        contours.push(Contour {
+            centroid_mm: [
+                pick(centroid, 0, "centroid")?,
+                pick(centroid, 1, "centroid")?,
+            ],
+            area_mm2: num("area")?,
+            bbox_mm: [
+                pick(bbox, 0, "bbox")?,
+                pick(bbox, 1, "bbox")?,
+                pick(bbox, 2, "bbox")?,
+                pick(bbox, 3, "bbox")?,
+            ],
+            // ABSENCE IS CARRIED AS ABSENCE. Defaulting a missing vertex
+            // count to any number makes an unmeasured contour look measured,
+            // and the comparison then reports a reshape nobody observed. A
+            // surviving mutant proved the first version's justification for
+            // picking usize::MAX over 0 was false: both behave identically,
+            // because absence is not a value and no number can stand in for
+            // it.
+            vertices: row
+                .get("vertices")
+                .and_then(Value::as_u64)
+                .map(|v| v as usize),
+        });
+    }
+    Ok(Section::Cut { plane, contours })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use crate::regions::Axis;
+
+    fn zplane() -> Plane {
+        Plane {
+            axis: Axis::Z,
+            offset_mm: 3.0,
+        }
+    }
+
+    fn row(cx: f64, cy: f64, area: f64) -> Value {
+        serde_json::json!({
+            "centroid": [cx, cy], "area": area,
+            "bbox": [cx - 1.0, cy - 1.0, cx + 1.0, cy + 1.0], "vertices": 4
+        })
+    }
+
+    #[test]
+    fn a_section_answer_becomes_contours_in_the_plane_the_caller_named() {
+        let got = section_from(
+            &serde_json::json!({"contours": [row(0.0, 0.0, 4.0)]}),
+            zplane(),
+        )
+        .expect("a well-formed section");
+        match got {
+            Section::Cut { plane, contours } => {
+                assert_eq!(plane, zplane());
+                assert_eq!(contours.len(), 1);
+                assert_eq!(contours[0].area_mm2, 4.0);
+                assert_eq!(contours[0].centroid_mm, [0.0, 0.0]);
+            }
+            other => panic!("wanted a cut, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_empty_contour_array_is_a_cut_that_missed_and_not_an_unresolved_one() {
+        let got = section_from(&serde_json::json!({"contours": []}), zplane())
+            .expect("empty is an answer");
+        assert!(
+            matches!(got, Section::Cut { ref contours, .. } if contours.is_empty()),
+            "{got:?}"
+        );
+    }
+
+    #[test]
+    fn an_absent_contour_array_refuses_rather_than_reading_as_an_empty_cut() {
+        let err = section_from(&serde_json::json!({}), zplane()).expect_err("no contours key");
+        assert!(err.contains("no `contours`"), "{err}");
+    }
+
+    #[test]
+    fn unresolved_is_carried_as_unresolved_and_never_as_no_contours() {
+        let s =
+            section_from(&serde_json::json!({"state": "UNRESOLVED"}), zplane()).expect("carried");
+        assert!(matches!(s, Section::Unresolved { .. }), "{s:?}");
+        let f = section_from(
+            &serde_json::json!({"success": false, "error": "cut failed"}),
+            zplane(),
+        )
+        .expect("carried");
+        match f {
+            Section::Unresolved { why, .. } => assert!(why.contains("cut failed"), "{why}"),
+            other => panic!("wanted unresolved, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_centroid_that_is_not_in_the_plane_is_refused() {
+        let bad = serde_json::json!({"contours": [{"centroid": [0.0, 0.0, 0.0], "area": 4.0,
+                                                   "bbox": [0.0, 0.0, 1.0, 1.0]}]});
+        let err = section_from(&bad, zplane()).expect_err("three components");
+        assert!(err.contains("exactly two"), "{err}");
+    }
+
+    #[test]
+    fn a_bbox_that_is_not_an_in_plane_box_is_refused() {
+        let bad = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
+                                                   "bbox": [0.0, 0.0, 1.0]}]});
+        let err = section_from(&bad, zplane()).expect_err("three components");
+        assert!(err.contains("four"), "{err}");
+    }
+
+    #[test]
+    fn a_contour_with_no_vertex_count_is_unknown_rather_than_a_count() {
+        // THE CASE THAT DISCRIMINATES, and the one the first version of this
+        // test missed: both sides built from the same JSON default
+        // identically, so that test passed whatever number absence became. One
+        // side reporting a count and the other not is where a default shows
+        // up -- as a reshape nobody measured.
+        let known = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
+                                                     "bbox": [-1.0, -1.0, 1.0, 1.0], "vertices": 4}]});
+        let unknown = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
+                                                       "bbox": [-1.0, -1.0, 1.0, 1.0]}]});
+        let a = section_from(&known, zplane()).expect("ok");
+        let b = section_from(&unknown, zplane()).expect("ok");
+        match b {
+            Section::Cut { ref contours, .. } => assert_eq!(contours[0].vertices, None),
+            ref other => panic!("wanted a cut, got {other:?}"),
+        }
+        let d = crate::regions::diff_sections(
+            &a,
+            &b,
+            crate::regions::Comparison::ContourIdentity {
+                centroid_tol_mm: 0.01,
+                area_tol_mm2: 0.01,
+            },
+        )
+        .expect("same plane");
+        // No region: a known count against an unknown one is not evidence of
+        // a reshape. But the answer SAYS it could not check.
+        assert!(d.unchanged(), "{:?}", d.regions);
+        assert_eq!(d.unchecked_pairs, 1);
+        assert!(!d.fully_checked());
+    }
+
+    #[test]
+    fn a_missing_vertex_count_compares_equal_rather_than_reading_as_reshaped() {
+        // Absence on BOTH sides must not make every paired contour look like
+        // it changed shape -- which a default of 0 would, and which usize::MAX
+        // avoids by comparing equal to itself.
+        let no_verts = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
+                                                        "bbox": [-1.0, -1.0, 1.0, 1.0]}]});
+        let a = section_from(&no_verts, zplane()).expect("ok");
+        let b = section_from(&no_verts, zplane()).expect("ok");
+        let d = crate::regions::diff_sections(
+            &a,
+            &b,
+            crate::regions::Comparison::ContourIdentity {
+                centroid_tol_mm: 0.01,
+                area_tol_mm2: 0.01,
+            },
+        )
+        .expect("same plane");
+        assert!(d.unchanged(), "{:?}", d.regions);
+    }
     use crate::diff::{diff, Finding, Intent};
 
     fn fx() -> Value {

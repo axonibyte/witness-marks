@@ -7,4 +7,5 @@
 //! silently did nothing.
 
 pub mod diff;
+pub mod regions;
 pub mod wire;

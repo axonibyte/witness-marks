@@ -1,0 +1,1 @@
+    if bc.is_empty() && ac.is_empty() {

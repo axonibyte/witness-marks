@@ -1,0 +1,8 @@
+        Section::Unresolved { plane, .. } => {
+            return Ok(RegionDiff {
+                plane: *plane,
+                comparison,
+                regions: Vec::new(),
+                unchecked_pairs: 0,
+            })
+        }

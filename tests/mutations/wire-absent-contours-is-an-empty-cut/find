@@ -1,0 +1,4 @@
+    let rows = measure
+        .get("contours")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {

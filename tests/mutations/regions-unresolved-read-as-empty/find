@@ -1,0 +1,7 @@
+        Section::Unresolved { plane, why } => {
+            return Err(format!(
+                "the BEFORE section at {:?} {} mm is unresolved ({why}); an unanswered \
+                 cut is unknown and must not read as having no contours",
+                plane.axis, plane.offset_mm
+            ))
+        }

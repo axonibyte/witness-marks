@@ -1,0 +1,7 @@
+    if measure.get("contours").is_none() {
+        return Ok(Section::Cut { plane, contours: Vec::new() });
+    }
+    let rows = measure
+        .get("contours")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {

@@ -1,0 +1,1 @@
+            (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
