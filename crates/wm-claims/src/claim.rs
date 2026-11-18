@@ -152,7 +152,81 @@ pub struct Claim {
     /// re-judged when the design changes, so it becomes folklore the moment
     /// its author moves on.
     pub because: String,
-    pub eval: fn(&Inputs) -> Result<f64, String>,
+    /// How the value is computed. See [`Expression`].
+    pub expression: Expression,
+}
+
+/// How a claim's value is computed, and therefore WHERE the claim lives
+/// (issue 60).
+///
+/// # Why an enum and not a closure
+///
+/// A `Box<dyn Fn>` would let a claim capture a provider handle and both kinds
+/// would look alike. They are not alike: one needs nothing and the other
+/// cannot be evaluated without speaking to the provider. The enum makes the
+/// type say so, which keeps the pure path pure -- and therefore runnable
+/// wherever CI runs -- while the scad path is deliberately run, the same seam
+/// `t_provider_vectors.sh` and `vectors-arms.sh` already sit on.
+///
+/// # Why the scad form exists at all
+///
+/// Spec §06.1's twelve guards are derived numbers sitting in COMMENTS in the
+/// harness, six of which went stale when the material changed. A Rust
+/// expression is a second home for those numbers -- the defect the claims
+/// layer exists to remove, not to add to. Only an expression evaluated in the
+/// model's own scope can REPLACE the comment rather than duplicate it.
+pub enum Expression {
+    /// Evaluated in this process. Needs nothing, and perturbation over it has
+    /// f64 precision -- a detectable elasticity floor near 1e-12.
+    Rust(fn(&Inputs) -> Result<f64, String>),
+    /// Evaluated in the MODEL's variable and function scope, through the
+    /// provider's `scad_eval`, so a claim reads `spring_t` by the name the
+    /// file uses.
+    ///
+    /// MEASURED, AND IT IS A WEAKER INSTRUMENT: `scad_eval` returns numbers at
+    /// OpenSCAD's SIX SIGNIFICANT DIGITS. A perturbation is visible only when
+    /// `elasticity * probe` exceeds about 1e-6, so at the project's
+    /// [`PROBE_FRACTION`] of 1e-4 the detectable elasticity floor is near
+    /// 1e-2 -- ten orders of magnitude coarser than the Rust path. Driven
+    /// against the real harness: `can_dia` 66 -> 66.0066 moves `bore_r` to
+    /// 33.6033 and is seen; 66.000066 leaves it at 33.6 and reads as unused.
+    /// A dependency set derived from a scad claim is therefore a weaker claim
+    /// about the world, which is why [`crate::index::Source`] records which
+    /// kind it came from.
+    Scad { source: String },
+}
+
+impl Expression {
+    /// Whether this expression can be evaluated without a provider.
+    pub fn is_pure(&self) -> bool {
+        matches!(self, Expression::Rust(_))
+    }
+}
+
+/// What can compute a claim's value.
+///
+/// REFUSING IS A VALID IMPLEMENTATION, and [`RustOnly`] is the one that does.
+/// An evaluator that cannot reach the provider must say so rather than return
+/// a number it guessed or a zero it defaulted -- a claim that silently
+/// evaluated to nothing would pass every range containing zero.
+pub trait Evaluator {
+    fn eval(&self, expression: &Expression, inputs: &Inputs) -> Result<f64, String>;
+}
+
+/// The evaluator for the pure path. Refuses a scad expression by design.
+pub struct RustOnly;
+
+impl Evaluator for RustOnly {
+    fn eval(&self, expression: &Expression, inputs: &Inputs) -> Result<f64, String> {
+        match expression {
+            Expression::Rust(f) => f(inputs),
+            Expression::Scad { source } => Err(format!(
+                "this claim's expression is evaluated in the model's scope \
+                 ({source:?}) and this evaluator cannot reach the provider. Refusing \
+                 rather than returning a value nothing computed"
+            )),
+        }
+    }
 }
 
 impl std::fmt::Debug for Claim {
@@ -199,7 +273,13 @@ pub struct Verified {
 
 /// Evaluate one claim.
 pub fn verify(claim: &Claim, inputs: &Inputs) -> Verified {
-    let value = match (claim.eval)(inputs) {
+    verify_with(claim, inputs, &RustOnly)
+}
+
+/// [`verify`] against a named evaluator, which is the only way a scad-sourced
+/// claim can be judged (issue 60).
+pub fn verify_with(claim: &Claim, inputs: &Inputs, ev: &dyn Evaluator) -> Verified {
+    let value = match ev.eval(&claim.expression, inputs) {
         Ok(v) => v,
         Err(e) => {
             return Verified {
@@ -222,7 +302,7 @@ pub fn verify(claim: &Claim, inputs: &Inputs) -> Verified {
             weakest_input: None,
         };
     }
-    let used = derived_inputs(claim, inputs);
+    let used = derived_inputs_with(claim, inputs, ev);
     let weakest = used
         .iter()
         .filter_map(|n| inputs.get(n).map(|i| (n.clone(), i.provenance)))
@@ -255,7 +335,19 @@ pub const PROBE_FRACTION: f64 = 1e-4;
 /// whatever the declaration says. An input that moves it IS one, whatever the
 /// declaration says.
 pub fn derived_inputs(claim: &Claim, inputs: &Inputs) -> Vec<String> {
-    let base = match (claim.eval)(inputs) {
+    derived_inputs_with(claim, inputs, &RustOnly)
+}
+
+/// [`derived_inputs`] against a named evaluator.
+///
+/// THE EVALUATOR DECIDES HOW SHARP THIS IS. Over [`Expression::Rust`] the
+/// comparison has f64 precision; over [`Expression::Scad`] it has OpenSCAD's
+/// six significant digits, which puts the detectable elasticity floor near
+/// 1e-2 at this probe. An input below that floor comes back as unread, and
+/// [`crate::index::Index`] records which source a set came from for exactly
+/// that reason.
+pub fn derived_inputs_with(claim: &Claim, inputs: &Inputs, ev: &dyn Evaluator) -> Vec<String> {
+    let base = match ev.eval(&claim.expression, inputs) {
         Ok(v) if v.is_finite() => v,
         _ => return Vec::new(),
     };
@@ -273,7 +365,10 @@ pub fn derived_inputs(claim: &Claim, inputs: &Inputs) -> Vec<String> {
         } else {
             input.value.abs() * PROBE_FRACTION
         };
-        let moved = (claim.eval)(&inputs.perturbed(&name, input.value + step));
+        let moved = ev.eval(
+            &claim.expression,
+            &inputs.perturbed(&name, input.value + step),
+        );
         match moved {
             Ok(v) if v.is_finite() => {
                 if (v - base).abs() > base.abs() * 1e-12 + f64::MIN_POSITIVE {
@@ -309,7 +404,12 @@ impl DeclarationGap {
 
 /// Compare the declaration against the perturbation.
 pub fn declaration_gap(claim: &Claim, inputs: &Inputs) -> DeclarationGap {
-    let used: BTreeSet<String> = derived_inputs(claim, inputs).into_iter().collect();
+    declaration_gap_with(claim, inputs, &RustOnly)
+}
+
+/// [`declaration_gap`] against a named evaluator.
+pub fn declaration_gap_with(claim: &Claim, inputs: &Inputs, ev: &dyn Evaluator) -> DeclarationGap {
+    let used: BTreeSet<String> = derived_inputs_with(claim, inputs, ev).into_iter().collect();
     let declared: BTreeSet<String> = claim.declared_inputs.iter().cloned().collect();
     DeclarationGap {
         undeclared: used.difference(&declared).cloned().collect(),
@@ -320,6 +420,123 @@ pub fn declaration_gap(claim: &Claim, inputs: &Inputs) -> DeclarationGap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_rust_expression_is_pure_and_a_scad_one_is_not() {
+        fn one(_: &Inputs) -> Result<f64, String> {
+            Ok(1.0)
+        }
+        assert!(Expression::Rust(one).is_pure());
+        assert!(!Expression::Scad {
+            source: "wall * 2".into()
+        }
+        .is_pure());
+    }
+
+    /// THE TYPE SAYS A SCAD CLAIM NEEDS A PROVIDER, and this is the arm that
+    /// makes that load-bearing rather than documentary. RustOnly refuses; it
+    /// does not return a zero, which would pass every range containing zero.
+    #[test]
+    fn the_pure_evaluator_refuses_a_scad_expression_rather_than_defaulting_it() {
+        let c = Claim {
+            name: "clamp_force".into(),
+            declared_inputs: vec!["spring_pre".into()],
+            range: (2.0, 5.0),
+            unit: "N".into(),
+            because: "below 2 the blade lifts; above 5 the clip creeps".into(),
+            expression: Expression::Scad {
+                source: "clamp_force".into(),
+            },
+        };
+        let inputs = Inputs::new().with("spring_pre", Input::measured(1.0, "the model"));
+        let v = verify(&c, &inputs);
+        match v.status {
+            Status::Refused(ref why) => {
+                assert!(why.contains("cannot reach the provider"), "{why}");
+                assert!(
+                    why.contains("clamp_force"),
+                    "the refusal names the expression: {why}"
+                );
+            }
+            other => panic!("a scad claim must be refused by RustOnly, got {other:?}"),
+        }
+        // AND IT CARRIES NO VALUE. A refused claim with a number in it would
+        // be read as a measurement by anything downstream.
+        assert!(v.value.is_none());
+        assert!(v.inputs_used.is_empty());
+    }
+
+    #[test]
+    fn a_scad_claim_derives_no_inputs_under_the_pure_evaluator() {
+        // Not an empty answer about the world -- an empty answer about what
+        // this evaluator could see. index::Index records the source for
+        // exactly this reason.
+        let c = Claim {
+            name: "x".into(),
+            declared_inputs: vec!["a".into()],
+            range: (0.0, 10.0),
+            unit: "mm".into(),
+            because: "a test".into(),
+            expression: Expression::Scad {
+                source: "a * 2".into(),
+            },
+        };
+        let inputs = Inputs::new().with("a", Input::measured(1.0, "the model"));
+        assert!(derived_inputs(&c, &inputs).is_empty());
+    }
+
+    /// A SUBSTITUTE EVALUATOR IS ENOUGH TO DRIVE THE SCAD PATH WITHOUT A
+    /// PROVIDER, which is what keeps this arm in CI. It answers the way
+    /// scad_eval does -- including the SIX-SIGNIFICANT-DIGIT rounding, which
+    /// is the whole reason the scad path is a weaker instrument.
+    #[test]
+    fn six_significant_digits_put_a_floor_under_what_perturbation_can_see() {
+        struct SixDigits;
+        impl Evaluator for SixDigits {
+            fn eval(&self, e: &Expression, i: &Inputs) -> Result<f64, String> {
+                let raw = match e {
+                    Expression::Rust(f) => f(i)?,
+                    // bore_r = can_dia/2 + can_clearance, the real harness relation
+                    Expression::Scad { .. } => i.need("can_dia")? / 2.0 + i.need("can_clear")?,
+                };
+                // OpenSCAD's own rounding, applied the way the provider does.
+                let digits = 6i32 - 1 - raw.abs().log10().floor() as i32;
+                let scale = 10f64.powi(digits);
+                Ok((raw * scale).round() / scale)
+            }
+        }
+        let c = Claim {
+            name: "bore_r".into(),
+            declared_inputs: vec!["can_dia".into(), "can_clear".into()],
+            range: (0.0, 1000.0),
+            unit: "mm".into(),
+            because: "the bore must clear the can".into(),
+            expression: Expression::Scad {
+                source: "bore_r".into(),
+            },
+        };
+        // can_dia drives bore_r with elasticity ~0.98 -- far above the floor,
+        // so the ordinary probe sees it.
+        let normal = Inputs::new()
+            .with("can_dia", Input::measured(66.0, "the model"))
+            .with("can_clear", Input::measured(0.6, "the model"));
+        let seen = derived_inputs_with(&c, &normal, &SixDigits);
+        assert!(seen.contains(&"can_dia".to_string()), "{seen:?}");
+
+        // AND THE FLOOR IS REAL: an input whose elasticity is below ~1e-2
+        // moves the rounded value not at all, so it reads as unread. Measured
+        // against the live provider too: can_dia 66 -> 66.000066 leaves
+        // bore_r at 33.6.
+        let tiny = Inputs::new()
+            .with("can_dia", Input::measured(66.0, "the model"))
+            .with("can_clear", Input::measured(1.0e-7, "a whisper"));
+        let seen2 = derived_inputs_with(&c, &tiny, &SixDigits);
+        assert!(
+            !seen2.contains(&"can_clear".to_string()),
+            "an input below the six-digit floor must read as unread, not as absent from the \
+             model: {seen2:?}"
+        );
+    }
     /// SPEC §10 TEST 5's SIGNAL, as a unit test rather than a plan item.
     /// docs/falsification-plan.md names this the cheapest of the four
     /// experiments and recommends it first; this is it.
@@ -347,7 +564,7 @@ mod tests {
             range: (0.0, 10.0),
             unit: "mm".into(),
             because: "the assembly is limited by whichever clearance is smaller".into(),
-            eval: tighter,
+            expression: Expression::Rust(tighter),
         };
         let at = Inputs::new()
             .with("thread_clear", Input::measured(0.35, "the model"))
@@ -362,8 +579,8 @@ mod tests {
         let moved = Inputs::new()
             .with("thread_clear", Input::measured(0.35, "the model"))
             .with("can_clear", Input::measured(0.10, "the model"));
-        let before = (c.eval)(&at).expect("evaluates");
-        let after = (c.eval)(&moved).expect("evaluates");
+        let before = RustOnly.eval(&c.expression, &at).expect("evaluates");
+        let after = RustOnly.eval(&c.expression, &moved).expect("evaluates");
         assert_ne!(
             before, after,
             "can_clear moved the value it was reported not to reach"
@@ -391,7 +608,7 @@ mod tests {
             because: "below 2 N the blade lifts while cutting; above 5 N the clip is hard \
                       to seat and creeps under permanent load"
                 .into(),
-            eval: |i| {
+            expression: Expression::Rust(|i| {
                 let beam = Beam {
                     e_mpa: i.need("E")?,
                     l_mm: 8.9,
@@ -400,7 +617,7 @@ mod tests {
                     end: End::Cantilever,
                 };
                 Ok(beam.at(i.need("spring_pre")?)?.force)
-            },
+            }),
         }
     }
 
@@ -537,7 +754,7 @@ mod tests {
             range: (-1.0, 1.0),
             unit: "mm".into(),
             because: "test".into(),
-            eval: |i| Ok(i.need("z")? + 0.5),
+            expression: Expression::Rust(|i| Ok(i.need("z")? + 0.5)),
         };
         let inputs = Inputs::new().with("z", Input::measured(0.0, "the model"));
         assert_eq!(derived_inputs(&c, &inputs), vec!["z".to_string()]);
@@ -553,13 +770,13 @@ mod tests {
             range: (0.0, 100.0),
             unit: "x".into(),
             because: "test".into(),
-            eval: |i| {
+            expression: Expression::Rust(|i| {
                 let t = i.need("t")?;
                 if t > 1.0 {
                     return Err("t past its domain".into());
                 }
                 Ok(t)
-            },
+            }),
         };
         let inputs = Inputs::new().with("t", Input::measured(1.0, "the model"));
         assert_eq!(derived_inputs(&c, &inputs), vec!["t".to_string()]);

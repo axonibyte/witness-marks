@@ -39,7 +39,7 @@
 //! The comparison is still worth having. It just reports a DISAGREEMENT and
 //! names both sources, rather than ruling on which one is wrong.
 
-use crate::claim::{derived_inputs, Claim, Inputs};
+use crate::claim::{derived_inputs_with, Claim, Evaluator, Inputs, RustOnly};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Where an index's edges came from. Carried, because an edge from a lexical
@@ -47,8 +47,34 @@ use std::collections::{BTreeMap, BTreeSet};
 /// the world.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
-    /// Measured: the input was moved and the claim's value moved.
+    /// Measured in this process: the input was moved and the claim's value
+    /// moved, at f64 precision. The detectable elasticity floor is near 1e-12.
     Perturbation,
+    /// Measured through the provider's `scad_eval`, in the model's own scope.
+    ///
+    /// A WEAKER CLAIM ABOUT THE SAME WORLD, and that is why it is a separate
+    /// variant rather than a detail. `scad_eval` answers at OpenSCAD's six
+    /// significant digits, so a perturbation is visible only when
+    /// `elasticity * probe` exceeds about 1e-6 -- a floor near 1e-2 at this
+    /// project's probe. An input below it comes back as unread, which is
+    /// indistinguishable from an input the claim genuinely does not read.
+    /// Anything consuming an index must be able to tell the two apart.
+    ScadEval,
+}
+
+impl Source {
+    /// The smallest elasticity a perturbation under this source can see, at
+    /// the given probe fraction. Stated as a number because "less precise" is
+    /// not something a caller can act on.
+    pub fn elasticity_floor(&self, probe: f64) -> f64 {
+        match self {
+            // f64 comparison against a relative epsilon.
+            Source::Perturbation => 1e-12 / probe,
+            // Six significant digits: a change under ~1e-6 relative is not
+            // representable in the answer at all.
+            Source::ScadEval => 1e-6 / probe,
+        }
+    }
 }
 
 /// For each claim, the inputs that reached it -- and the inverse.
@@ -108,6 +134,32 @@ impl Index {
     /// exists to produce. Nothing to index is not the same as nothing
     /// depending on anything.
     pub fn build(claims: &[Claim], inputs: &Inputs) -> Result<Index, String> {
+        Index::build_with(claims, inputs, &RustOnly, Source::Perturbation)
+    }
+
+    /// [`build`](Index::build) against a named evaluator, recording which
+    /// source the edges came from (issue 60).
+    ///
+    /// THE SOURCE IS AN ARGUMENT RATHER THAN INFERRED from the claims, because
+    /// a mixed set -- some Rust expressions, some scad -- would otherwise get
+    /// one label for two instruments. A caller that mixes them is asking for
+    /// one index over two precisions and must say which bound it wants the
+    /// answer read under; REFUSED below rather than guessed.
+    pub fn build_with(
+        claims: &[Claim],
+        inputs: &Inputs,
+        ev: &dyn Evaluator,
+        source: Source,
+    ) -> Result<Index, String> {
+        let pure = claims.iter().filter(|c| c.expression.is_pure()).count();
+        if pure != 0 && pure != claims.len() {
+            return Err(format!(
+                "this claim set mixes {pure} in-process expression(s) with {} evaluated in \
+                 the model's scope, and the two have elasticity floors ten orders of \
+                 magnitude apart. One index cannot carry both bounds honestly",
+                claims.len() - pure
+            ));
+        }
         if claims.is_empty() {
             return Err(
                 "an index over no claims answers `nothing depends on this` for \
@@ -126,7 +178,8 @@ impl Index {
                     claim.name
                 ));
             }
-            let used: BTreeSet<String> = derived_inputs(claim, inputs).into_iter().collect();
+            let used: BTreeSet<String> =
+                derived_inputs_with(claim, inputs, ev).into_iter().collect();
             if used.is_empty() {
                 inert.push(claim.name.clone());
             }
@@ -139,7 +192,7 @@ impl Index {
             reads.insert(claim.name.clone(), used);
         }
         Ok(Index {
-            source: Source::Perturbation,
+            source,
             reads,
             served_by,
             inert,
@@ -157,7 +210,7 @@ impl Index {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::claim::{Input, Provenance};
+    use crate::claim::{Expression, Input, Provenance};
     use std::collections::BTreeMap;
 
     fn inputs(pairs: &[(&str, f64)]) -> Inputs {
@@ -183,7 +236,7 @@ mod tests {
             range: (-1.0e9, 1.0e9),
             unit: "N".into(),
             because: "a test".into(),
-            eval,
+            expression: Expression::Rust(eval),
         }
     }
 
@@ -198,6 +251,43 @@ mod tests {
     }
     fn reads_nothing(_: &Inputs) -> Result<f64, String> {
         Ok(7.0)
+    }
+
+    /// A MIXED CLAIM SET IS REFUSED, because one index cannot carry two
+    /// elasticity floors ten orders of magnitude apart and still mean one
+    /// thing. Named rather than averaged: a caller mixing them is asking a
+    /// question with two answers.
+    #[test]
+    fn a_set_mixing_in_process_and_model_scope_expressions_is_refused() {
+        let i = inputs(&[("a", 2.0)]);
+        let mut mixed = vec![claim("x", &["a"], reads_a)];
+        mixed.push(Claim {
+            name: "y".into(),
+            declared_inputs: vec!["a".into()],
+            range: (-1.0e9, 1.0e9),
+            unit: "N".into(),
+            because: "a test".into(),
+            expression: Expression::Scad {
+                source: "a * 2".into(),
+            },
+        });
+        let err = Index::build_with(&mixed, &i, &RustOnly, Source::Perturbation)
+            .expect_err("one index, two precisions");
+        assert!(err.contains("elasticity floors"), "{err}");
+        assert!(err.contains("cannot carry both"), "{err}");
+    }
+
+    /// AND THE FLOOR IS A NUMBER A CALLER CAN ACT ON, not an adjective.
+    #[test]
+    fn each_source_states_the_elasticity_it_can_no_longer_see() {
+        use crate::claim::PROBE_FRACTION;
+        let pure = Source::Perturbation.elasticity_floor(PROBE_FRACTION);
+        let scad = Source::ScadEval.elasticity_floor(PROBE_FRACTION);
+        assert!(scad > pure, "the model-scope floor must be the coarser one");
+        // 1e-6 / 1e-4 = 1e-2, which is the figure measured against the live
+        // provider: can_dia 66 -> 66.000066 leaves bore_r at 33.6.
+        assert!((scad - 1e-2).abs() < 1e-12, "{scad}");
+        assert!(pure < 1e-7, "{pure}");
     }
 
     #[test]

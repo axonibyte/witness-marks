@@ -232,6 +232,7 @@ pub fn stale_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::claim::Expression;
     use crate::claim::Input;
     use wm_mech::{Beam, End};
 
@@ -257,7 +258,7 @@ mod tests {
             range,
             unit: "x".into(),
             because: "the harness".into(),
-            eval,
+            expression: Expression::Rust(eval),
         }
     }
 

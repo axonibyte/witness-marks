@@ -27,7 +27,7 @@
 //! than as zero -- a missing uncertainty treated as zero makes the
 //! least-known input look like the safest one.
 
-use crate::claim::{Claim, Inputs, Provenance, PROBE_FRACTION};
+use crate::claim::{Claim, Evaluator, Inputs, Provenance, RustOnly, PROBE_FRACTION};
 
 /// How one input drives one claim.
 #[derive(Debug, Clone, PartialEq)]
@@ -89,7 +89,23 @@ pub fn dominance(
     inputs: &Inputs,
     quantum: Option<f64>,
 ) -> Result<Dominance, String> {
-    let base = (claim.eval)(inputs)?;
+    dominance_with(claim, inputs, quantum, &RustOnly)
+}
+
+/// [`dominance`] against a named evaluator (issue 60).
+///
+/// THE ELASTICITIES INHERIT THE EVALUATOR'S PRECISION. Over a scad expression
+/// `scad_eval` answers at six significant digits, so an elasticity below about
+/// 1e-2 at this probe reads as zero -- and a zero elasticity here is reported
+/// as an input that does not drive the claim. That is the same floor
+/// `derived_inputs_with` carries, arriving in a different answer.
+pub fn dominance_with(
+    claim: &Claim,
+    inputs: &Inputs,
+    quantum: Option<f64>,
+    ev: &dyn Evaluator,
+) -> Result<Dominance, String> {
+    let base = ev.eval(&claim.expression, inputs)?;
     if !base.is_finite() {
         return Err(format!(
             "the claim evaluates to {base}, which is not a value"
@@ -117,8 +133,14 @@ pub fn dominance(
         // CENTRAL DIFFERENCE, not forward. A forward difference on a cubic
         // carries a first-order error that reads as a real asymmetry between
         // inputs, which is exactly what this report is for.
-        let up = (claim.eval)(&inputs.perturbed(&name, input.value + step));
-        let down = (claim.eval)(&inputs.perturbed(&name, input.value - step));
+        let up = ev.eval(
+            &claim.expression,
+            &inputs.perturbed(&name, input.value + step),
+        );
+        let down = ev.eval(
+            &claim.expression,
+            &inputs.perturbed(&name, input.value - step),
+        );
         let slope = match (up, down) {
             (Ok(u), Ok(d)) if u.is_finite() && d.is_finite() => (u - d) / (2.0 * step),
             _ => continue,
@@ -202,6 +224,7 @@ pub fn dominance(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::claim::Expression;
     use crate::claim::Input;
     use wm_mech::{Beam, End};
 
@@ -212,7 +235,7 @@ mod tests {
             range: (2.0, 5.0),
             unit: "N".into(),
             because: "the harness".into(),
-            eval: |i| {
+            expression: Expression::Rust(|i| {
                 Ok(Beam {
                     e_mpa: i.need("E")?,
                     l_mm: 8.9,
@@ -222,7 +245,7 @@ mod tests {
                 }
                 .at(i.need("spring_pre")?)?
                 .force)
-            },
+            }),
         }
     }
 
@@ -391,7 +414,7 @@ mod tests {
             range: (-1.0, 1.0),
             unit: "x".into(),
             because: "test".into(),
-            eval: |i| Ok(i.need("a")? * 0.0),
+            expression: Expression::Rust(|i| Ok(i.need("a")? * 0.0)),
         };
         let inputs = Inputs::new().with("a", Input::measured(1.0, "x"));
         let e = dominance(&zero, &inputs, None).expect_err("must refuse");

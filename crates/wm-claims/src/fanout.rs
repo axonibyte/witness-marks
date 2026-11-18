@@ -221,6 +221,7 @@ pub const PROBE: f64 = PROBE_FRACTION;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::claim::Expression;
 
     /// AN INDEX THAT DISAGREES WITH THE SWEEP IS REFUSED, not quietly
     /// preferred. Built by hand from a claim set that does NOT include the
@@ -267,7 +268,7 @@ mod tests {
             range,
             unit: unit.into(),
             because: "buildability 70".into(),
-            eval,
+            expression: Expression::Rust(eval),
         }
     }
 

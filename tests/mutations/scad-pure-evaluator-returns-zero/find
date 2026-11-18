@@ -1,0 +1,5 @@
+            Expression::Scad { source } => Err(format!(
+                "this claim's expression is evaluated in the model's scope \
+                 ({source:?}) and this evaluator cannot reach the provider. Refusing \
+                 rather than returning a value nothing computed"
+            )),

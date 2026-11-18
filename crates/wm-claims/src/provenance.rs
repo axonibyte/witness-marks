@@ -139,6 +139,7 @@ pub fn trust(claim: &Claim, inputs: &Inputs) -> Result<Trust, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::claim::Expression;
     use wm_mech::{Beam, End};
 
     fn clip() -> Claim {
@@ -148,7 +149,7 @@ mod tests {
             range: (2.0, 5.0),
             unit: "N".into(),
             because: "the harness".into(),
-            eval: |i| {
+            expression: Expression::Rust(|i| {
                 Ok(Beam {
                     e_mpa: i.need("E")?,
                     l_mm: 8.9,
@@ -158,7 +159,7 @@ mod tests {
                 }
                 .at(i.need("spring_pre")?)?
                 .force)
-            },
+            }),
         }
     }
 
@@ -296,7 +297,7 @@ mod tests {
             range: (0.0, 10.0),
             unit: "x".into(),
             because: "test".into(),
-            eval: |_| Ok(5.0),
+            expression: Expression::Rust(|_| Ok(5.0)),
         };
         let e = trust(&k, &Inputs::new().with("a", Input::measured(1.0, "x")))
             .expect_err("must refuse");

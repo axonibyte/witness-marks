@@ -193,7 +193,7 @@ pub fn coverage(index: &Index, traces: &[Trace]) -> Result<Coverage, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::claim::{Claim, Input, Inputs, Provenance};
+    use crate::claim::{Claim, Expression, Input, Inputs, Provenance};
     use std::collections::BTreeMap;
 
     const SCOPE: &str = "lexical, file-scope constants only";
@@ -230,7 +230,7 @@ mod tests {
             range: (-1.0e9, 1.0e9),
             unit: "mm".into(),
             because: "a test".into(),
-            eval,
+            expression: Expression::Rust(eval),
         }
     }
 
