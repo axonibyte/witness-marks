@@ -10,20 +10,43 @@ cal asked, on 2026-11-17, for "a comprehensive review of OpenSCAD's source code
 along with a comprehensive review of openscad-mcp's source code" to find the
 spots that need pinning. The instinct was right; the instrument is cheaper than
 that. OpenSCAD answers the question in **35 flags** of `--help`, and the
-provider declares every knob it has in **one 445-line module**
-(`openscad_mcp/utils/config.py`). A review of hundreds of thousands of lines of
-C++ would be the most expensive instrument for the cheapest question.
+provider's `Config.from_env` reads **20** environment knobs in one 445-line
+module (`openscad_mcp/utils/config.py`). A review of hundreds of thousands of
+lines of C++ would be the most expensive instrument for the cheapest question.
 
-The reason to enumerate at all is the score:
+**What that module does NOT declare, and the correction this note carries.**
+An earlier version of this page said the provider "declares every knob it has"
+in `config.py`. It does not, and the counter-example is one of the axes in the
+table below: `OPENSCADPATH` is read in `server.py` — at `:352`, building the
+subprocess environment, and at `:423`, enumerating library search paths — and
+appears **zero** times in `config.py` (measured 2026-11-19, rook's finding F2 on
+`thread:wm-review`). BOSL2's version is on neither module; it is read out of
+`BOSL2/version.scad` in the library tree. So the enumeration of the documented
+surface did not produce two of the seven axes it was credited with, and would
+not have produced them: **an enumeration is only as complete as the surface is,
+and a configuration surface is not a closed set just because one module is
+named `config`.**
+
+The honest score, by where each axis actually came from:
 
 | how an axis was found | count |
 | --- | --- |
 | by something breaking | 3 |
-| by reading two documented surfaces, once | 7 |
+| by reading the two documented surfaces (`--help`, `config.py`), once | 5 |
+| by looking for where a mechanism resolves, when the surface was silent | 2 |
 
-Three axes in weeks, by accident. Seven more in one sitting, on purpose. That
-is the same rule this project already holds for guards — **enumerate, never
-name** — applied to the pin.
+Three axes in weeks, by accident. Seven more in one sitting, on purpose — five
+of them by enumeration and two by chasing a mechanism the enumeration had no
+entry for. That is still the rule this project holds for guards —
+**enumerate, never name** — but with the limit stated: enumeration beats
+accident, and does not reach a knob read outside the surface enumerated.
+
+**The unit, stated, because the counts above mix two of them.** The table below
+counts one row per *mechanism*, so **resource bounds** is one axis carrying four
+knobs (`MCP_RENDER_TIMEOUT`, `MCP_MAX_FILE_SIZE_MB`, `MCP_MAX_MEMORY_MB`,
+`MCP_ALLOWED_PATHS`): each turns a success into a refusal, which is the same
+kind of answer-change. Counted as knobs instead of mechanisms, the seven are
+ten. Neither count is wrong; quoting one without its unit is.
 
 ## The axes
 
@@ -67,12 +90,24 @@ whose version lives in `~/.local/share/OpenSCAD/libraries` and is reachable
 only through `OPENSCADPATH` and two default directories. Measured 2026-11-18:
 **2.0.716**, the same figure the fork's recorded baseline names.
 
-**A `.env` reconfigures everything above, invisibly.** The provider calls
-`load_dotenv()` with no argument on every `Config.from_env()`, and
-python-dotenv searches from the working directory **upward**. So a stray `.env`
-anywhere above wherever the server is started supplies any knob in this
-document, and none of it is visible in this checkout. Measured 2026-11-18: none
-reachable.
+**A `.env` reconfigures everything above, invisibly — and the first version of
+this guard watched the wrong tree.** The provider calls `load_dotenv()` with no
+argument on every `Config.from_env()`. `find_dotenv` with no path does **not**
+start from the working directory: it takes the calling frame's `__file__`
+(`dotenv/main.py:305-306`) and reaches for `os.getcwd()` only when
+`usecwd=True`, or when the interpreter is interactive or frozen (`:300`). The
+caller here is the installed `openscad_mcp/utils/config.py`, so the tree that
+reconfigures this project is
+`provider/.venv/lib/python3.12/site-packages/openscad_mcp/utils/` **and its
+parents** — which on this box is a different tree from the checkout.
+
+`tools/provider-verify.py` walked up from `Path.cwd()` and this page said
+"from the working directory upward"; both were wrong, so rc 12 would have
+passed a `.env` sitting beside the provider (rook, F2 on `thread:wm-review`,
+2026-11-19). The guard now resolves the installed `config.py` first and
+**refuses** (rc 12) when it cannot find it, because an answer about a tree
+nobody looked in is the same defect one level up. Measured 2026-11-19: none
+reachable from that directory.
 
 ## Enumerated and deliberately not refused
 

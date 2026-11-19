@@ -296,20 +296,71 @@ def env_divergences(p):
     return out
 
 
-def dotenv_reachable(start=None):
-    """The nearest `.env` from the working directory upward, or None.
+def dotenv_origin(provider_dir):
+    """Where python-dotenv's search actually STARTS for the pinned provider.
 
-    THIS IS A SURFACE NOBODY ENUMERATED. The provider's utils/config.py calls
-    `load_dotenv()` with no argument on every `Config.from_env()`, and
-    python-dotenv searches from the working directory UPWARD. So a stray .env
-    anywhere above wherever the server happens to be started silently supplies
-    every knob above, and none of it is visible in this checkout."""
-    here = Path(start or Path.cwd()).resolve()
+    NOT THE WORKING DIRECTORY, and the first version of this guard had it
+    wrong. rook found it (coop wm-review/2, F1) and the library's own source
+    settles it: `find_dotenv` uses `os.getcwd()` only when `usecwd=True`, or
+    when interactive, under a debugger, or frozen (dotenv/main.py:300).
+    Otherwise it takes `sys._getframe()` and walks up from THE CALLER'S FILE
+    (:305-306). The provider runs as a console script, so `__main__` has a
+    `__file__`, it is not interactive, and the search begins at
+    `openscad_mcp/utils/config.py` -- INSIDE THE VENV.
+
+    So the tree to check is the installed package's. The guard that checked the
+    repository root was looking somewhere the provider never consults: a `.env`
+    beside the installed package would have loaded while it reported "none
+    reachable", and one at the repo root would have been reported while the
+    provider ignored it. Wrong in both directions.
+
+    Returns None when the installed package cannot be found, which
+    `dotenv_reachable`'s caller must treat as a refusal rather than a clean
+    answer."""
+    pattern = ".venv/lib/python*/site-packages/openscad_mcp/utils/config.py"
+    for cfg in Path(provider_dir).glob(pattern):
+        return cfg.parent
+    return None
+
+
+def dotenv_reachable(origin):
+    """The nearest `.env` from `origin` upward, or None.
+
+    `origin` IS AN ARGUMENT AND DOES NOT DEFAULT. A default of `Path.cwd()` is
+    exactly the defect this had; making the caller name the tree keeps "which
+    tree" answerable at the call site instead of hidden in a fallback."""
+    here = Path(origin).resolve()
     for d in [here, *here.parents]:
         f = d / ".env"
         if f.is_file():
             return f
     return None
+
+
+def dotenv_verdict(provider_dir):
+    """The dotenv axis's whole decision, as a VALUE an arm can take.
+
+    This was inline at the call site, which is why rook's F2 -- rc 12 walking
+    up from `Path.cwd()` instead of from the tree python-dotenv actually starts
+    in -- was reachable by unit arms only one layer down, where the walk lived
+    but the CHOICE OF TREE did not. An inline decision is an untested decision;
+    the arms call this.
+
+    Returns (ok, detail). A provider whose installed config.py cannot be found
+    is a REFUSAL, not a clean run: "none reachable" would then be an answer
+    about a tree nobody looked in, which is the same defect one level up.
+    """
+    origin = dotenv_origin(provider_dir)
+    if origin is None:
+        return (False, "the installed openscad_mcp/utils/config.py was not found "
+                       "under the provider venv, so the tree python-dotenv would "
+                       "search is unknown")
+    found = dotenv_reachable(origin)
+    if found is not None:
+        return (False, f"{found} is reachable from {origin}, where python-dotenv's "
+                       f"search BEGINS; the provider loads it on every "
+                       f"Config.from_env()")
+    return (True, f"none reachable from {origin}")
 
 
 def main():
@@ -434,12 +485,10 @@ def main():
         record("env", True, f"{len(recorded_env)} knobs match the record")
 
     if p.get("dotenv_refused", "") == "true":
-        found = dotenv_reachable()
-        if found is not None:
-            record("dotenv", False, f"{found} is reachable from {Path.cwd()}; the "
-                                    f"provider loads it on every Config.from_env()")
+        ok, detail = dotenv_verdict(provider_dir)
+        record("dotenv", ok, detail)
+        if not ok:
             return E_DOTENV
-        record("dotenv", True, "none reachable from the working directory")
 
     if as_json:
         print(json.dumps(report, indent=1, sort_keys=True))

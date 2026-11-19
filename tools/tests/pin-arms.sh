@@ -325,4 +325,31 @@ else
     no "tools/guards.py is missing" ""
 fi
 
+# -- THE DOTENV AXIS ON THIS BOX, which is a measurement of the box and not of
+#    the code. t_pinning_axes.sh arms the code's choice of tree on synthetic
+#    roots -- that holds at any root, which is why it belongs in the CI glob.
+#    THIS arm needs provider/.venv, which is gitignored and absent from a
+#    clone, so it belongs here with the network arms. Found by the foreign-root
+#    gate: the first version of those arms read the real venv and would have
+#    gone red in CI for a reason that has nothing to do with the code.
+if [ -d "$ROOT/provider/.venv" ]; then
+    got=$( ( cd "$ROOT" && timeout 120 python3 - <<'PY'
+import importlib.util, sys
+from pathlib import Path
+s = importlib.util.spec_from_file_location("pv", "tools/provider-verify.py")
+m = importlib.util.module_from_spec(s); sys.dont_write_bytecode = True
+s.loader.exec_module(m)
+ok, detail = m.dotenv_verdict(Path("provider"))
+print(detail)
+sys.exit(0 if ok else 1)
+PY
+    ) >"$ROOT/.dotenv.out" 2>&1; echo $? )
+    [ "$got" = 0 ] && /usr/bin/grep -q "openscad_mcp" "$ROOT/.dotenv.out"
+    judge "no .env is reachable from THIS box's installed openscad_mcp/utils, the tree python-dotenv actually starts from" \
+          $? "rc $got: $(cat "$ROOT/.dotenv.out" 2>/dev/null)"
+    rm -f "$ROOT/.dotenv.out"
+else
+    no "provider/.venv is absent: the dotenv axis on this box is NO RESULT, not clean"
+fi
+
 fin

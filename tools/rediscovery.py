@@ -25,6 +25,11 @@ E_COVERAGE = 3
 E_DANGLING = 4
 E_NO_REASON = 5
 E_BAD_VERDICT = 6
+#: How many verdicts may share one reason before it stops being a reason.
+#: Small on purpose: a handful of genuinely identical cases is believable, a
+#: corpus is not.
+PASTE_LIMIT = 5
+E_PASTED = 7
 VERDICTS = ("re-found", "not-found", "unassessed")
 
 
@@ -55,6 +60,8 @@ def main():
     incidents, verdicts = load(corpus)
 
     seen = set()
+    in_green, outside_green = set(), set()
+    whys = collections.Counter()
     for v in verdicts:
         vid = v.get("id", "")
         if vid in seen:
@@ -83,12 +90,51 @@ def main():
                           f"exist. A citation to a missing file is the shape of a "
                           f"record that went false", file=sys.stderr)
                     return E_DANGLING
+            # `by` MUST NAME A CHECK, NOT THE DATA IT READS, and existence could
+            # not tell the two apart. rook found this (coop wm-review/3, F4): the
+            # mcp-026 verdict cited tests/vectors/vectors.toml as both `by` AND
+            # `fixture`, and that file is the DATA. The arm that plants the stale
+            # file is tools/tests/vectors-arms.sh. A rule that only asks "does
+            # the path exist" is satisfied by citing the thing being measured.
+            by = v["by"]
+            if not (by.startswith("tools/tests/") or by.startswith("tests/mutations")):
+                print(f"rediscovery: `{vid}` is re-found BY `{by}`, which is not a "
+                      f"check -- a check lives under tools/tests/ or "
+                      f"tests/mutations*/. Naming the data a verdict reads is how "
+                      f"coverage points at itself", file=sys.stderr)
+                return E_DANGLING
+            # AND WHETHER THAT CHECK IS INSIDE THE GREEN, which is the figure's
+            # real bound. rook, F3: battery.sh and ci.yml both glob
+            # `tools/tests/t_*.sh`, so an arm named vectors-arms.sh is run by
+            # NEITHER. "Battery green" therefore says nothing about a re-find
+            # that only a deliberate arm performs, and the report must not let
+            # the two be read as one number.
+            if os.path.basename(by).startswith("t_") or by.startswith("tests/mutations"):
+                in_green.add(vid)
+            else:
+                outside_green.add(vid)
         elif not (v.get("why") or "").strip():
             print(f"rediscovery: `{vid}` is {verdict} with no `why`. An unexplained "
                   f"gap is indistinguishable from one nobody looked at",
                   file=sys.stderr)
             return E_NO_REASON
+        else:
+            whys[(v.get("why") or "").strip()] += 1
 
+    # A REASON REPEATED IS ONE REASON, NOT MANY. rook, wm-review/3: 107 of the
+    # 108 verdicts carried the SAME `why`, pasted, and the existence check
+    # above passed every one of them. That is the `--seen` guard defeated by
+    # incrementing, in another costume: a refusal whose text prescribes how to
+    # satisfy it without doing the work. So an identical reason may stand for a
+    # handful of genuinely identical cases and not for a corpus.
+    for why, n in whys.items():
+        if n > PASTE_LIMIT:
+            print(f"rediscovery: {n} verdicts carry the SAME `why` ({why[:60]!r}...). A "
+                  f"reason repeated {n} times is one reason, not {n}; it says nobody "
+                  f"looked at {n - 1} of them. Write what is true of EACH, or say "
+                  f"plainly in one of them that the set is unexamined",
+                  file=sys.stderr)
+            return E_PASTED
     missing = sorted(set(incidents) - seen)
     if missing:
         print(f"rediscovery: {len(missing)} incident(s) carry no verdict "
@@ -113,9 +159,30 @@ def main():
             print(f"   {c:<12}{r.get('re-found', 0):>9}{r.get('not-found', 0):>10}"
                   f"{r.get('unassessed', 0):>11}")
         print()
-        print(f"   re-found: {by_verdict.get('re-found', 0)} of {len(incidents)}. "
-              f"That is the figure issue 45 exists to drive, and padding it is the "
-              f"only way to make it wrong.")
+        found = by_verdict.get("re-found", 0)
+        print(f"   re-found: {found} of {len(incidents)}, of which "
+              f"{len(in_green)} is inside the CI-green set and {len(outside_green)} "
+              f"outside it.")
+        if outside_green:
+            print(f"   THE NUMBER THE BATTERY'S GREEN COVERS IS {len(in_green)}, NOT "
+                  f"{found}. battery.sh and ci.yml both glob tools/tests/t_*.sh; a")
+            print(f"   re-find performed only by a deliberately-run arm is outside both,")
+            print(f"   and CI's runner reports `openscad ABSENT` besides. Outside:")
+            for vid in sorted(outside_green):
+                print(f"     {vid}")
+        # AND WHAT THE FIGURE IS NOT. rook, wm-review/3: with 107 unassessed and
+        # 0 not-found, this is not a hit rate -- it says nobody has tried 107 of
+        # them. A hit rate needs a denominator of things ATTEMPTED.
+        attempted = found + by_verdict.get("not-found", 0)
+        if attempted == 0:
+            print(f"\n   AND IT IS NOT A HIT RATE: 0 incidents have been ATTEMPTED and "
+                  f"rejected,\n   so there is no denominator. "
+                  f"{by_verdict.get('unassessed', 0)} are unassessed -- which says "
+                  f"nobody\n   has looked, not that the checks cannot find them.")
+        else:
+            print(f"\n   of {attempted} attempted, {found} re-found "
+                  f"({100.0 * found / attempted:.0f}%). "
+                  f"{by_verdict.get('unassessed', 0)} still unassessed.")
     else:
         print(f"-- every one of {len(incidents)} incidents carries an honest verdict "
               f"({by_verdict.get('re-found', 0)} re-found)")

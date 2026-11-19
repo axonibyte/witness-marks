@@ -26,7 +26,7 @@ VERIFY="$ROOT/tools/provider-verify.py"
 [ -f "$VERIFY" ] || { printf 't_pinning_axes: no %s\n' "$VERIFY" >&2; exit 2; }
 
 OUT=$(PV="$VERIFY" PROVIDER_DIR="$ROOT/provider" python3 - <<'PYEOF'
-import importlib.util, os, sys, tempfile
+import importlib.util, inspect, os, sys, tempfile
 from pathlib import Path
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("pv", os.environ["PV"])
@@ -110,6 +110,71 @@ with tempfile.TemporaryDirectory() as d:
     ck("n a .env TWO directories up is reachable, because python-dotenv searches "
        "upward and the provider calls load_dotenv() on every Config.from_env()",
        found == Path(d, "a", ".env").resolve(), str(found))
+
+# -- WHICH TREE, which is the axis the two arms above do not touch. They prove
+# the WALK; rook's F2 was that the walk STARTED in the wrong place. find_dotenv
+# with no path takes the calling frame's __file__ (dotenv/main.py:305-306) and
+# uses os.getcwd() only under usecwd/interactive/frozen (:300), so the tree is
+# the installed config.py's, never this checkout's.
+# THE TREE IS SYNTHETIC ON PURPOSE. The first version of these arms read the
+# REAL provider/.venv, and the foreign-root gate caught it: the venv is
+# gitignored, so o/p/s failed at a clone root and would have failed in CI --
+# the same class as the out-of-repo fixture paths that kept CI red for ten
+# commits. What is under test here is the CODE's choice of tree, which holds at
+# any root. Whether THIS BOX's provider is clean is a measurement of the box,
+# and it lives in pin-arms.sh where the venv is a precondition.
+def fake_provider(root, with_env_above=False):
+    utils = Path(root, ".venv", "lib", "python3.12", "site-packages",
+                 "openscad_mcp", "utils")
+    utils.mkdir(parents=True)
+    (utils / "config.py").write_text("from dotenv import load_dotenv\n", encoding="utf-8")
+    if with_env_above:
+        Path(root, ".venv", ".env").write_text("MCP_HARD_WARNINGS=true\n",
+                                               encoding="utf-8")
+    return Path(root)
+
+with tempfile.TemporaryDirectory() as d:
+    origin = m.dotenv_origin(fake_provider(Path(d, "provider")))
+    ck("o the dotenv origin is the INSTALLED config.py's directory, which is the "
+       "frame python-dotenv would actually start from",
+       origin is not None and origin.name == "utils"
+       and origin.parent.name == "openscad_mcp", str(origin))
+    ck("p and it is NOT the working directory -- naming cwd here is the whole of "
+       "F2: a guard that walks the wrong tree passes a .env beside the provider",
+       origin is not None and origin.resolve() != Path.cwd().resolve(),
+       f"{origin} vs {Path.cwd()}")
+with tempfile.TemporaryDirectory() as d:
+    ck("q a provider directory with no installed config.py yields None, so the "
+       "caller must REFUSE rather than report a tree it never found",
+       m.dotenv_origin(Path(d)) is None, str(m.dotenv_origin(Path(d))))
+ck("r dotenv_reachable takes its origin with NO DEFAULT -- a default is exactly "
+   "how the cwd walk came back last time",
+   inspect.signature(m.dotenv_reachable).parameters["origin"].default
+   is inspect.Parameter.empty,
+   repr(inspect.signature(m.dotenv_reachable)))
+
+# -- THE DECISION, not its two halves. The arms above would all have passed
+# while rc 12 watched the wrong tree, because the choice of tree was inline at
+# the call site and nothing could call it.
+with tempfile.TemporaryDirectory() as d:
+    ok, detail = m.dotenv_verdict(fake_provider(Path(d, "provider")))
+    ck("s a clean verdict's detail NAMES THE TREE IT SEARCHED, so the reader "
+       "can check WHICH one -- 'none reachable' alone cannot be checked",
+       ok and "openscad_mcp" in detail and "utils" in detail, f"{ok} {detail}")
+    ck("t and that detail does NOT name the working directory",
+       str(Path.cwd()) not in detail, detail)
+with tempfile.TemporaryDirectory() as d:
+    ok2, detail2 = m.dotenv_verdict(Path(d))
+    ck("u a provider with no installed config.py REFUSES -- the verdict is "
+       "False and says the tree is unknown, never 'none reachable'",
+       ok2 is False and "unknown" in detail2 and "none reachable" not in detail2,
+       f"{ok2} {detail2}")
+with tempfile.TemporaryDirectory() as d:
+    ok3, detail3 = m.dotenv_verdict(fake_provider(Path(d, "provider"),
+                                                  with_env_above=True))
+    ck("v a .env ABOVE the installed config.py -- beside the provider, where a "
+       "cwd walk would never look -- is the refusal F2 said rc 12 was missing",
+       ok3 is False and ".env" in detail3, f"{ok3} {detail3}")
 
 for status, name, detail in R:
     print(f"{status}\t{name}\t{detail}")

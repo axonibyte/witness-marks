@@ -57,13 +57,25 @@ kernel_backend = "Manifold"
 # is enumeration of the DOCUMENTED CONFIGURATION SURFACES instead, for the
 # reason the issue gives: `openscad --help` answers in 35 flags what a review
 # of hundreds of thousands of lines of C++ would answer more expensively, and
-# the provider's knobs are all declared in one 445-line module.
+# the provider's Config.from_env reads 20 environment knobs in one 445-line
+# module.
 #
-# THE SCORE, which is the argument for enumerating: three axes were found
-# before this, every one by something breaking. Seven more were found by
-# reading two documented surfaces once. Discovery-by-accident is what this
-# replaces -- the same rule the project already holds for guards, "enumerate,
-# never name".
+# CORRECTED 2026-11-19 (rook, finding F2 on thread:wm-review). This block said
+# the provider's knobs "are all declared" in that module. THEY ARE NOT, and the
+# counter-example is an axis recorded below: OPENSCADPATH is read in server.py
+# (:352 building the subprocess environment, :423 enumerating library search
+# paths) and appears ZERO times in config.py. BOSL2's version is on neither
+# module -- it is read from BOSL2/version.scad in the library tree.
+#
+# THE SCORE, which is the argument for enumerating, with the two surfaces
+# credited only for what they produced: three axes were found before this,
+# every one by something breaking. Of the seven found next, FIVE came from
+# reading the two documented surfaces once, and TWO came from chasing where a
+# mechanism resolves after the surface turned out to be silent about it.
+# Discovery-by-accident is still what this replaces -- the same rule the
+# project holds for guards, "enumerate, never name" -- with the limit stated:
+# an enumeration reaches exactly as far as the surface enumerated, and a module
+# named `config` is not proof that the configuration surface ends there.
 #
 # WHICH STL FLAVOR `-o x.stl` WRITES. MEASURED 2026-11-18: the bytes begin
 # `solid OpenSCAD_M`, 1497 bytes for cube([10,10,10]), so ASCII. This is an
@@ -100,10 +112,18 @@ env_MCP_RENDER_TIMEOUT = ""
 env_MCP_MAX_FILE_SIZE_MB = ""
 env_MCP_MAX_MEMORY_MB = ""
 env_MCP_ALLOWED_PATHS = ""
-# A `.env` ANYWHERE ABOVE THE WORKING DIRECTORY supplies any of the above
+# A `.env` ANYWHERE ABOVE THE INSTALLED config.py supplies any of the above
 # invisibly: the provider calls `load_dotenv()` with no argument on every
-# Config.from_env(), and python-dotenv searches upward. MEASURED 2026-11-18:
-# none reachable from this checkout.
+# Config.from_env(), and python-dotenv then searches upward FROM THE CALLER'S
+# FILE, not from the working directory -- find_dotenv takes the frame's
+# __file__ (dotenv/main.py:305-306) and uses os.getcwd() only when usecwd=True,
+# or when the interpreter is interactive or frozen (:300). So the tree that
+# matters is provider/.venv/.../openscad_mcp/utils/ and its parents.
+# CORRECTED 2026-11-19 (rook, F2 on thread:wm-review): this comment and
+# tools/provider-verify.py both named the working directory, which is a
+# DIFFERENT TREE on this box -- rc 12 was guarding the wrong one and would have
+# passed with a .env sitting next to the provider. MEASURED 2026-11-19: none
+# reachable from the installed config.py's directory.
 dotenv_refused = "true"
 # ENUMERATED AND DELIBERATELY NOT REFUSED, so the omission is stated rather
 # than silent. MCP_CACHE_ENABLED / _SIZE_MB / _TTL_HOURS default to on, 500 MB,

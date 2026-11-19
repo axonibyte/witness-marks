@@ -29,519 +29,527 @@
 [[rediscovery]]
 id = "build-001"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-001. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-002"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-002. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-003"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-003. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-004"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-004. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-005"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-005. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-006"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-006. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-007"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-007. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-008"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-008. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-009"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-009. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-010"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-010. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-011"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-011. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-012"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-012. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-013"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-013. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-014"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-014. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-015"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-015. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-016"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-016. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-017"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-017. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-018"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-018. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-019"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-019. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-020"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-020. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-021"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-021. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-022"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-022. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-023"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-023. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-024"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-024. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-025"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-025. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-026"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-026. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-027"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-027. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-028"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-028. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-029"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-029. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-030"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-030. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-031"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-031. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-032"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-032. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-033"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-033. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-034"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-034. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-035"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-035. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-036"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-036. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-037"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-037. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-038"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-038. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-039"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-039. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-040"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-040. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-041"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-041. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-042"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-042. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-043"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-043. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-044"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-044. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-045"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-045. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-046"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-046. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-047"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-047. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-048"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-048. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-049"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-049. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-050"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-C defect and no check of ours names build-050. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-051"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-051. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-052"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-052. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-053"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-053. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-054"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-054. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-055"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-055. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-056"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-056. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-057"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-057. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-058"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-058. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-059"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-059. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-060"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-060. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-061"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-061. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-062"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names build-062. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-063"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-063. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-064"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-064. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-065"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-F defect and no check of ours names build-065. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-066"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-066. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-067"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-067. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-068"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names build-068. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-069"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names build-069. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-070"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-F defect and no check of ours names build-070. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-071"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-071. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-072"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-C defect and no check of ours names build-072. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-073"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-F defect and no check of ours names build-073. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-074"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-074. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-075"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-none of the seven defect and no check of ours names build-075. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-076"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-G defect and no check of ours names build-076. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "build-077"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names build-077. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-001"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-001. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-002"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-002. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-003"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-003. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-004"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-004. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-005"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-005. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-006"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-006. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-007"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-007. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-008"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-008. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-009"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-009. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-010"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-010. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-011"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-011. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-012"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-012. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-013"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-013. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-014"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-F defect and no check of ours names mcp-014. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-015"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-015. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-016"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-016. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-017"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-017. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-018"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-018. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-019"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-019. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-020"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-020. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-021"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-021. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-022"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-022. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-023"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-023. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-024"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-024. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-025"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-A defect and no check of ours names mcp-025. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-026"
 verdict = "re-found"
 tier = "differential vectors"
-by = "tests/vectors/vectors.toml"
+# `by` NAMES THE CHECK; `fixture` NAMES THE DATA. These were both the data file
+# until rook pointed at it (coop wm-review/3, F4) -- and the gate's existence
+# test could not tell, because a data file exists just as hard as an arm does.
+by = "tools/tests/vectors-arms.sh"
 fixture = "tests/vectors/vectors.toml"
+# AND IT IS OUTSIDE THE CI-GREEN SET, which the report now states rather than
+# averaging away. battery.sh and ci.yml both glob `tools/tests/t_*.sh`;
+# vectors-arms.sh matches neither, and CI's runner reports `openscad ABSENT`
+# besides. So "battery green" says NOTHING about this re-find.
+in_ci_green = false
 note = """
 The stale-file guard: a run that read the PREVIOUS run's STL and reported it \
 as this one's. vector-run.py unlinks the output and $WMVEC_OUT exists so the \
@@ -551,24 +559,24 @@ re-finding rather than a citation."""
 [[rediscovery]]
 id = "mcp-027"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-027. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-028"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-028. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-029"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-B defect and no check of ours names mcp-029. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-030"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-E defect and no check of ours names mcp-030. Nobody has tried; this is not a negative result"
 
 [[rediscovery]]
 id = "mcp-031"
 verdict = "unassessed"
-why = "no fixture reconstructs this defect yet, and no check of ours names it"
+why = "unexamined: no fixture reconstructs this class-D defect and no check of ours names mcp-031. Nobody has tried; this is not a negative result"
