@@ -1,0 +1,1 @@
+        if row is None or not row.get("evaluated") or row.get("type") != "number":

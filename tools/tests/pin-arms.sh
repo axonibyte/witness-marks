@@ -18,6 +18,13 @@ pass=0; fail=0
 ok() { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
 no() { fail=$((fail+1)); printf '  FAIL %s\n' "$1"; }
 fin() { printf -- '-- %d/%d arms pass\n' "$pass" $((pass+fail)); [ "$fail" = 0 ] || exit 1; exit 0; }
+# ONE LABEL PER CHECK, ON BOTH PATHS. mutate.sh's refusal 4 requires the
+# expected label to appear IN A FAILURE LINE, so an arm whose failure text
+# differs from its success text can never satisfy it -- and a mutant against
+# such an arm MISFIRES rather than killing. This file had no such helper, which
+# is what invited the divergence; three arms added on 2026-11-18 diverged
+# immediately. judge <label> <rc> <detail>.
+judge() { if [ "$2" = 0 ]; then ok "$1"; else no "$1" "$3"; fi; }
 
 VER="$ROOT/tools/provider-verify.py"
 [ -r "$VER" ] || { no "tools/provider-verify.py is missing: the pin cannot be verified at all"; fin; }
@@ -279,5 +286,43 @@ rm -rf "$FMTDIR"
 got=$(rc_of "$PROV")
 [ "$got" = 0 ] && ok "and the recorded pin verifies clean, so the refusals above are not unconditional" \
                || no "the clean run gave rc $got, wanted 0"
+
+# ---------------------------------------------------------------------------
+# THE TWELVE GUARDS, AGAINST THE LIVE MODEL (issue 36). Deliberate, because
+# scad_eval needs the pinned provider, uv and OpenSCAD. The structural half is
+# in the CI glob as t_guards.sh.
+GUARDS="$ROOT/tools/guards.py"
+if [ -r "$GUARDS" ]; then
+    got=$( ( cd "$ROOT" && timeout 900 python3 "$GUARDS" >"$ROOT/.guards.out" 2>&1 ); echo $? )
+    held=$(/usr/bin/sed -n 's/^-- \([0-9]*\)\/\([0-9]*\) guards hold.*/\1 \2/p' "$ROOT/.guards.out")
+    [ "$got" = 0 ] && [ "$held" = "12 12" ]
+    judge "all twelve guards hold against the live can_cutter.scad" $? "rc $got, held '$held'"
+
+    # AND THEY BITE WHERE THE DESIGN ACTUALLY MOVED. `wall` went 4.0 -> 5.0 in
+    # the harness and left two derived numbers stale in its prose; these are
+    # the two guards that cover them, so moving it again must trip exactly
+    # those. A guard that only ever passes has proved nothing.
+    got=$( ( cd "$ROOT" && timeout 900 python3 "$GUARDS" --set wall=10 >"$ROOT/.guards.out" 2>&1 ); echo $? )
+    tripped=$(/usr/bin/grep -c '^  OUT OF RANGE' "$ROOT/.guards.out" || true)
+    [ "$got" = 4 ] && [ "$tripped" = 2 ] \
+       && /usr/bin/grep -q 'material_left_under_the_thread_groove' "$ROOT/.guards.out" \
+       && /usr/bin/grep -q 'body_wall_is_thick_enough_to_hold_a_groove' "$ROOT/.guards.out"
+    judge "moving \`wall\` trips exactly the two guards whose numbers its last change staled" \
+          $? "rc $got, $tripped tripped"
+
+    # A MODEL WITH NONE OF THE SYMBOLS READS AS UNEVALUABLE, NOT AS PASSING.
+    # `undef` is OpenSCAD's absent value and as a 0.0 it would pass every range
+    # with a lower bound of zero.
+    printf 'x = 1;\n' > "$ROOT/.guards-empty.scad"
+    sed "s|^model = .*|model = \"$ROOT/.guards-empty.scad\"|" "$ROOT/tests/claims/can-cutter.toml" > "$ROOT/.guards-nosym.toml"
+    got=$( ( cd "$ROOT" && timeout 900 python3 "$GUARDS" --file .guards-nosym.toml >"$ROOT/.guards.out" 2>&1 ); echo $? )
+    un=$(/usr/bin/grep -c '^  UNEVALUABLE' "$ROOT/.guards.out" || true)
+    [ "$got" = 3 ] && [ "$un" = 12 ]
+    judge "a model with none of the symbols reads UNEVALUABLE for all twelve, never as a pass" \
+          $? "rc $got, $un unevaluable"
+    rm -f "$ROOT/.guards.out" "$ROOT/.guards-empty.scad" "$ROOT/.guards-nosym.toml"
+else
+    no "tools/guards.py is missing" ""
+fi
 
 fin

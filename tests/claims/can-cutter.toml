@@ -1,0 +1,163 @@
+# THE TWELVE GUARDS (issue 36, spec §06.1), over the real harness.
+#
+# WHY THESE ARE HERE AND NOT IN can_cutter.scad. cal asked, fairly, why this
+# needed to edit their design file. IT DOES NOT. Issue 60 landed
+# `Expression::Scad`, so a guard's expression is evaluated in the MODEL's own
+# variable scope through `scad_eval` -- the number is never restated here, only
+# the envelope it has to stay inside and the reason why. The harness's prose
+# keeps its reasoning; these keep its arithmetic honest. Nothing was written
+# into the design.
+#
+# WHAT THEY WOULD HAVE CAUGHT, measured 2026-11-18 against the live file.
+# `wall` moved 4.0 -> 5.0, and the harness says so at its own definition
+# ("wall thickness. Was 4.0, which left only"). Two derived numbers in the
+# prose did not follow it:
+#
+#   line 18  "a 37.6 mm outer wall"                 body_r is now 38.6
+#   line 74  "wall - thr_depth - thr_clear = 2.6"   it is now 3.8
+#
+# One parameter changed; the author documented the change AT ITS SITE and did
+# not propagate it to the two places that depended on it. That is spec §06.2's
+# mechanism exactly -- "six of the harness's twelve derived numbers went
+# stale" -- happening again while this project was being built to catch it.
+#
+# EVERY RANGE IS AN ENVELOPE, NEVER THE CURRENT VALUE. A range of
+# (current - epsilon, current + epsilon) is a restatement that passes until
+# somebody edits it, which is the one edit tests/vectors/README forbids. These
+# say what the design NEEDS, and the current value sits inside with room.
+#
+# EVERY `because` IS THE HARNESS'S OWN REASON, quoted or paraphrased from the
+# comment it retires the arithmetic of. A range without a reason becomes
+# folklore the moment its author moves on.
+model = "/data/projects/tech/designs/arts/can_cutter.scad"
+
+[[guard]]
+name = "blade_crosses_the_outer_wall"
+source = "sqrt(r_edge*r_edge + (61/2)*(61/2)) - body_r"
+range = [0.5, 25.0]
+unit = "mm"
+because = """
+The harness, line 13: the edge is a STRAIGHT 61 mm line and the can is a \
+cylinder, so it can only touch at the tangent point; the tips of that edge \
+must sit outside the body or the blade cannot reach the can at all. "The \
+blade MUST cross the wall; only its holder can live outside." Positive means \
+it crosses. This is the margin whose stated value (44.7 against 37.6) went \
+stale when `wall` moved."""
+
+[[guard]]
+name = "can_turns_freely_in_the_bore"
+source = "bore_r - can_dia/2"
+range = [0.3, 1.2]
+unit = "mm"
+because = """
+`can_clearance`'s own comment: "radial slop so the can turns freely". Below \
+0.3 the can binds on a seam or a dent; above 1.2 it rattles and the score \
+wanders off the line."""
+
+[[guard]]
+name = "material_left_under_the_thread_groove"
+source = "wall - thr_depth - thr_clear"
+range = [1.5, 6.0]
+unit = "mm"
+because = """
+The groove is cut into the wall, so what remains carries the load. The \
+harness states this arithmetic at line 74 and its stated result (2.6) is the \
+second number `wall`'s change left behind. Below 1.5 the wall is a hinge; \
+above 6 the part is heavier than it needs to be."""
+
+[[guard]]
+name = "overhang_critical_angle_at_this_layer_height"
+source = "atan(layer_h/0.2)"
+range = [20.0, 50.0]
+unit = "deg"
+because = """
+The slicer criterion from the harness's own note: "WHY 30 AND NOT 45: at \
+layer_h = 0.15 and a 0.4 mm nozzle, atan(0.15/0.2) = 36.9 deg, not the 45 \
+this file's geometry assumes." The angle is a CONSEQUENCE of layer height and \
+extrusion width, not a constant -- it is 45 only at 0.2/0.4. Any overhang \
+rule written against 45 is wrong at this layer height."""
+
+[[guard]]
+name = "score_travel_reaches_up_the_can"
+source = "blade_z - floor_z"
+range = [14.0, 80.0]
+unit = "mm"
+because = """
+The harness, line 29: score height on the can is blade_z - floor_z, and "a \
+36 mm ring with the blade at 20 can only reach 14 mm up the can, which cuts \
+nothing anybody wants." 14 is the floor below which the tool is useless; 80 \
+is where the legs stop being light."""
+
+[[guard]]
+name = "blade_bites_inside_the_can_wall"
+source = "can_r - r_edge"
+range = [0.15, 0.80]
+unit = "mm"
+because = """
+`blade_bite`'s own comment: "how far inside the can wall the edge sits". Too \
+little and the edge rides on the paint; too much and it ploughs rather than \
+scores, and the tilt note warns that 10 deg already puts the edge 0.80 mm \
+inside."""
+
+[[guard]]
+name = "body_wall_is_thick_enough_to_hold_a_groove"
+source = "body_r - bore_r"
+range = [3.0, 8.0]
+unit = "mm"
+because = """
+This IS `wall`, read back out of the two radii that depend on it, so a change \
+to either radius that silently changes the wall is caught here. Its own \
+comment records the last such change: "Was 4.0, which left only" -- and that \
+change is what staled the two numbers above."""
+
+[[guard]]
+name = "mouth_opens_wide_enough_to_admit_the_can"
+source = "mouth_deg"
+range = [40.0, 110.0]
+unit = "deg"
+because = """
+The harness, line 22: a closed ring needs a slot that removes a 37-64 degree \
+window at the cut plane, "leaving the layer above to bridge ~40 mm \
+unsupported over a 1.3 mm gap", so the mouth is opened full height instead. \
+Below 40 the can will not pass; above 110 the remaining arc stops holding it \
+concentric -- the note's "~292 degrees of bore still holds a can concentric \
+easily" is the other end of this."""
+
+[[guard]]
+name = "stub_overlaps_rather_than_abutting"
+source = "stub_lap"
+range = [0.2, 1.5]
+unit = "mm"
+because = """
+Corpus build-002: "Overlap mating features by a real amount (0.5-1 mm) \
+instead of abutting them." An abutment is a coincident face, which is the \
+class-A defect no view surfaces."""
+
+[[guard]]
+name = "tail_gap_clears_without_rattling"
+source = "tail_gap"
+range = [0.4, 1.1]
+unit = "mm"
+because = """
+A printed clearance below ~0.4 mm closes up under the first layer's squish on \
+this printer; above 1.1 the tail moves enough to lose the score line."""
+
+[[guard]]
+name = "leaf_is_thick_enough_to_print_and_thin_enough_to_flex"
+source = "leaf_t"
+range = [0.8, 2.0]
+unit = "mm"
+because = """
+The leaf is the spring. Below 0.8 it is fewer than three extrusions wide at a \
+0.4 nozzle and prints as a wall with no core; above 2.0 it stops flexing and \
+the squeeze goes into the arm instead."""
+
+[[guard]]
+name = "arm_is_stiffer_than_the_leaf_it_carries"
+source = "arm_t - leaf_t"
+range = [1.0, 8.0]
+unit = "mm"
+because = """
+The arm must not be the thing that bends -- if it flexes with the leaf, the \
+squeeze rate is the sum of two springs and the latch force stops being \
+predictable. Positive and clear of 1 mm keeps the compliance in the leaf."""
