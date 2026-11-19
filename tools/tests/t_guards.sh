@@ -140,18 +140,51 @@ got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/noprov.toml" >"$TM
 judge "a guard whose endpoint has no provenance REFUSES: an envelope nobody has to justify is a number somebody chose, and two of these were misread units (F15)" \
       $? "rc $got"
 
-d="$TMP/badcite"; mkdir -p "$d"
-python3 - "$ROOT" "$d" <<'PY' || { no "world badcite could NOT be built"; }
-import sys, pathlib
+# THE QUOTE CHECK IS DRIVEN AGAINST A MODEL THIS ARM SUPPLIES, not against
+# cal's design file. The first version of this arm used the real one and
+# asserted rc 7 -- which held here and FAILED CI in 42 seconds, because the
+# design file lives OUTSIDE the repository and CI's machine does not have it,
+# so the quote could not be checked and the run refused for a different
+# reason. ROOT AND MACHINE ARE DIFFERENT AXES: the foreign-root gate runs on
+# this box, where the file exists, so it is blind to this by construction.
+# A synthetic model makes the REFUSAL LOGIC testable anywhere; whether the
+# real design file agrees stays a machine-dependent NOTE, never an assertion.
+d="$TMP/quote"; mkdir -p "$d"
+# THE SYNTHETIC MODEL CARRIES EVERY QUOTE THE CITES USE, not one of them.
+# The first version held only one and the "resolves" world still refused,
+# because the other three cites quote text that was not in it -- the refusal
+# was firing correctly on a world I had built wrong.
+{
+  printf '// removes a 37-64 degree window at the cut plane\n'
+  printf '// ~292 degrees of bore still holds a can concentric easily\n'
+  printf '// scores 14-72 mm above the can bottom\n'
+} > "$d/fake.scad"
+python3 - "$ROOT" "$d" <<'PY' || { no "world quote could NOT be built"; }
+import sys, pathlib, re
 root, d = sys.argv[1], pathlib.Path(sys.argv[2])
 t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
-old = 'quote = "removes a 37-64 degree window at the cut plane"'
-assert old in t, "no verifiable quote to break"
-(d / "badcite.toml").write_text(t.replace(old, 'quote = "a sentence that is not in the model file"', 1))
+t = re.sub(r'^model = ".*"', f'model = "{d}/fake.scad"', t, count=1, flags=re.M)
+# every cite now points at the synthetic model beside it
+t = t.replace('file = "arts/can_cutter.scad"', 'file = "fake.scad"')
+assert 'file = "fake.scad"' in t, "no cite was repointed at the synthetic model"
+(d / "resolves.toml").write_text(t)
+bad = t.replace('quote = "removes a 37-64 degree window at the cut plane"',
+                'quote = "a sentence that is not in the model file"', 1)
+assert bad != t, "no quote to break"
+(d / "broken.toml").write_text(bad)
 PY
-got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/badcite.toml" >"$TMP/out" 2>&1 ); echo $? )
+got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/broken.toml" >"$TMP/out" 2>&1 ); echo $? )
 [ "$got" = 7 ] && /usr/bin/grep -q "is NOT in the file" "$TMP/out"
-judge "a quote that does not resolve against the model file REFUSES -- the old citations named 'the harness, line 22' while the text sat in can_cutter.scad at 23" \
+judge "a quote that does not resolve against its model REFUSES -- the old citations named 'the harness, line 22' while the text sat in can_cutter.scad at 23 (F15)" \
+      $? "rc $got"
+
+# AND THE MIRROR, so the refusal is not unconditional: the same cite with a
+# quote that IS in the model passes the provenance stage and the run goes on
+# to fail for the ordinary reason that this synthetic model has no symbols.
+got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/resolves.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" != 7 ] && ! /usr/bin/grep -q "is NOT in the file" "$TMP/out" \
+  && /usr/bin/grep -q "carry a quote VERIFIED" "$TMP/out"
+judge "a quote that DOES resolve passes the provenance stage, so the refusal above is a check and not a constant" \
       $? "rc $got"
 
 d="$TMP/wrongval"; mkdir -p "$d"

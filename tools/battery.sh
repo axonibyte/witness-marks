@@ -124,7 +124,57 @@ foreign_root() {
 
 gate "new assertions carry a recorded kill" mutation_record
 gate "the tooling's own arms" arms
+# ROOT AND MACHINE ARE DIFFERENT AXES, AND THE GATE ABOVE ONLY COVERS ONE.
+# The foreign-root pass runs on THIS box, so any file outside the repository
+# is still there at the new root -- and an arm that reaches one keeps passing.
+# MEASURED 2026-11-19: CI run 43 died in 42 seconds on exactly that. A new
+# t_guards.sh arm drove a provenance refusal through can-cutter.toml, whose
+# `model` is an ABSOLUTE PATH to cal's design file; the refusal needs that
+# file to check a quote against, so on a machine without it the tool answers
+# rc 5 instead of rc 7 and the arm fails. The battery was green here, the
+# foreign root was green here, and CI was red -- which is the same shape as
+# the ten red commits, one axis over.
+#
+# So this pass hides what the repository does not own: every absolute path in
+# a committed claims/vector file is rewritten to a directory that does not
+# exist, and the arms are run again. An arm that needs a file this project
+# does not ship must report NO RESULT, never a pass and never a failure that
+# only one machine can avoid.
+foreign_machine() {
+    far=$(mktemp -d) || { echo "no temp dir for the foreign-machine pass"; return 1; }
+    snap=$(git stash create 2>/dev/null)
+    [ -n "$snap" ] || snap=HEAD
+    git archive --format=tar "$snap" | tar -x -C "$far" || { rm -rf "$far"; return 1; }
+    # repoint every absolute out-of-repo path at a tree that is not there
+    python3 - "$far" <<'PY'
+import pathlib, re, sys
+far = pathlib.Path(sys.argv[1])
+n = 0
+for f in list(far.glob("tests/claims/*.toml")) + list(far.glob("tests/vectors/*.toml")):
+    t = f.read_text()
+    t2, k = re.subn(r'"(/[^"]*)"', lambda m: '"/nonexistent-on-this-machine' + m.group(1) + '"', t)
+    if k:
+        f.write_text(t2); n += k
+print(f"  hid {n} out-of-repo path(s) and ran the arms again")
+PY
+    bad=0
+    for t in "$far"/tools/tests/t_*.sh; do
+        arc=0
+        ( cd "$far" && timeout 300 sh "tools/tests/$(basename "$t")" ) > "$far/.out" 2>&1 || arc=$?
+        if ! /usr/bin/grep -qE '^-- [0-9]+/[0-9]+ arms pass' "$far/.out"; then
+            printf '  == %s  NO COUNT on a foreign machine\n' "$(basename "$t")"; bad=1
+        elif [ "$arc" -ne 0 ]; then
+            printf '  == %s  FAILS without the out-of-repo files only this box has\n' "$(basename "$t")"
+            /usr/bin/grep -E '^  FAIL' "$far/.out" | sed 's/^/     /'; bad=1
+        fi
+    done
+    [ "$bad" -eq 0 ] && printf '  every arm passes without the files this repo does not ship\n'
+    rm -rf "$far"
+    return "$bad"
+}
+
 gate "the arms again at a FOREIGN ROOT, as CI runs them" foreign_root
+gate "the arms on a FOREIGN MACHINE, without the files this repo does not ship" foreign_machine
 gate "cargo test --locked --workspace" suite
 gate "clippy -D warnings" timeout 900 cargo clippy --locked --workspace --all-targets -- -D warnings
 gate "cargo fmt --check" timeout 300 cargo fmt --all -- --check
