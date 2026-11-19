@@ -134,7 +134,7 @@ def fake_provider(root, with_env_above=False):
     return Path(root)
 
 with tempfile.TemporaryDirectory() as d:
-    origin = m.dotenv_origin(fake_provider(Path(d, "provider")))
+    origin = m.dotenv_origin_declared(fake_provider(Path(d, "provider")))
     ck("o the dotenv origin is the INSTALLED config.py's directory, which is the "
        "frame python-dotenv would actually start from",
        origin is not None and origin.name == "utils"
@@ -146,7 +146,8 @@ with tempfile.TemporaryDirectory() as d:
 with tempfile.TemporaryDirectory() as d:
     ck("q a provider directory with no installed config.py yields None, so the "
        "caller must REFUSE rather than report a tree it never found",
-       m.dotenv_origin(Path(d)) is None, str(m.dotenv_origin(Path(d))))
+       m.dotenv_origin_declared(Path(d)) is None,
+       str(m.dotenv_origin_declared(Path(d))))
 ck("r dotenv_reachable takes its origin with NO DEFAULT -- a default is exactly "
    "how the cwd walk came back last time",
    inspect.signature(m.dotenv_reachable).parameters["origin"].default
@@ -155,26 +156,69 @@ ck("r dotenv_reachable takes its origin with NO DEFAULT -- a default is exactly 
 
 # -- THE DECISION, not its two halves. The arms above would all have passed
 # while rc 12 watched the wrong tree, because the choice of tree was inline at
-# the call site and nothing could call it.
+# the call site and nothing could call it. The resolvers are injected so every
+# branch is reachable at any root; arm z asserts the DEFAULTS are the real ones,
+# which is what stops the injection from becoming the hole.
+def says(path, how="read from the launcher"):
+    return lambda _pd, **kw: (path, how)
+
+def cannot(how):
+    return lambda _pd, **kw: (None, how)
+
 with tempfile.TemporaryDirectory() as d:
-    ok, detail = m.dotenv_verdict(fake_provider(Path(d, "provider")))
-    ck("s a clean verdict's detail NAMES THE TREE IT SEARCHED, so the reader "
-       "can check WHICH one -- 'none reachable' alone cannot be checked",
-       ok and "openscad_mcp" in detail and "utils" in detail, f"{ok} {detail}")
+    root = fake_provider(Path(d, "provider"))
+    tree = m.dotenv_origin_declared(root)
+    ok, detail = m.dotenv_verdict(root, live=says(tree))
+    ck("s a clean verdict's detail NAMES THE TREE IT SEARCHED and says HOW it "
+       "learned it -- 'none reachable' alone cannot be checked by a reader",
+       ok and "openscad_mcp" in detail and "launcher" in detail, f"{ok} {detail}")
     ck("t and that detail does NOT name the working directory",
        str(Path.cwd()) not in detail, detail)
 with tempfile.TemporaryDirectory() as d:
-    ok2, detail2 = m.dotenv_verdict(Path(d))
-    ck("u a provider with no installed config.py REFUSES -- the verdict is "
-       "False and says the tree is unknown, never 'none reachable'",
-       ok2 is False and "unknown" in detail2 and "none reachable" not in detail2,
-       f"{ok2} {detail2}")
-with tempfile.TemporaryDirectory() as d:
-    ok3, detail3 = m.dotenv_verdict(fake_provider(Path(d, "provider"),
-                                                  with_env_above=True))
-    ck("v a .env ABOVE the installed config.py -- beside the provider, where a "
+    root = fake_provider(Path(d, "provider"), with_env_above=True)
+    tree = m.dotenv_origin_declared(root)
+    ok3, detail3 = m.dotenv_verdict(root, live=says(tree))
+    ck("u a .env ABOVE the installed config.py -- beside the provider, where a "
        "cwd walk would never look -- is the refusal F2 said rc 12 was missing",
        ok3 is False and ".env" in detail3, f"{ok3} {detail3}")
+
+# -- rook's FIFTH finding (wm-review/5): the tree must be READ FROM THE THING
+# THAT RUNS, not derived. A glob that happens to agree is still a verdict about
+# a tree nobody proved is the live one.
+with tempfile.TemporaryDirectory() as d:
+    root = fake_provider(Path(d, "provider"))
+    ok4, detail4 = m.dotenv_verdict(root, live=cannot("uv is not on PATH"))
+    ck("v a launcher that CANNOT be asked is a refusal, not a clean tree -- the "
+       "glob agreeing is not permission to answer without the reading",
+       ok4 is False and "UNKNOWN" in detail4 and "uv is not on PATH" in detail4,
+       f"{ok4} {detail4}")
+    other = Path(d, "elsewhere", "openscad_mcp", "utils")
+    other.mkdir(parents=True)
+    ok5, detail5 = m.dotenv_verdict(root, live=says(other))
+    ck("w a launcher importing a DIFFERENT tree than the one on disk refuses and "
+       "names BOTH -- the pin would describe one while the provider loads the "
+       "other, and no single number reports that honestly",
+       ok5 is False and str(other) in detail5
+       and str(m.dotenv_origin_declared(root)) in detail5, f"{ok5} {detail5}")
+    ok6, _ = m.dotenv_verdict(root, live=says(other), declared=lambda _pd: None)
+    ck("x and with nothing on disk to compare, the launcher's reading STANDS -- "
+       "an absent cross-check must not veto the authority",
+       ok6 is True, str(ok6))
+
+# -- AND THE DEFAULTS ARE THE REAL RESOLVERS. Injection is how the arms reach
+# every branch at a foreign root; it is also how a fix could be armed while the
+# shipped path still globbed. So the defaults are asserted by NAME.
+sig = inspect.signature(m.dotenv_verdict)
+ck("y dotenv_verdict's live and declared both default to None, so the function "
+   "chooses the real resolvers rather than a caller choosing for it",
+   sig.parameters["live"].default is None
+   and sig.parameters["declared"].default is None, repr(sig))
+src = inspect.getsource(m.dotenv_verdict)
+ck("z and the default it chooses is dotenv_origin_LIVE, the reading -- not "
+   "dotenv_origin_declared, the glob: that swap is rook's finding reinstated",
+   "live = dotenv_origin_live" in src
+   and "live = dotenv_origin_declared" not in src,
+   [l.strip() for l in src.splitlines() if "live =" in l])
 
 for status, name, detail in R:
     print(f"{status}\t{name}\t{detail}")

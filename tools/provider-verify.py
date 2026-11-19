@@ -296,8 +296,18 @@ def env_divergences(p):
     return out
 
 
-def dotenv_origin(provider_dir):
-    """Where python-dotenv's search actually STARTS for the pinned provider.
+def dotenv_origin_declared(provider_dir):
+    """Where python-dotenv's search starts ACCORDING TO THE TREE ON DISK.
+
+    THIS IS AN INFERENCE, NOT A READING, and the name now says so. It globs for
+    an installed config.py under the provider's venv; what it cannot know is
+    whether the server RUNS from the venv it found. rook named that (coop
+    wm-review/5): "a verdict about a tree nobody proved is the live one" -- the
+    same class as F1 one level out. `dotenv_origin_live` is the reading, this
+    is the cross-check, and `dotenv_verdict` refuses when they disagree.
+
+    Kept as a pure function of a directory because the arms drive it over
+    synthetic trees, which is the only way to test it at a foreign root.
 
     NOT THE WORKING DIRECTORY, and the first version of this guard had it
     wrong. rook found it (coop wm-review/2, F1) and the library's own source
@@ -323,6 +333,50 @@ def dotenv_origin(provider_dir):
     return None
 
 
+#: How the provider is actually started for every measurement this project
+#: takes -- tools/guards.py, tools/vector-run.py and crates/wm-provider all
+#: spawn exactly this. Asking THIS launcher which file it imports is a reading;
+#: globbing the directory is a guess that happens to agree.
+LAUNCHER = ("uv", "run", "--frozen", "--no-dev", "python", "-c")
+LAUNCH_PROBE = ("import openscad_mcp.utils.config as c; print(c.__file__)")
+
+
+def dotenv_origin_live(provider_dir, timeout=180):
+    """Where python-dotenv's search starts, READ FROM THE LAUNCHER ITSELF.
+
+    rook's fifth finding, and the fix they prescribed: do not derive the tree,
+    read it from the thing that runs. The first instinct was to ask a RUNNING
+    server over the transport, and that is wrong here for a measured reason --
+    `provider-verify.py` runs standalone, and at that moment there is no server
+    (measured 2026-11-19: 247 processes on this box, none of them
+    openscad_mcp). What there always is, is the launcher the measurements use,
+    and it can be asked to import the module and print its own `__file__`.
+
+    Returns (origin, detail). `origin` is None on any failure, and `detail`
+    always says WHICH failure, because "could not ask" and "asked and got
+    nothing" are different states and a caller that cannot tell them apart is
+    back to the defect this fixes.
+    """
+    import subprocess
+    try:
+        r = subprocess.run([*LAUNCHER, LAUNCH_PROBE], cwd=str(provider_dir),
+                           capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        return (None, "uv is not on PATH, so the launcher the measurements use "
+                      "cannot be asked which module it imports")
+    except subprocess.TimeoutExpired:
+        return (None, f"the launcher did not answer in {timeout}s; that is a "
+                      f"TIMEOUT and says nothing about the tree")
+    if r.returncode != 0:
+        tail = (r.stderr or "").strip().splitlines()[-1:] or ["no stderr"]
+        return (None, f"the launcher exited {r.returncode}: {tail[0]}")
+    out = (r.stdout or "").strip().splitlines()
+    if not out or not out[-1].endswith("config.py"):
+        return (None, f"the launcher answered {out[-1:]!r}, which does not name "
+                      f"a config.py")
+    return (Path(out[-1]).parent, "read from the launcher")
+
+
 def dotenv_reachable(origin):
     """The nearest `.env` from `origin` upward, or None.
 
@@ -337,31 +391,49 @@ def dotenv_reachable(origin):
     return None
 
 
-def dotenv_verdict(provider_dir):
+def dotenv_verdict(provider_dir, live=None, declared=None):
     """The dotenv axis's whole decision, as a VALUE an arm can take.
 
-    This was inline at the call site, which is why rook's F2 -- rc 12 walking
-    up from `Path.cwd()` instead of from the tree python-dotenv actually starts
-    in -- was reachable by unit arms only one layer down, where the walk lived
-    but the CHOICE OF TREE did not. An inline decision is an untested decision;
-    the arms call this.
+    This was inline at the call site, which is why rook's F1 -- rc 12 walking
+    up from `Path.cwd()` -- was reachable by unit arms only one layer down,
+    where the walk lived but the CHOICE OF TREE did not. An inline decision is
+    an untested decision.
 
-    Returns (ok, detail). A provider whose installed config.py cannot be found
-    is a REFUSAL, not a clean run: "none reachable" would then be an answer
-    about a tree nobody looked in, which is the same defect one level up.
+    THE AUTHORITY IS THE LAUNCHER, and the glob is only a cross-check. rook's
+    fifth finding (wm-review/5): verifying a venv found by globbing is a
+    verdict about a tree nobody proved is the live one. So:
+
+      - the launcher cannot answer  -> REFUSE. Not "none reachable": that
+        would be an answer about a tree nobody looked in, which is this
+        defect one more level out.
+      - launcher and glob DISAGREE  -> REFUSE, naming both. Two trees means
+        the pin describes one and the provider loads the other, and that is
+        precisely the state no single number can report honestly.
+      - they agree                  -> check the tree they agree on.
+
+    `live` and `declared` are injection points for the arms, which must drive
+    every branch over synthetic trees -- the real venv is gitignored, so an arm
+    that reads it fails at a clone root and would fail in CI. Defaults are the
+    real resolvers, and an arm asserts that.
     """
-    origin = dotenv_origin(provider_dir)
+    if live is None:
+        live = dotenv_origin_live
+    if declared is None:
+        declared = dotenv_origin_declared
+    origin, how = live(provider_dir)
     if origin is None:
-        return (False, "the installed openscad_mcp/utils/config.py was not found "
-                       "under the provider venv, so the tree python-dotenv would "
-                       "search is unknown")
+        return (False, f"the tree python-dotenv would search is UNKNOWN: {how}")
+    seen = declared(provider_dir)
+    if seen is not None and Path(seen).resolve() != Path(origin).resolve():
+        return (False, f"the launcher imports {origin} but the provider tree on "
+                       f"disk offers {seen}; two trees means the pin describes "
+                       f"one and the provider loads the other")
     found = dotenv_reachable(origin)
     if found is not None:
         return (False, f"{found} is reachable from {origin}, where python-dotenv's "
                        f"search BEGINS; the provider loads it on every "
                        f"Config.from_env()")
-    return (True, f"none reachable from {origin}")
-
+    return (True, f"none reachable from {origin} ({how})")
 
 def main():
     args = sys.argv[1:]
