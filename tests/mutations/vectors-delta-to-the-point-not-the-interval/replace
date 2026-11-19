@@ -1,0 +1,1 @@
+    return abs(decimal.Decimal(repr(float(reported))) - mine)

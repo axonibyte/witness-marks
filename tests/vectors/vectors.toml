@@ -14,6 +14,36 @@
 # compares it to `expected`. Where the two disagree the disagreement is the
 # finding, and where only one side can answer at all, that is a finding too.
 
+# WHICH PROVIDER, AS DATA (issue 62). The paragraph above already said "the
+# pinned openscad-mcp" -- and for days a `provider_disagrees` three screens
+# down attributed a gap to OpenSCAD 2026.11.05.nightly, which the pinned
+# provider does not run. Both statements sat in this file and nothing could
+# compare them, because one was prose and the other was free text. PROSE A
+# READER MUST JOIN UP IS NOT A CHECK.
+#
+# TWO providers are reachable from this machine and only one can have produced
+# these figures:
+#   LOCAL  serverInfo "OpenSCAD MCP Server" 4.2.0, 12 tools INCLUDING measure
+#          and scad_eval, kernel 2026.10.14, spawned by `uv run --frozen
+#          --no-dev openscad-mcp` in provider/ -- the same launcher guards.py,
+#          vector-run.py and wm-provider use.
+#   REMOTE "openscad-mcp" 1.0.0 over HTTP behind an ephemeral tunnel, 11 tools,
+#          NEITHER measure NOR scad_eval, kernel 2026.11.05.nightly on its own
+#          host. It cannot produce a `measure` reading, so no figure here came
+#          from it -- and its kernel is where the wrong attribution came from.
+#
+# tools/vector-run.py refuses a `provider` block when this record is absent or
+# incomplete, and refuses a `because` that names any kernel but this one.
+# tools/tests/vectors-arms.sh drives the identity against the live provider,
+# because a recorded identity nobody reads back is the same defect again.
+[provider_provenance]
+server_name = "OpenSCAD MCP Server"
+server_version = "4.2.0"
+tool_count = 12
+kernel = "2026.10.14"
+launcher = "uv run --frozen --no-dev openscad-mcp"
+measured = "2026-11-16"
+
 # EVERY EXPECTATION HERE WAS RECORDED FROM A RUN AND THEN COMMITTED.
 # Do not edit an expectation to make a run pass; that is the one edit that
 # turns a vector into a restatement of whatever the code currently does.
@@ -133,21 +163,45 @@ model = """
 $fn = 64; sphere(r = 10);"""
 note = """
 analytic 4188.790205; the recorded value is 0.401% under it"""
-# THE PROVIDER AND WE DISAGREE HERE, AND THE CAUSE IS IN THIS FILE ALREADY.
-# 4171.9988 is not a rounding of 4171.998709: at four reported decimals it
-# stands for [4171.99875, 4171.99885) and ours falls below that. The
-# sphere-fn64-facets note above records why -- the provider's figures were
-# measured on OpenSCAD 2026.11.05.nightly and ours on 2026.10.14, so the two
-# tessellate the same model slightly differently. BOTH still satisfy the
-# constraint this vector's `why` states, which is the actual oracle: inscribed,
-# therefore under the analytic 4188.790205. 9.1e-5 on 4172 is 2.2e-8 relative.
+# THE PROVIDER AND WE DISAGREE HERE, AND THE CAUSE IS NOT KNOWN.
+# WITHDRAWN 2026-11-19, issue 62: this block used to say "the cause is in this
+# file already" and cite the sphere-fn64-facets note above as establishing that
+# the two kernels tessellate the same model differently. THAT NOTE SAYS THE
+# OPPOSITE. It records the exported bytes as IDENTICAL across OpenSCAD
+# 2026.10.14 and 2026.11.05.nightly -- same sha256,
+# a968dcfd9c6cdb05641864ff3499066945874cc4752be04fec65f05855de534a, 93544
+# bytes, "same model, same tessellation". Identical bytes are the same mesh, and
+# the same mesh cannot have two polyhedron volumes. So my own citation refuted
+# my own claim, and I read it as support because it was adjacent and agreed in
+# tone. That is rook's class exactly (wm-review/2-3): A CITATION THAT EXISTS IS
+# NOT A CITATION THAT MEANS WHAT YOU SAY IT MEANS.
 #
-# This is issue 54's second outcome -- the two implementations measuring the
-# same quantity to different precision, not a defect in either -- and it is
-# recorded here so that a LARGER disagreement, or one with a different cause,
-# fails instead of passing under a tolerance wide enough to hide it. The
-# vector's own 0.0001 would have hidden exactly this.
-provider_disagrees = { max_delta = 0.0001, because = "provider measured on OpenSCAD 2026.11.05.nightly, ours on 2026.10.14; different tessellation of the same model, both under the analytic bound" }
+# WHAT IS STILL MEASURED, and it is all that may be asserted here:
+#   - 4171.9988 is not a rounding of 4171.998709. At four reported decimals it
+#     stands for [4171.99875, 4171.99885) and ours falls below that.
+#   - the gap is 4.1e-5, which is the distance to that INTERVAL, 9.8e-9
+#     relative. CORRECTED 2026-11-19, rook F7(a): the figure recorded here and
+#     in issue 54 was 9.1e-5, the distance to the reported POINT -- which is
+#     the question issue 54 itself exists to call wrong. Agreement was decided
+#     by containment while the SIZE of a disagreement was measured to the
+#     point; tools/vector-run.py now uses the same rule for both.
+#   - BOTH satisfy this vector's actual oracle -- inscribed, therefore under
+#     the analytic 4188.790205 -- which is why this is recorded rather than
+#     failed.
+#
+# WHAT IS NOT MEASURED: why they differ at all. Candidates I have NOT tested:
+# the provider computing volume from the Manifold representation rather than
+# from the exported mesh; a different accumulation order; or the provider's
+# figure being a differently-rounded report of a different internal value.
+# Naming one of those here without driving it would be the same defect again.
+# `cause = "unknown"` makes the gap COUNTABLE instead of explained-away, and
+# tools/vector-run.py prints the count.
+# AND THE BOUND IS TIGHTER THAN THIS VECTOR'S OWN TOLERANCE, which it was not.
+# rook F7(b): max_delta was 0.0001, identical to `tolerance` below -- the width
+# issue 54 says "would have reported that clean". An acceptance at the old
+# width is a waiver wearing a bound's name. 5e-5 covers the measured 4.1e-5 and
+# nothing else, and vector-run.py now REFUSES a max_delta that is not tighter.
+provider_disagrees = { max_delta = 0.00005, cause = "unknown", because = "the provider reports 4171.9988, standing for [4171.99875, 4171.99885); we compute 4171.998709, which misses that interval by 4.1e-5 (9.8e-9 relative). Both are under the analytic bound this vector actually tests, and NO cause has been measured -- the kernel-difference explanation once recorded here is refuted by the identical export bytes noted on sphere-fn64-facets" }
 expected = 4171.998709
 tolerance = 0.0001
 

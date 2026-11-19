@@ -1,0 +1,1 @@
+    return lo - mine if mine < lo else mine - hi

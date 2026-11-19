@@ -50,6 +50,20 @@
 #      failure must NAME the expected test, not merely be nonzero.
 set -u
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+#: A mutation in flight leaves this file behind if the run dies uncatchably.
+#: It holds the mutant name, the subject, and the backup that restores it.
+FLIGHT=.mutation-in-flight
+if [ -f "$ROOT/$FLIGHT" ]; then
+    echo "mutate: REFUSING -- a previous run died with a mutation APPLIED:" >&2
+    echo "    mutant  $(sed -n 1p "$ROOT/$FLIGHT")" >&2
+    echo "    subject $(sed -n 2p "$ROOT/$FLIGHT")" >&2
+    echo "    restore cp $(sed -n 3p "$ROOT/$FLIGHT") $ROOT/$(sed -n 2p "$ROOT/$FLIGHT")" >&2
+    echo "  Or 'git checkout -- <subject>' if the backup is gone. Then remove" >&2
+    echo "  $ROOT/$FLIGHT. NOTHING here is measured against a tree with a live" >&2
+    echo "  mutation in it: every verdict would be about the mutant, not the code." >&2
+    exit 73
+fi
 cd "$ROOT" || exit 70
 
 run_one() {
@@ -101,9 +115,19 @@ PY
 
     bak=$(mktemp) || return 70
     cp "$ROOT/$subj" "$bak"
+    # REFUSAL 5: A MARKER THAT SURVIVES SIGKILL. The traps below cover every
+    # signal a process can catch, and SIGKILL is not one of them. MEASURED
+    # 2026-11-19: a battery run was killed mid-sweep from outside, the trap
+    # never ran, and `pin-backend-mismatch-allowed` stayed applied in the
+    # working tree -- `if False:` where the backend refusal used to be. It
+    # looked like ordinary code, the next battery blamed it on a stale anchor
+    # three files away, and it would have been COMMITTED had the arm that
+    # drives rc 8 not been in the suite. A mutation in flight is now a fact on
+    # disk, so the next run REFUSES instead of measuring a tree nobody trusts.
+    printf '%s\n%s\n%s\n' "$name" "$subj" "$bak" > "$ROOT/$FLIGHT"
     # REFUSAL 3: restore on EVERY exit path, signals included.
-    trap 'cp "$bak" "$ROOT/$subj"; rm -f "$bak"; trap - EXIT HUP INT TERM' EXIT
-    trap 'cp "$bak" "$ROOT/$subj"; rm -f "$bak"; exit 143' HUP INT TERM
+    trap 'cp "$bak" "$ROOT/$subj"; rm -f "$bak" "$ROOT/$FLIGHT"; trap - EXIT HUP INT TERM' EXIT
+    trap 'cp "$bak" "$ROOT/$subj"; rm -f "$bak" "$ROOT/$FLIGHT"; exit 143' HUP INT TERM
 
     # REFUSAL 2: the baseline must be GREEN, or a later red proves nothing.
     if ! sh -c "$cmd" >"$bak.base" 2>&1; then

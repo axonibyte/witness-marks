@@ -35,6 +35,7 @@ import struct
 import subprocess
 import sys
 import decimal
+import re
 import tempfile
 import tomllib
 
@@ -214,6 +215,34 @@ PROVIDER_KEY = {"volume": "volume", "bbox": "dimensions", "facets": "triangle_co
 #: The provider keys that are closed-form facts about the model rather than
 #: measurements of it, and the vector field each is judged against.
 PROVIDER_FACTS = {"component_count": "components", "is_watertight": "watertight"}
+#: What a recorded provider reading must say about the provider that produced
+#: it. Issue 62: the fixture named its provider in a HEADER COMMENT while a
+#: `because` three screens down named a different kernel, and nothing could
+#: compare prose to free text. These are the fields an arm can read back.
+PROVENANCE_KEYS = ("server_name", "server_version", "tool_count", "kernel",
+                   "launcher", "measured")
+#: Anything shaped like an OpenSCAD version, so a `because` naming one can be
+#: checked against the provenance instead of being believed.
+KERNEL_SHAPED = re.compile(r"\b\d{4}\.\d{2}\.\d{2}(?:\.[A-Za-z][\w]*)?\b")
+
+
+def provenance_of(doc):
+    """The recorded identity of the provider whose figures this file holds.
+
+    Returns (record, problem). `problem` is a sentence when the record cannot
+    be used, and a caller holding provider readings must REFUSE on it rather
+    than proceed -- an unattributed reading is a figure from an unnamed
+    instrument, which is the defect this whole field exists to close."""
+    rec = doc.get("provider_provenance")
+    if not rec:
+        return (None, "this fixture records `provider` readings but no "
+                      "[provider_provenance]: a figure from an unnamed "
+                      "instrument cannot be checked against anything (issue 62)")
+    missing = [k for k in PROVENANCE_KEYS if k not in rec]
+    if missing:
+        return (None, f"[provider_provenance] is missing {missing}; a partial "
+                      f"identity reads as a complete one")
+    return (rec, None)
 
 
 def reported_interval(value):
@@ -245,7 +274,30 @@ def provider_agrees(ours, reported):
     return lo <= decimal.Decimal(repr(float(ours))) < hi
 
 
-def check_provider(v):
+def interval_distance(ours, reported):
+    """How far `ours` falls OUTSIDE the interval `reported` stands for. Zero
+    when contained.
+
+    THE MAGNITUDE HAS TO USE THE SAME RULE THE VERDICT USES, and it did not.
+    rook, F7(a) on thread:wm-review/10: agreement was decided by CONTAINMENT in
+    the reported interval, while the size of a disagreement was computed as
+    |ours - the reported POINT|. Those are different questions, and the point
+    distance is the one issue 54 exists to say is wrong.
+
+    MEASURED on the only disagreement in the fixture: the provider reports
+    4171.9988, which at four decimals stands for [4171.99875, 4171.99885); we
+    compute 4171.998709. The point distance is 9.1e-5 -- the figure issue 54
+    itself quotes -- and the distance to the interval is 4.1e-5. Reporting the
+    larger number made the gap look worse AND required a looser bound to
+    accept it, which is how F7(b) became possible."""
+    lo, hi, _ = reported_interval(reported)
+    mine = decimal.Decimal(repr(float(ours)))
+    if lo <= mine < hi:
+        return decimal.Decimal(0)
+    return lo - mine if mine < lo else mine - hi
+
+
+def check_provider(v, doc):
     """Assert one vector's recorded provider figures. Returns a list of
     (ok, label, detail).
 
@@ -265,6 +317,13 @@ def check_provider(v):
     if not p:
         return []
     out = []
+    # WHO MEASURED THIS. A reading with no named instrument cannot be checked
+    # against anything, and this fixture named its instrument in a header
+    # comment while a `because` below it named a different kernel (issue 62).
+    prov, problem = provenance_of(doc)
+    if problem:
+        out.append((False, f"provider {v['question']}", problem))
+        return out
     key = PROVIDER_KEY.get(v["question"])
     accepted = v.get("provider_disagrees") or {}
     if key and key in p:
@@ -274,16 +333,70 @@ def check_provider(v):
         for mine, yours in pairs:
             if not provider_agrees(mine, yours):
                 bad.append((mine, yours))
-            delta = abs(decimal.Decimal(repr(float(mine))) - decimal.Decimal(repr(float(yours))))
-            worst = max(worst, delta)
+            worst = max(worst, interval_distance(mine, yours))
         label = f"provider {key}"
         if not bad:
             _, _, places = reported_interval(theirs if not isinstance(theirs, list) else theirs[0])
             out.append((True, label, f"{theirs} agrees with {ours} at {places} dp"))
         elif accepted.get("because"):
-            ok = worst <= decimal.Decimal(repr(float(accepted.get("max_delta", 0))))
+            # A DECLARED CAUSE IS A CLAIM AND MUST SAY WHETHER IT WAS MEASURED.
+            # Issue 62: the one `provider_disagrees` in this file attributed a
+            # gap to two kernels tessellating differently and cited, as its
+            # evidence, a note that records the exported bytes as IDENTICAL
+            # across those same two kernels. The citation existed; it meant the
+            # opposite. Nothing checked it, because `because` was free text and
+            # free text cannot be wrong.
+            #
+            # So `cause` is a closed set. "measured" asserts the mechanism was
+            # driven; "unknown" says the gap is real and unexplained, which is
+            # the honest state far more often and must stay COUNTABLE rather
+            # than be absorbed into a tolerance. An absent or invented cause
+            # REFUSES -- the same shape as rediscovery's three verdicts and
+            # cost.py's, for the same reason.
+            CAUSES = ("measured", "unknown")
+            cause = accepted.get("cause")
+            if cause not in CAUSES:
+                out.append((False, f"provider {v['question']}",
+                            f"`provider_disagrees` declares a `because` with cause "
+                            f"{cause!r}, which is not one of {CAUSES}. A free-text "
+                            f"reason cannot be wrong, and that is how a refuted "
+                            f"explanation survived in this file (issue 62)"))
+                return out
+            # AND A CAUSE MAY NOT NAME A KERNEL THE PROVENANCE CONTRADICTS.
+            # This is issue 62's exact defect, mechanized: the withdrawn
+            # `because` blamed OpenSCAD 2026.11.05.nightly, which is the REMOTE
+            # provider's kernel -- a version read off one instrument and
+            # attached to another's readings. Any version-shaped token in the
+            # reason must be the provenance's own.
+            foreign = [k for k in KERNEL_SHAPED.findall(accepted["because"])
+                       if k != prov["kernel"]]
+            if foreign:
+                out.append((False, f"provider {v['question']}",
+                            f"the accepted reason names kernel(s) {foreign}, but the "
+                            f"provider that produced these figures runs "
+                            f"{prov['kernel']} ([provider_provenance]). A version "
+                            f"read off one instrument and attached to another's "
+                            f"readings is issue 62"))
+                return out
+            # AND THE BOUND MUST BE TIGHTER THAN THE TOLERANCE IT REPLACES.
+            # rook, F7(b): `max_delta = 0.0001` was the vector's OWN
+            # `tolerance = 0.0001` -- the very width issue 54 says "would have
+            # reported that clean". An acceptance at the old width is not a
+            # bound, it is a waiver wearing a bound's name, and it re-admits
+            # every disagreement the tighter rule was built to surface.
+            own = v.get("tolerance")
+            bound = decimal.Decimal(repr(float(accepted.get("max_delta", 0))))
+            if own is not None and bound >= decimal.Decimal(repr(float(own))):
+                out.append((False, label,
+                            f"the accepted max_delta {bound} is not tighter than this "
+                            f"vector's own tolerance {own}: an acceptance at the old "
+                            f"width is a WAIVER, not a bound, and it re-admits "
+                            f"everything the tighter rule was built to surface (F7b)"))
+                return out
+            ok = worst <= bound
             out.append((ok, label,
-                        (f"disagrees by {worst} -- ACCEPTED: {accepted['because'][:90]}" if ok else
+                        (f"disagrees by {worst} -- ACCEPTED, cause {cause.upper()}: "
+                         f"{accepted['because'][:90]}" if ok else
                          f"disagrees by {worst}, beyond the accepted {accepted.get('max_delta')}")))
         else:
             out.append((False, label,
@@ -362,7 +475,7 @@ def main():
     if provider_only:
         checked = 0
         for v in vs:
-            for ok, label, detail in check_provider(v):
+            for ok, label, detail in check_provider(v, doc):
                 checked += 1
                 if ok:
                     print(f"  ok   {v['id']:<22} {label:<24} {detail}")
@@ -410,7 +523,7 @@ def main():
             print(f"  FAIL {v['id']:<22} {q:<10} got {shown}, vector says {exp}")
     pchecks = 0
     for v in vs:
-        for ok, label, detail in check_provider(v):
+        for ok, label, detail in check_provider(v, doc):
             pchecks += 1
             if record:
                 continue

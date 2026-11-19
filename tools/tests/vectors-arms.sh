@@ -17,6 +17,9 @@ pass=0; fail=0
 ok() { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
 no() { fail=$((fail+1)); printf '  FAIL %s\n' "$1"; }
 fin() { printf -- '-- %d/%d arms pass\n' "$pass" $((pass+fail)); [ "$fail" = 0 ] || exit 1; exit 0; }
+# ONE LABEL ON BOTH PATHS, or a mutant against the arm MISFIREs instead of
+# killing (mutate.sh refusal 4 needs the label to appear in a FAILURE line).
+judge() { if [ "$2" = 0 ]; then ok "$1"; else no "$1 -- $3"; fi; }
 
 command -v openscad >/dev/null 2>&1 || {
   no "openscad is not on PATH: these vectors cannot be computed here, which is a PROVISIONING finding and not a pass"
@@ -86,4 +89,88 @@ case "$out" in
     *"ok   nothing"*) ok 'a stale STL at the output path does not become the answer' ;;
     *) no "a stale STL was read as this run's result: $(printf '%s' "$out" | grep nothing | head -1)" ;;
 esac
+
+# -- THE RECORDED PROVENANCE IS READ BACK AGAINST THE LIVE PROVIDER (issue 62).
+#    A recorded identity nobody reads back is the defect it was written to
+#    close. This arm is here rather than in the t_*.sh glob because it SPEAKS
+#    to the provider, which CI's runner reports absent.
+VEC="$ROOT/tests/vectors/vectors.toml"
+PROV="$ROOT/provider"
+if [ -d "$PROV/.venv" ]; then
+    # A READ LOOP, NOT A PIPE. Piping three requests and closing stdin is a
+    # race: serverInfo came back and tools/list did not, which the arm reported
+    # as NO RESULT -- correctly, and it was the arm's own transport at fault,
+    # not the provider. Each request now waits for its own reply.
+    python3 - "$PROV" "$VEC" >"$T/prov.out" 2>&1 <<'PY'
+import json, subprocess, sys, tomllib
+prov, vec = sys.argv[1], sys.argv[2]
+rec = tomllib.load(open(vec, "rb")).get("provider_provenance") or {}
+proc = subprocess.Popen(["uv", "run", "--frozen", "--no-dev", "openscad-mcp"],
+                        cwd=prov, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                        stderr=subprocess.DEVNULL, text=True, bufsize=1)
+
+
+def send(o):
+    proc.stdin.write(json.dumps(o) + "\n")
+    proc.stdin.flush()
+
+
+def reply(want):
+    while True:
+        line = proc.stdout.readline()
+        if not line:
+            sys.exit(f"the provider closed stdout before answering id {want}: "
+                     f"that is NO RESULT, not a match")
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if d.get("id") == want:
+            return d
+
+
+try:
+    send({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+          "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                     "clientInfo": {"name": "wren", "version": "1"}}})
+    info = reply(1)["result"]["serverInfo"]
+    send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+    send({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    tools = [x["name"] for x in reply(2)["result"]["tools"]]
+finally:
+    proc.terminate()
+
+bad = []
+if info.get("name") != rec.get("server_name"):
+    bad.append(f"name {info.get('name')!r} vs recorded {rec.get('server_name')!r}")
+if info.get("version") != rec.get("server_version"):
+    bad.append(f"version {info.get('version')!r} vs recorded {rec.get('server_version')!r}")
+if len(tools) != rec.get("tool_count"):
+    bad.append(f"{len(tools)} tools vs recorded {rec.get('tool_count')}")
+# AND IT MUST BE THE ONE THAT CAN PRODUCE THESE FIGURES. Every recorded
+# provider reading is a `measure` result, so a provider without that tool
+# cannot have produced one -- which is how the remote was ruled out.
+if "measure" not in tools:
+    bad.append("no `measure` tool, so it cannot have produced these readings")
+if bad:
+    sys.exit("; ".join(bad))
+print(f"{info['name']} {info['version']}, {len(tools)} tools, measure present")
+PY
+    judge "the live provider matches the recorded [provider_provenance] -- name, version, tool count, and it HAS the measure tool the figures came from" \
+          $? "$(cat "$T/prov.out" 2>/dev/null)"
+
+    # THE KERNEL, and the composition that makes this sound rather than
+    # derived: rc 11 refuses a set OPENSCAD_PATH, so the provider runs the
+    # binary on PATH, so PATH's version IS the provider's. Stated because
+    # "derived instead of read" is the finding this whole axis came from.
+    kv=$(timeout 60 openscad --version 2>&1 | head -1)
+    want=$(python3 -c "import tomllib,sys;print(tomllib.load(open(sys.argv[1],'rb'))['provider_provenance']['kernel'])" "$VEC")
+    ( printf '%s' "$kv" | /usr/bin/grep -q "$want" ) \
+      && ( cd "$ROOT" && timeout 600 python3 tools/provider-verify.py 2>&1 | /usr/bin/grep -q "ok   env" )
+    judge "PATH's OpenSCAD is the recorded provenance kernel AND rc 11 holds that OPENSCAD_PATH is unset, which is what makes PATH's version the PROVIDER's" \
+          $? "saw '$kv', recorded '$want'"
+else
+    no "provider/.venv is absent: the provenance cannot be read back, which is NO RESULT rather than a match"
+fi
+
 fin

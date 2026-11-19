@@ -1,0 +1,1 @@
+            if own is not None and bound >= decimal.Decimal(repr(float(own))):

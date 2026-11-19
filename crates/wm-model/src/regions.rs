@@ -209,19 +209,104 @@ pub fn diff_sections(
         ));
     }
 
+    // PAIRING IS GLOBALLY CLOSEST-FIRST, NOT FIRST-FIT. rook, F6 on
+    // thread:wm-review/9, DRIVEN: the old loop gave each before-contour the
+    // FIRST after-contour within tolerance, so the verdict depended on the
+    // order the contours happened to be listed in. Their case, at tol 1 mm --
+    // before x=0 and x=1.8, after x=0.9 and x=0.1, where a perfect pairing
+    // exists:
+    //
+    //     after listed [0.9, 0.1] -> ChangedInPlace, Removed, Added
+    //     after listed [0.1, 0.9] -> ChangedInPlace, ChangedInPlace
+    //
+    // Same geometry, two answers, and the first CLAIMS STRUCTURAL CHANGE that
+    // did not happen. An instrument whose answer depends on list order is not
+    // measuring the geometry.
+    //
+    // So every candidate pair within tolerance is costed, and the cheapest
+    // available pair is taken until none remain. Cost is the Chebyshev
+    // distance between centroids, tie-broken by area difference; the tolerance
+    // test is unchanged and still decides WHETHER a pair is eligible -- the
+    // cost only ORDERS the eligible ones. Sorting by (cost, b index, a index)
+    // makes the result a function of the contour SETS and not their order.
+    //
+    // AND A TIE REFUSES ONLY WHEN IT COULD CHANGE THE ANSWER. If another
+    // eligible pair shares a contour with the chosen one at exactly the same
+    // cost, the correspondence is decided by a tie-break rather than by the
+    // geometry -- but that matters only if the two competitors DIFFER. Two
+    // coincident contours are interchangeable: whichever is picked, one pairs
+    // and the other is Removed, with identical fields either way. rook said
+    // this part plainly when reporting F6 -- the exclusivity case uses
+    // coincident contours, so order never mattered there -- and the first
+    // version of this refusal broke that test by refusing an immaterial tie.
+    // Equality is on every recorded field, so a tie survives only where the
+    // competitors are indistinguishable and therefore the verdict is too.
+    let cost_of = |b: &Contour, a: &Contour| -> (f64, f64) {
+        let dx = (a.centroid_mm[0] - b.centroid_mm[0]).abs();
+        let dy = (a.centroid_mm[1] - b.centroid_mm[1]).abs();
+        (dx.max(dy), (a.area_mm2 - b.area_mm2).abs())
+    };
+    let eligible = |b: &Contour, a: &Contour| -> bool {
+        (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
+            && (a.centroid_mm[1] - b.centroid_mm[1]).abs() <= centroid_tol_mm
+            && (a.area_mm2 - b.area_mm2).abs() <= area_tol_mm2
+    };
+
+    let mut cand: Vec<(f64, f64, usize, usize)> = Vec::new();
+    for (bi, b) in bc.iter().enumerate() {
+        for (ai, a) in ac.iter().enumerate() {
+            if eligible(b, a) {
+                let (c, t) = cost_of(b, a);
+                cand.push((c, t, bi, ai));
+            }
+        }
+    }
+    // total order, and NOT partial_cmp().unwrap(): every coordinate here is
+    // already proven finite by the refusal above, so total_cmp is exact and
+    // cannot panic on a NaN that cannot be present.
+    cand.sort_by(|x, y| {
+        x.0.total_cmp(&y.0)
+            .then(x.1.total_cmp(&y.1))
+            .then(x.2.cmp(&y.2))
+            .then(x.3.cmp(&y.3))
+    });
+
     let mut taken = vec![false; ac.len()];
+    let mut paired_b = vec![None; bc.len()];
     let mut regions = Vec::new();
     let mut unchecked_pairs = 0usize;
-    for b in bc {
-        let hit = ac.iter().enumerate().position(|(i, a)| {
-            !taken[i]
-                && (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
-                && (a.centroid_mm[1] - b.centroid_mm[1]).abs() <= centroid_tol_mm
-                && (a.area_mm2 - b.area_mm2).abs() <= area_tol_mm2
-        });
-        match hit {
+    for k in 0..cand.len() {
+        let (c, tb, bi, ai) = cand[k];
+        if paired_b[bi].is_some() || taken[ai] {
+            continue;
+        }
+        // A COMPETING PAIR AT THE SAME COST IS A TIE, and a tie is unknown.
+        if let Some(&(_, _, bj, aj)) = cand[k + 1..].iter().find(|&&(c2, tb2, bj, aj)| {
+            c2 == c
+                && tb2 == tb
+                && paired_b[bj].is_none()
+                && !taken[aj]
+                && (bj == bi || aj == ai)
+                // the competitor must be DISTINGUISHABLE from the chosen one,
+                // or the choice between them changes nothing that is reported
+                && if bj == bi {
+                    ac[aj] != ac[ai]
+                } else {
+                    bc[bj] != bc[bi]
+                }
+        }) {
+            return Err(format!(
+                "two pairings are equally close at {:?} {} mm -- before contour {bi}                  with after contour {ai}, and before {bj} with after {aj}, both at                  Chebyshev {c} mm and area difference {tb} mm2 -- so which contours                  correspond depends on a tie-break and not on the geometry. An                  ambiguous correspondence is unknown, never a reading",
+                plane.axis, plane.offset_mm
+            ));
+        }
+        paired_b[bi] = Some(ai);
+        taken[ai] = true;
+    }
+
+    for (bi, b) in bc.iter().enumerate() {
+        match paired_b[bi] {
             Some(i) => {
-                taken[i] = true;
                 // PAIRED IS NOT THE SAME AS UNCHANGED. The pairing keys on
                 // centroid and area; a contour can hold both and still have
                 // moved, and this instrument cannot say where inside it.
@@ -243,7 +328,23 @@ pub fn diff_sections(
                         false
                     }
                 };
-                if verts_differ || ac[i].bbox_mm != b.bbox_mm {
+                // THE BBOX IS JUDGED AT THE SAME TOLERANCE THAT PAIRED THEM.
+                // rook asked this as a question beside F6, and it is the same
+                // incoherence: these two contours were declared the SAME
+                // contour because their centroids and areas agree to within a
+                // tolerance, and the change test then compared bbox_mm for
+                // EXACT f64 equality. At that strictness any last-bit noise in
+                // a coordinate reads as a reshape, and a reshape smaller than
+                // the tolerance is not something this instrument can see. So
+                // the bbox decides only when an edge moves by MORE than the
+                // centroid tolerance; below that the honest answer is that
+                // nothing measurable changed.
+                let bbox_differs = b
+                    .bbox_mm
+                    .iter()
+                    .zip(ac[i].bbox_mm.iter())
+                    .any(|(x, y)| (x - y).abs() > centroid_tol_mm);
+                if verts_differ || bbox_differs {
                     regions.push(Region {
                         kind: RegionKind::ChangedInPlace,
                         centroid_mm: ac[i].centroid_mm,
@@ -304,6 +405,120 @@ mod tests {
             },
             contours,
         }
+    }
+
+    /// rook's F6, thread:wm-review/9, as the regression that would have caught
+    /// it. The old first-fit pairing gave a DIFFERENT verdict for the same
+    /// geometry depending on the order the after-contours were listed in, and
+    /// one of the two answers claimed structural change that never happened.
+    #[test]
+    fn the_pairing_does_not_depend_on_the_order_the_contours_are_listed_in() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 1.0,
+            area_tol_mm2: 1.0,
+        };
+        // area and vertices identical, so only the centroids decide; bbox
+        // follows the centroid in c(), so a true pair reports no change.
+        let before = cut(3.0, vec![c(0.0, 0.0, 10.0, 4), c(1.8, 0.0, 10.0, 4)]);
+        let one = cut(3.0, vec![c(0.9, 0.0, 10.0, 4), c(0.1, 0.0, 10.0, 4)]);
+        let other = cut(3.0, vec![c(0.1, 0.0, 10.0, 4), c(0.9, 0.0, 10.0, 4)]);
+
+        let a = diff_sections(&before, &one, tol).expect("listed one way");
+        let b = diff_sections(&before, &other, tol).expect("listed the other way");
+
+        // A PERFECT PAIRING EXISTS -- 0 with 0.1 and 1.8 with 0.9, both inside
+        // the 1 mm tolerance -- so nothing was added or removed either way.
+        assert!(
+            !a.regions
+                .iter()
+                .any(|r| matches!(r.kind, RegionKind::Added | RegionKind::Removed)),
+            "first-fit claimed structural change: {:?}",
+            a.regions
+        );
+        assert_eq!(
+            a.regions.len(),
+            b.regions.len(),
+            "the same geometry gave two different answers: {:?} vs {:?}",
+            a.regions,
+            b.regions
+        );
+    }
+
+    /// The other half of F6: a tie that COULD change the answer is unknown,
+    /// never a reading. Two distinguishable after-contours sit equally close
+    /// to one before-contour, so which one it corresponds to is decided by a
+    /// tie-break, and the two give different verdicts.
+    #[test]
+    fn a_tie_between_distinguishable_contours_refuses_rather_than_tie_breaking() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 1.0,
+            area_tol_mm2: 1.0,
+        };
+        let before = cut(3.0, vec![c(0.0, 0.0, 10.0, 4)]);
+        // equally far either side, and NOT interchangeable: different vertex
+        // counts, so one pairing reports a reshape and the other does not
+        let after = cut(3.0, vec![c(-0.5, 0.0, 10.0, 4), c(0.5, 0.0, 10.0, 9)]);
+        let err = diff_sections(&before, &after, tol).expect_err("a material tie");
+        assert!(
+            err.contains("equally close") && err.contains("tie-break"),
+            "{err}"
+        );
+    }
+
+    /// And the immaterial tie still reads, because the competitors are
+    /// indistinguishable: whichever is chosen, the reported fields are the
+    /// same. This is the case rook pointed out order never mattered for, and
+    /// the first version of the tie refusal broke it.
+    #[test]
+    fn a_tie_between_coincident_contours_still_reads() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 1.0,
+            area_tol_mm2: 1.0,
+        };
+        let before = cut(3.0, vec![c(0.0, 0.0, 10.0, 4), c(0.0, 0.0, 10.0, 4)]);
+        let after = cut(3.0, vec![c(0.0, 0.0, 10.0, 4)]);
+        let d = diff_sections(&before, &after, tol).expect("an immaterial tie");
+        assert_eq!(
+            d.regions
+                .iter()
+                .filter(|r| matches!(r.kind, RegionKind::Removed))
+                .count(),
+            1,
+            "exclusivity: one of two coincident before-contours is Removed: {:?}",
+            d.regions
+        );
+    }
+
+    /// rook's question beside F6, answered as a decision: the bbox is judged
+    /// at the tolerance that paired the contours. An exact f64 comparison made
+    /// any last-bit coordinate noise read as a reshape, while declaring the
+    /// same two contours identical for pairing.
+    #[test]
+    fn a_bbox_moving_less_than_the_pairing_tolerance_is_not_a_reshape() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 0.5,
+            area_tol_mm2: 0.5,
+        };
+        let before = cut(3.0, vec![c(0.0, 0.0, 10.0, 4)]);
+        let mut moved = c(0.0, 0.0, 10.0, 4);
+        moved.bbox_mm[0] += 0.1; // inside the 0.5 mm tolerance
+        let within = diff_sections(&before, &cut(3.0, vec![moved]), tol).expect("within");
+        assert!(
+            within.unchanged(),
+            "a sub-tolerance bbox move was reported as a reshape: {:?}",
+            within.regions
+        );
+
+        let mut beyond = c(0.0, 0.0, 10.0, 4);
+        beyond.bbox_mm[0] += 0.9; // outside it
+        let out = diff_sections(&before, &cut(3.0, vec![beyond]), tol).expect("beyond");
+        assert!(
+            out.regions
+                .iter()
+                .any(|r| matches!(r.kind, RegionKind::ChangedInPlace)),
+            "a bbox move beyond the tolerance must still report: {:?}",
+            out.regions
+        );
     }
 
     #[test]
