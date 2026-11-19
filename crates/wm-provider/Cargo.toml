@@ -17,3 +17,6 @@ wm-envelope = { workspace = true }
 
 [dev-dependencies]
 wm-claims = { workspace = true }
+# for examples/section-from-provider.rs, which parses a REAL section reply with
+# the real parser (rook's F11: it had only ever seen fixtures I wrote)
+wm-model = { workspace = true }

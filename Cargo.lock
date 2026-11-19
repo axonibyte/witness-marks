@@ -262,6 +262,7 @@ dependencies = [
  "serde_json",
  "wm-claims",
  "wm-envelope",
+ "wm-model",
 ]
 
 [[package]]

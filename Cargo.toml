@@ -35,6 +35,7 @@ wm-asm      = { path = "crates/wm-asm" }
 wm-mech     = { path = "crates/wm-mech" }
 wm-process  = { path = "crates/wm-process" }
 wm-claims   = { path = "crates/wm-claims" }
+wm-model    = { path = "crates/wm-model" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

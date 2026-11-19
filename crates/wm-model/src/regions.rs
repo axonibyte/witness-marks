@@ -66,6 +66,16 @@ pub struct Contour {
     /// UNKNOWN and not a count: a contour whose vertices nobody reported
     /// cannot be compared on them, and must not therefore read as reshaped.
     pub vertices: Option<usize>,
+    /// Whether this contour bounds a HOLE rather than solid material.
+    ///
+    /// MEASURED 2026-11-19 on the pinned provider (rook's F11): a section
+    /// reply carries `hole_count` but NOTHING saying which contour is the
+    /// hole. The winding does: for a ring at $fn=8 the outer contour's signed
+    /// shoelace area is +282.844 and the inner's is -70.710, and their sum,
+    /// 212.134, is the `area` the provider reports for the whole section.
+    /// So orientation is the provider's own statement of hole-ness, and
+    /// `wire::section_from` reads it rather than guessing from size.
+    pub is_hole: bool,
 }
 
 /// A section the provider cut, or its refusal to.
@@ -247,7 +257,13 @@ pub fn diff_sections(
             ac.iter()
                 .enumerate()
                 .filter(|(_, a)| {
-                    (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
+                    // A HOLE IS NOT A SOLID CONTOUR OF THE SAME SIZE. They can
+                    // agree on centroid and area exactly and still be opposite
+                    // statements about the material, so they are never
+                    // eligible for each other -- otherwise a solid becoming a
+                    // void reads as "unchanged".
+                    a.is_hole == b.is_hole
+                        && (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
                         && (a.centroid_mm[1] - b.centroid_mm[1]).abs() <= centroid_tol_mm
                         && (a.area_mm2 - b.area_mm2).abs() <= area_tol_mm2
                 })
@@ -537,6 +553,16 @@ mod tests {
             area_mm2: area,
             bbox_mm: [cx - 1.0, cy - 1.0, cx + 1.0, cy + 1.0],
             vertices: Some(verts),
+            is_hole: false,
+        }
+    }
+
+    /// The same contour as a HOLE, for the cases where solid-versus-void is
+    /// the thing under test.
+    fn hole(cx: f64, cy: f64, area: f64, verts: usize) -> Contour {
+        Contour {
+            is_hole: true,
+            ..c(cx, cy, area, verts)
         }
     }
 
@@ -584,6 +610,61 @@ mod tests {
             "the same geometry gave two different answers: {:?} vs {:?}",
             a.regions,
             b.regions
+        );
+    }
+
+    /// RESTORED 2026-11-19. The wire-level version of this was deleted when
+    /// those tests were rewritten for the real shape -- where the vertex count
+    /// is always known, because it is how many points arrived. The BEHAVIOUR
+    /// still matters here, because a fixture or a future source can carry
+    /// `None`, and an unknown count compared against anything is unknown.
+    ///
+    /// Absence on both sides must not make every paired contour look reshaped,
+    /// and it must be COUNTED: `unchecked_pairs` is how the reader learns the
+    /// comparison was partial.
+    #[test]
+    fn an_unknown_vertex_count_is_not_a_reshape_and_is_counted_as_unchecked() {
+        let mut a = c(0.0, 0.0, 10.0, 4);
+        a.vertices = None;
+        let mut b = c(0.0, 0.0, 10.0, 4);
+        b.vertices = None;
+        let d = diff_sections(&cut(3.0, vec![a]), &cut(3.0, vec![b]), PAIR).expect("same plane");
+        assert!(d.unchanged(), "absence read as change: {:?}", d.regions);
+        assert_eq!(
+            d.unchecked_pairs, 1,
+            "the partial comparison must be counted"
+        );
+        assert!(
+            !d.fully_checked(),
+            "a pair nobody could check is not fully checked"
+        );
+    }
+
+    /// A hole and a solid contour agreeing EXACTLY on centroid and area are
+    /// opposite statements about the material, so they must never pair. This
+    /// is the regions-level half of rook's F11 -- the wire half proves the
+    /// winding is read; this proves reading it changes the verdict.
+    #[test]
+    fn a_hole_never_pairs_with_a_solid_contour_of_the_same_size() {
+        let d = diff_sections(
+            &cut(3.0, vec![c(0.0, 0.0, 10.0, 4)]),
+            &cut(3.0, vec![hole(0.0, 0.0, 10.0, 4)]),
+            PAIR,
+        )
+        .expect("same plane");
+        assert!(
+            !d.unchanged(),
+            "a solid and a void of the same size paired: {:?}",
+            d.regions
+        );
+        assert_eq!(
+            d.regions
+                .iter()
+                .filter(|r| matches!(r.kind, RegionKind::Removed))
+                .count(),
+            1,
+            "the solid is gone: {:?}",
+            d.regions
         );
     }
 

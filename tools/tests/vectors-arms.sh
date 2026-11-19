@@ -172,5 +172,30 @@ PY
 else
     no "provider/.venv is absent: the provenance cannot be read back, which is NO RESULT rather than a match"
 fi
+# -- THE SECTION PARSER MEETS A REAL REPLY (rook's F11). wire::section_from
+#    wanted per-contour objects; the pinned provider sends POINT LISTS with
+#    area, centroid and bbox once at the top level, so the parser had NEVER
+#    PARSED A REAL ANSWER -- every fixture was hand-built and nothing outside
+#    the tests called it. A test cannot close that, because a test runs
+#    against a recording and the recording was the thing that was wrong. This
+#    drives the pair end to end.
+if [ -d "$PROV/.venv" ]; then
+    rc=0
+    ( cd "$ROOT" && timeout 900 cargo run --offline -q -p wm-provider \
+        --example section-from-provider ) >"$T/section.out" 2>&1 || rc=$?
+    # the figures are asserted, not just the exit: two contours of 100 mm2 at
+    # the two cube centres, four points each, neither a hole, and the parse
+    # agreeing with the provider's own 200 mm2 aggregate
+    [ "$rc" -eq 0 ] \
+      && /usr/bin/grep -q "^contours    2$" "$T/section.out" \
+      && /usr/bin/grep -q "area 100.0000 centroid \[5.0000, 5.0000\] vertices Some(4) hole false" "$T/section.out" \
+      && /usr/bin/grep -q "area 100.0000 centroid \[25.0000, 5.0000\] vertices Some(4) hole false" "$T/section.out" \
+      && /usr/bin/grep -q "self-diff   unchanged=true" "$T/section.out" \
+      && /usr/bin/grep -q "area        provider Some(200.0) parsed 200" "$T/section.out"
+    judge "the section parser reads a REAL provider reply: two contours of 100 mm2 at the cube centres, four points each, no holes, summing to the provider's own 200 mm2" \
+          $? "rc $rc: $(/usr/bin/grep -c . "$T/section.out" 2>/dev/null) lines, $(tail -1 "$T/section.out" 2>/dev/null)"
+else
+    no "provider/.venv is absent: the section parser cannot be shown to read a real reply, which is NO RESULT rather than a pass"
+fi
 
 fin

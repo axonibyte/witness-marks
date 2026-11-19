@@ -172,6 +172,13 @@ pub fn section_from(measure: &Value, plane: Plane) -> Result<Section, String> {
             });
         }
     }
+    // AN EMPTY CUT SAYS SO, and it is not the same as an unanswered one.
+    if measure.get("empty_section").and_then(Value::as_bool) == Some(true) {
+        return Ok(Section::Cut {
+            plane,
+            contours: Vec::new(),
+        });
+    }
     let rows = measure
         .get("contours")
         .and_then(Value::as_array)
@@ -181,62 +188,133 @@ pub fn section_from(measure: &Value, plane: Plane) -> Result<Section, String> {
              solid the same answer"
                 .to_string()
         })?;
+
+    // THE WIRE SHAPE IS THE PROVIDER'S, NOT THE ONE I FOUND CONVENIENT.
+    // rook's F11 (thread:wm-review/15): this function used to want per-contour
+    // OBJECTS carrying centroid, area, bbox and vertices. The pinned provider
+    // returns no such thing, so this had NEVER PARSED A REAL ANSWER -- every
+    // fixture was hand-built by me, nothing outside the tests called it, and
+    // the figures I wrote down were never checked against the instrument.
+    // That is this project's founding defect, committed by me, in the code
+    // meant to catch it.
+    //
+    // MEASURED 2026-11-19 against openscad-mcp 0.6.1, two cubes cut at z=0:
+    //
+    //   "area":200.0, "centroid":[15,5], "bbox_min":[0,0], "bbox_max":[30,10],
+    //   "polygon_count":2, "hole_count":0,
+    //   "contours":[[[10,10],[0,10],[0,0],[10,0]],
+    //               [[30,10],[20,10],[20,0],[30,0]]]
+    //
+    // So `contours` is a list of POINT LISTS, and area, centroid and bbox
+    // appear ONCE, aggregated over the whole section. Everything per-contour
+    // is computed here from the points, which is sound because the points ARE
+    // the measurement -- and the vertex count, which the old shape treated as
+    // frequently absent, is simply how many there are.
     let mut contours = Vec::with_capacity(rows.len());
+    let mut signed_total = 0.0f64;
     for (n, row) in rows.iter().enumerate() {
-        let num = |k: &str| -> Result<f64, String> {
-            row.get(k)
-                .and_then(Value::as_f64)
-                .ok_or_else(|| format!("contour {n} carries no numeric `{k}`"))
-        };
-        let centroid = row
-            .get("centroid")
-            .and_then(Value::as_array)
-            .ok_or_else(|| format!("contour {n} carries no `centroid`"))?;
-        if centroid.len() != 2 {
+        let pts = row.as_array().ok_or_else(|| {
+            format!(
+                "contour {n} is not an array of points; this provider reports each \
+                     contour as a point list"
+            )
+        })?;
+        // A TRUNCATED CONTOUR IS UNKNOWN, NEVER A SHORTER ONE. MEASURED: a
+        // 100-point contour comes back as 61 entries -- 60 points then
+        // ["...", "40 more"], a pair of STRINGS. Computing a centroid or an
+        // area over 60 of 100 points would produce a figure nobody measured,
+        // and it would look exactly like a figure somebody did.
+        let mut xy = Vec::with_capacity(pts.len());
+        for (i, pt) in pts.iter().enumerate() {
+            let pair = pt
+                .as_array()
+                .ok_or_else(|| format!("contour {n}'s entry {i} is not a point: {pt}"))?;
+            if pair.len() != 2 {
+                return Err(format!(
+                    "contour {n}'s entry {i} has {} components; a point in the cut \
+                     plane has exactly two",
+                    pair.len()
+                ));
+            }
+            match (pair[0].as_f64(), pair[1].as_f64()) {
+                (Some(x), Some(y)) => xy.push([x, y]),
+                _ => {
+                    return Err(format!(
+                        "contour {n} is TRUNCATED at entry {i} ({}, {}): the provider \
+                         cut the point list and said so. A centroid or area over the \
+                         points it did send is a figure nobody measured",
+                        pair[0], pair[1]
+                    ))
+                }
+            }
+        }
+        if xy.len() < 3 {
             return Err(format!(
-                "contour {n}'s centroid has {} components; a cut contour lies in the \
-                 plane and has exactly two",
-                centroid.len()
+                "contour {n} carries {} point(s); a closed contour with an area needs \
+                 at least three",
+                xy.len()
             ));
         }
-        let bbox = row
-            .get("bbox")
-            .and_then(Value::as_array)
-            .ok_or_else(|| format!("contour {n} carries no `bbox`"))?;
-        if bbox.len() != 4 {
+
+        // THE SIGNED SHOELACE AREA CARRIES BOTH FIGURES AT ONCE: its magnitude
+        // is the area, and its SIGN is the provider's own statement of
+        // hole-ness (see Contour::is_hole for the ring measurement).
+        let mut signed = 0.0f64;
+        let mut cx = 0.0f64;
+        let mut cy = 0.0f64;
+        for i in 0..xy.len() {
+            let [x1, y1] = xy[i];
+            let [x2, y2] = xy[(i + 1) % xy.len()];
+            let cross = x1 * y2 - x2 * y1;
+            signed += cross;
+            cx += (x1 + x2) * cross;
+            cy += (y1 + y2) * cross;
+        }
+        signed /= 2.0;
+        if signed == 0.0 {
             return Err(format!(
-                "contour {n}'s bbox has {} components; an in-plane box has four",
-                bbox.len()
+                "contour {n} encloses zero area, so it has no centroid; a degenerate \
+                 contour must not be compared as though it had a position"
             ));
         }
-        let pick = |a: &[Value], i: usize, what: &str| -> Result<f64, String> {
-            a[i].as_f64()
-                .ok_or_else(|| format!("contour {n}'s {what}[{i}] is not a number"))
-        };
+        signed_total += signed;
+        let centroid = [cx / (6.0 * signed), cy / (6.0 * signed)];
+        let (mut lo, mut hi) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
+        for [x, y] in &xy {
+            lo[0] = lo[0].min(*x);
+            lo[1] = lo[1].min(*y);
+            hi[0] = hi[0].max(*x);
+            hi[1] = hi[1].max(*y);
+        }
         contours.push(Contour {
-            centroid_mm: [
-                pick(centroid, 0, "centroid")?,
-                pick(centroid, 1, "centroid")?,
-            ],
-            area_mm2: num("area")?,
-            bbox_mm: [
-                pick(bbox, 0, "bbox")?,
-                pick(bbox, 1, "bbox")?,
-                pick(bbox, 2, "bbox")?,
-                pick(bbox, 3, "bbox")?,
-            ],
-            // ABSENCE IS CARRIED AS ABSENCE. Defaulting a missing vertex
-            // count to any number makes an unmeasured contour look measured,
-            // and the comparison then reports a reshape nobody observed. A
-            // surviving mutant proved the first version's justification for
-            // picking usize::MAX over 0 was false: both behave identically,
-            // because absence is not a value and no number can stand in for
-            // it.
-            vertices: row
-                .get("vertices")
-                .and_then(Value::as_u64)
-                .map(|v| v as usize),
+            centroid_mm: centroid,
+            area_mm2: signed.abs(),
+            bbox_mm: [lo[0], lo[1], hi[0], hi[1]],
+            vertices: Some(xy.len()),
+            is_hole: signed < 0.0,
         });
+    }
+
+    // AND THE PARSE IS CHECKED AGAINST THE PROVIDER'S OWN AGGREGATE. If the
+    // signed areas do not sum to the `area` it reported for the section, this
+    // has misread the reply -- holes read as solid, a contour dropped, points
+    // in the wrong order -- and a diff built on a misread is worse than none.
+    // MEASURED on the $fn=8 ring: +282.844 and -70.710 sum to 212.134 against
+    // a reported 212.1322, a relative difference of 8.5e-6, which is the 4-dp
+    // rounding of the points the provider sent. The bound below is 1e-3
+    // relative, loose enough for that accumulation over many vertices and
+    // tight enough that reading a hole as solid (353.6 against 212.1, 67%)
+    // cannot pass.
+    if let Some(reported) = measure.get("area").and_then(Value::as_f64) {
+        let scale = reported.abs().max(1.0);
+        if (signed_total - reported).abs() / scale > 1e-3 {
+            return Err(format!(
+                "the contours sum to {signed_total} but the provider reports the \
+                 section's area as {reported}; this has MISREAD the reply rather than \
+                 measured a disagreement, and a diff built on a misread is worse than \
+                 no diff"
+            ));
+        }
     }
     Ok(Section::Cut { plane, contours })
 }
@@ -254,132 +332,211 @@ mod tests {
         }
     }
 
-    fn row(cx: f64, cy: f64, area: f64) -> Value {
-        serde_json::json!({
-            "centroid": [cx, cy], "area": area,
-            "bbox": [cx - 1.0, cy - 1.0, cx + 1.0, cy + 1.0], "vertices": 4
-        })
+    /// A contour as THE PINNED PROVIDER SENDS ONE: a list of points, wound
+    /// counter-clockwise for solid material. A unit square at (cx, cy) with
+    /// the given half-extent, so its area is (2*h)^2 and its centroid is
+    /// exactly (cx, cy).
+    fn square(cx: f64, cy: f64, h: f64) -> Value {
+        serde_json::json!([
+            [cx - h, cy - h],
+            [cx + h, cy - h],
+            [cx + h, cy + h],
+            [cx - h, cy + h]
+        ])
+    }
+
+    /// The same square wound the other way, which is how this provider says
+    /// "hole" -- measured on a $fn=8 ring, outer +282.844, inner -70.710.
+    fn square_hole(cx: f64, cy: f64, h: f64) -> Value {
+        serde_json::json!([
+            [cx - h, cy - h],
+            [cx - h, cy + h],
+            [cx + h, cy + h],
+            [cx + h, cy - h]
+        ])
+    }
+
+    /// THE REAL REPLY, captured from openscad-mcp 0.6.1 on 2026-11-19 for
+    /// `cube([10,10,10]); translate([20,0,0]) cube([10,10,10]);` cut at z=0.
+    /// Kept verbatim because rook's F11 was that every fixture here was a
+    /// shape I invented and the parser had never seen a real one.
+    const REAL_TWO_CUBES: &str = r#"{"success":true,"mode":"section","units":"mm",
+        "plane":{"axis":"z","offset":0.0},"in_plane_axes":{"x":"x","y":"y"},
+        "area":200.0,"perimeter":80.0,"bbox_min":[0.0,0.0],"bbox_max":[30.0,10.0],
+        "dimensions":[30.0,10.0],"centroid":[15.0,5.0],"polygon_count":2,
+        "hole_count":0,
+        "contours":[[[10.0,10.0],[0.0,10.0],[0.0,0.0],[10.0,0.0]],
+                    [[30.0,10.0],[20.0,10.0],[20.0,0.0],[30.0,0.0]]],
+        "errors":[],"warnings":[],"deprecated":[],"echo_output":[]}"#;
+
+    #[test]
+    fn a_real_section_reply_parses_into_the_contours_it_describes() {
+        let reply: Value = serde_json::from_str(REAL_TWO_CUBES).expect("captured reply");
+        let got = section_from(&reply, zplane()).expect("a real answer parses");
+        match got {
+            Section::Cut { contours, .. } => {
+                assert_eq!(contours.len(), 2, "two cubes, two contours");
+                for c in &contours {
+                    assert_eq!(c.area_mm2, 100.0, "each cut face is 10x10");
+                    assert_eq!(c.vertices, Some(4), "four points were sent");
+                    assert!(!c.is_hole, "neither is a hole: hole_count is 0");
+                }
+                // the provider's own aggregate is 200.0, and the parse agrees
+                let total: f64 = contours.iter().map(|c| c.area_mm2).sum();
+                assert_eq!(total, 200.0);
+            }
+            other => panic!("expected a cut, got {other:?}"),
+        }
     }
 
     #[test]
     fn a_section_answer_becomes_contours_in_the_plane_the_caller_named() {
         let got = section_from(
-            &serde_json::json!({"contours": [row(0.0, 0.0, 4.0)]}),
+            &serde_json::json!({"contours": [square(0.0, 0.0, 1.0)]}),
             zplane(),
         )
         .expect("a well-formed section");
         match got {
             Section::Cut { plane, contours } => {
-                assert_eq!(plane, zplane());
+                assert_eq!(plane.axis, Axis::Z);
+                assert_eq!(plane.offset_mm, 3.0);
                 assert_eq!(contours.len(), 1);
                 assert_eq!(contours[0].area_mm2, 4.0);
                 assert_eq!(contours[0].centroid_mm, [0.0, 0.0]);
+                assert_eq!(contours[0].bbox_mm, [-1.0, -1.0, 1.0, 1.0]);
             }
-            other => panic!("wanted a cut, got {other:?}"),
+            other => panic!("expected a cut, got {other:?}"),
         }
     }
 
+    /// rook's F11, the half that would have caught it: a TRUNCATED point list
+    /// is unknown, never a shorter contour. MEASURED: a 100-point contour
+    /// comes back as 60 points followed by ["...", "40 more"], a pair of
+    /// STRINGS, and a centroid over the 60 would be a figure nobody measured.
     #[test]
-    fn an_empty_contour_array_is_a_cut_that_missed_and_not_an_unresolved_one() {
-        let got = section_from(&serde_json::json!({"contours": []}), zplane())
-            .expect("empty is an answer");
-        assert!(
-            matches!(got, Section::Cut { ref contours, .. } if contours.is_empty()),
-            "{got:?}"
-        );
+    fn a_truncated_point_list_is_refused_rather_than_averaged() {
+        let mut pts: Vec<Value> = (0..60)
+            .map(|i| {
+                let a = (i as f64) * std::f64::consts::TAU / 100.0;
+                serde_json::json!([a.cos(), a.sin()])
+            })
+            .collect();
+        pts.push(serde_json::json!(["...", "40 more"]));
+        let err = section_from(&serde_json::json!({"contours": [pts]}), zplane())
+            .expect_err("a truncated contour must refuse");
+        assert!(err.contains("TRUNCATED"), "{err}");
     }
 
+    /// Hole-ness comes from the winding, because the reply says `hole_count`
+    /// and never which contour it means.
     #[test]
-    fn an_absent_contour_array_refuses_rather_than_reading_as_an_empty_cut() {
-        let err = section_from(&serde_json::json!({}), zplane()).expect_err("no contours key");
-        assert!(err.contains("no `contours`"), "{err}");
-    }
-
-    #[test]
-    fn unresolved_is_carried_as_unresolved_and_never_as_no_contours() {
-        let s =
-            section_from(&serde_json::json!({"state": "UNRESOLVED"}), zplane()).expect("carried");
-        assert!(matches!(s, Section::Unresolved { .. }), "{s:?}");
-        let f = section_from(
-            &serde_json::json!({"success": false, "error": "cut failed"}),
+    fn a_contour_wound_the_other_way_is_read_as_a_hole() {
+        let got = section_from(
+            &serde_json::json!({"contours": [square(0.0, 0.0, 2.0), square_hole(0.0, 0.0, 1.0)]}),
             zplane(),
         )
-        .expect("carried");
-        match f {
-            Section::Unresolved { why, .. } => assert!(why.contains("cut failed"), "{why}"),
-            other => panic!("wanted unresolved, got {other:?}"),
+        .expect("a ring");
+        match got {
+            Section::Cut { contours, .. } => {
+                assert!(!contours[0].is_hole, "the outer contour is solid");
+                assert!(contours[1].is_hole, "the inner contour is a hole");
+                assert_eq!(contours[1].area_mm2, 4.0, "magnitude, not sign");
+            }
+            other => panic!("expected a cut, got {other:?}"),
         }
     }
 
+    /// And a hole never pairs with a solid contour of the same size: they can
+    /// agree on centroid and area exactly and still be opposite statements
+    /// about the material.
     #[test]
-    fn a_centroid_that_is_not_in_the_plane_is_refused() {
-        let bad = serde_json::json!({"contours": [{"centroid": [0.0, 0.0, 0.0], "area": 4.0,
-                                                   "bbox": [0.0, 0.0, 1.0, 1.0]}]});
-        let err = section_from(&bad, zplane()).expect_err("three components");
+    fn a_solid_becoming_a_void_is_not_reported_as_unchanged() {
+        let solid = section_from(
+            &serde_json::json!({"contours": [square(0.0, 0.0, 1.0)]}),
+            zplane(),
+        )
+        .expect("solid");
+        let void = section_from(
+            &serde_json::json!({"contours": [square_hole(0.0, 0.0, 1.0)]}),
+            zplane(),
+        )
+        .expect("void");
+        let d = crate::regions::diff_sections(
+            &solid,
+            &void,
+            crate::regions::Comparison::ContourIdentity {
+                centroid_tol_mm: 0.01,
+                area_tol_mm2: 0.01,
+            },
+        )
+        .expect("same plane");
+        assert!(!d.unchanged(), "a solid became a void: {:?}", d.regions);
+    }
+
+    /// THE PARSE IS CHECKED AGAINST THE PROVIDER'S OWN AGGREGATE. Misreading
+    /// a hole as solid, or dropping a contour, changes the sum; a diff built
+    /// on a misread reply is worse than no diff.
+    #[test]
+    fn contours_that_do_not_sum_to_the_reported_area_are_refused_as_a_misread() {
+        let err = section_from(
+            &serde_json::json!({
+                "area": 999.0,
+                "contours": [square(0.0, 0.0, 1.0)]
+            }),
+            zplane(),
+        )
+        .expect_err("the parse disagrees with the provider's own total");
+        assert!(err.contains("MISREAD"), "{err}");
+    }
+
+    #[test]
+    fn a_point_that_is_not_in_the_plane_is_refused() {
+        let err = section_from(
+            &serde_json::json!({"contours": [[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]]}),
+            zplane(),
+        )
+        .expect_err("three-component points are not in the cut plane");
         assert!(err.contains("exactly two"), "{err}");
     }
 
     #[test]
-    fn a_bbox_that_is_not_an_in_plane_box_is_refused() {
-        let bad = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
-                                                   "bbox": [0.0, 0.0, 1.0]}]});
-        let err = section_from(&bad, zplane()).expect_err("three components");
-        assert!(err.contains("four"), "{err}");
+    fn a_contour_with_too_few_points_has_no_area_and_is_refused() {
+        let err = section_from(
+            &serde_json::json!({"contours": [[[0.0, 0.0], [1.0, 0.0]]]}),
+            zplane(),
+        )
+        .expect_err("two points are not a closed contour");
+        assert!(err.contains("at least three"), "{err}");
+    }
+
+    /// RESTORED 2026-11-19 after I deleted it while rewriting these tests for
+    /// the real wire shape. The mutant `wire-absent-contours-is-an-empty-cut`
+    /// SURVIVED the next battery and said so -- removing a test is the one
+    /// kind of regression a green suite cannot show you.
+    ///
+    /// An ABSENT `contours` array is not an empty cut. Treating it as one
+    /// makes an unanswered question and a plane that missed the solid into the
+    /// same answer.
+    #[test]
+    fn an_absent_contour_array_refuses_rather_than_reading_as_an_empty_cut() {
+        let err = section_from(&serde_json::json!({"mode": "section"}), zplane())
+            .expect_err("no contours key at all");
+        assert!(err.contains("no `contours` array"), "{err}");
     }
 
     #[test]
-    fn a_contour_with_no_vertex_count_is_unknown_rather_than_a_count() {
-        // THE CASE THAT DISCRIMINATES, and the one the first version of this
-        // test missed: both sides built from the same JSON default
-        // identically, so that test passed whatever number absence became. One
-        // side reporting a count and the other not is where a default shows
-        // up -- as a reshape nobody measured.
-        let known = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
-                                                     "bbox": [-1.0, -1.0, 1.0, 1.0], "vertices": 4}]});
-        let unknown = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
-                                                       "bbox": [-1.0, -1.0, 1.0, 1.0]}]});
-        let a = section_from(&known, zplane()).expect("ok");
-        let b = section_from(&unknown, zplane()).expect("ok");
-        match b {
-            Section::Cut { ref contours, .. } => assert_eq!(contours[0].vertices, None),
-            ref other => panic!("wanted a cut, got {other:?}"),
+    fn an_empty_section_is_an_answer_and_not_a_missing_one() {
+        let got = section_from(
+            &serde_json::json!({"empty_section": true, "contours": []}),
+            zplane(),
+        )
+        .expect("an empty cut is a real answer");
+        match got {
+            Section::Cut { contours, .. } => assert!(contours.is_empty()),
+            other => panic!("expected an empty cut, got {other:?}"),
         }
-        let d = crate::regions::diff_sections(
-            &a,
-            &b,
-            crate::regions::Comparison::ContourIdentity {
-                centroid_tol_mm: 0.01,
-                area_tol_mm2: 0.01,
-            },
-        )
-        .expect("same plane");
-        // No region: a known count against an unknown one is not evidence of
-        // a reshape. But the answer SAYS it could not check.
-        assert!(d.unchanged(), "{:?}", d.regions);
-        assert_eq!(d.unchecked_pairs, 1);
-        assert!(!d.fully_checked());
     }
 
-    #[test]
-    fn a_missing_vertex_count_compares_equal_rather_than_reading_as_reshaped() {
-        // Absence on BOTH sides must not make every paired contour look like
-        // it changed shape -- which a default of 0 would, and which usize::MAX
-        // avoids by comparing equal to itself.
-        let no_verts = serde_json::json!({"contours": [{"centroid": [0.0, 0.0], "area": 4.0,
-                                                        "bbox": [-1.0, -1.0, 1.0, 1.0]}]});
-        let a = section_from(&no_verts, zplane()).expect("ok");
-        let b = section_from(&no_verts, zplane()).expect("ok");
-        let d = crate::regions::diff_sections(
-            &a,
-            &b,
-            crate::regions::Comparison::ContourIdentity {
-                centroid_tol_mm: 0.01,
-                area_tol_mm2: 0.01,
-            },
-        )
-        .expect("same plane");
-        assert!(d.unchanged(), "{:?}", d.regions);
-    }
     use crate::diff::{diff, Finding, Intent};
 
     fn fx() -> Value {
