@@ -31,6 +31,7 @@ E_UNEVALUABLE = 3
 E_OUT_OF_RANGE = 4
 E_NOTHING = 5
 E_BAD_RANGE = 6
+E_NO_PROVENANCE = 7
 
 
 def speak(provider_dir, model, expressions, overrides):
@@ -116,6 +117,66 @@ def main():
             print(f"guards: `{g['name']}` has range [{lo}, {hi}], which brackets "
                   f"nothing", file=sys.stderr)
             return E_BAD_RANGE
+
+    # EVERY ENDPOINT SAYS WHERE IT CAME FROM (rook's F15, thread:wm-review/22).
+    # The header of can-cutter.toml claimed every `because` was "the harness's
+    # own reason, quoted or paraphrased". rook measured the whole set: of 24
+    # endpoints, 14 appeared in a `because` at all, only 2 inside an actual
+    # quote -- AND BOTH OF THOSE MISREAD IT. One took "~40 mm" of bridge and
+    # used it as 40 DEGREES of mouth; the other took the blade's 80 mm height
+    # as a score travel. Nothing checked provenance, so nothing could notice.
+    #
+    # A cite is either a QUOTE that must verify against the file, or an
+    # explicit `unsourced` declaration. Declaring is honest; being silent is
+    # not, and silence is what let a misread stand. The count is published
+    # below, because "4 of 24 endpoints are sourced" is what the envelope set
+    # is actually worth -- the same discipline as the rediscovery matrix.
+    sourced, declared = 0, 0
+    for g in guards:
+        cites = {c.get("endpoint"): c for c in (g.get("cites") or [])}
+        lo, hi = g["range"]
+        for end, val in (("low", lo), ("high", hi)):
+            c = cites.get(end)
+            if not c:
+                print(f"guards: `{g['name']}` gives no provenance for its {end} "
+                      f"endpoint {val}. An envelope nobody has to justify is a "
+                      f"number somebody chose, and two of these turned out to be "
+                      f"misread units", file=sys.stderr)
+                return E_NO_PROVENANCE
+            if c.get("value") != val:
+                print(f"guards: `{g['name']}`'s {end} cite names {c.get('value')} "
+                      f"but the range says {val}; a citation to a different number "
+                      f"is not a citation", file=sys.stderr)
+                return E_NO_PROVENANCE
+            if c.get("unsourced"):
+                declared += 1
+                continue
+            quote, cfile = c.get("quote"), c.get("file")
+            if not (quote and cfile):
+                print(f"guards: `{g['name']}`'s {end} cite has neither a quote with "
+                      f"a file nor an `unsourced` reason", file=sys.stderr)
+                return E_NO_PROVENANCE
+            # THE QUOTE IS CHECKED AGAINST THE FILE, not taken on trust -- the
+            # old citations named "the harness, line 22" and the text was in the
+            # MODEL file at line 23. An unreachable file is NO RESULT for this
+            # endpoint, never a pass, and the report says so.
+            near = os.path.join(os.path.dirname(model), os.path.basename(cfile))
+            if os.path.isfile(near):
+                body = open(near, encoding="utf-8", errors="replace").read()
+                if " ".join(quote.split()) not in " ".join(body.split()):
+                    print(f"guards: `{g['name']}`'s {end} cite quotes {quote!r} from "
+                          f"{cfile}, and that text is NOT in the file. A citation "
+                          f"that does not resolve is the defect it was added to "
+                          f"close", file=sys.stderr)
+                    return E_NO_PROVENANCE
+                sourced += 1
+            else:
+                print(f"  note {g['name']} {end}: {cfile} is not on this machine, so "
+                      f"its quote is UNVERIFIED here (not a pass)")
+    total = 2 * len(guards)
+    print(f"-- provenance: {sourced} of {total} endpoints carry a quote VERIFIED "
+          f"against the model file, {declared} are declared chosen, "
+          f"{total - sourced - declared} unverified here")
     # AND ONLY NOW THE WORLD. The model lives OUTSIDE this repository -- it is
     # cal's design file, not ours -- so its absence is an ordinary state on any
     # machine but the author's, and it is reported as its own thing rather than

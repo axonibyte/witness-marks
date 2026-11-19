@@ -21,3 +21,12 @@ result.json
 
 # a mutation in flight, written by tools/mutate.sh; never committed
 .mutation-in-flight
+
+# Python bytecode. COMMITTED ONCE, 2026-11-19 (rook F14): a broad `git add -A`
+# that fixed an untracked module also took tools/__pycache__/*.pyc with it, so
+# every box with a different Python dirtied the tree on its first run and a
+# "tree clean" check after a mutant sweep read noise. The tools also set
+# sys.dont_write_bytecode before importing a sibling, so none is written at
+# all -- a stale .pyc executing instead of source has cost me a day before.
+__pycache__/
+*.pyc

@@ -23,6 +23,15 @@ pass=0; fail=0
 ok() { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
 no() { fail=$((fail+1)); printf '  FAIL %s\n' "$1"; }
 fin() { printf -- '-- %d/%d arms pass\n' "$pass" $((pass+fail)); [ "$fail" = 0 ] || exit 1; exit 0; }
+# ONE LABEL ON BOTH PATHS. Added 2026-11-19 after two arms appended to this
+# file called a `judge` it did not have: the shell printed "judge: not found",
+# the arms produced NO result, and the tally still said 9/9 -- a count over the
+# arms that ran, read as a count over the arms that exist. mutate.sh's refusal
+# 4 also needs the label in a FAILURE line, so success and failure share it.
+judge() { if [ "$2" = 0 ]; then ok "$1"; else no "$1 -- $3"; fi; }
+# AND THE TALLY IS CHECKED AGAINST WHAT THIS FILE DEFINES, so a non-executing
+# arm cannot hide in the denominator again.
+want_arms() { /usr/bin/grep -cE '^ *(judge|ok|no) "' "$0"; }
 
 scan() {
     # Prints one "file:line:text" per include/use that leaves the fixture tree.
@@ -240,4 +249,35 @@ if printf '%s\n' "$BARE" | /usr/bin/grep -q 'ESCAPES.*threads.scad'; then
 else
     no "a bare 'use <threads.scad>' was not caught: it resolves on OPENSCADPATH, not as a sibling"
 fi
+
+# -- NO BUILD ARTIFACT IS TRACKED (rook F14, thread:wm-review/21). 32068e4
+#    committed tools/__pycache__/corpus_reasons.cpython-312.pyc, because the
+#    broad `git add -A` that fixed an untracked module took the bytecode with
+#    it. The cost is not only untidiness: every box with a different Python
+#    dirties the tree on its first run, so a "tree clean" check after a mutant
+#    sweep reads noise -- which is exactly how rook noticed. And a stale .pyc
+#    has been EXECUTED in place of source in this project's history, giving an
+#    impossible probe result.
+#
+#    ENUMERATED, NOT NAMED: the pattern list is the artifact KINDS this repo
+#    could plausibly grow, not the one file that happened to leak.
+artifacts=$(cd "$ROOT" && git ls-files \
+    | /usr/bin/grep -E '(^|/)__pycache__/|\.pyc$|\.pyo$|(^|/)\.pytest_cache/|(^|/)target/|(^|/)\.venv/|(^|/)node_modules/' \
+    || true)
+[ -z "$artifacts" ]
+judge "no build artifact is tracked: bytecode, caches and build trees dirty every box differently and make a post-sweep 'tree clean' check read noise (F14)" \
+      $? "tracked: $(printf '%s' "$artifacts" | tr '\n' ' ')"
+
+# -- AND THE TOOLS DO NOT WRITE BYTECODE AT ALL, so an ignored file cannot
+#    become a dirty tree either. Every tool that imports a sibling from
+#    tools/ must set sys.dont_write_bytecode first.
+missing=""
+for f in "$ROOT"/tools/*.py; do
+    /usr/bin/grep -q "^import corpus_reasons\|^import  *corpus_reasons" "$f" || continue
+    /usr/bin/grep -q "dont_write_bytecode" "$f" || missing="$missing $(basename "$f")"
+done
+[ -z "$missing" ]
+judge "every tool that imports a sibling sets sys.dont_write_bytecode, so no __pycache__ is created to be committed or to go stale" \
+      $? "missing:$missing"
+
 fin

@@ -119,4 +119,60 @@ got=$(rc_of "$AWAY/nog.toml")
 judge "and a file with no guards still refuses with rc 5 when the model is absent" $? "rc $got"
 rm -rf "$AWAY"
 
+# -- EVERY ENDPOINT CARRIES PROVENANCE (rook F15, thread:wm-review/22). The
+#    file's own header claimed every `because` was the source's reason, quoted
+#    or paraphrased. rook measured: 2 of 24 endpoints sat inside a quote and
+#    BOTH misread it -- "~40 mm" of bridge used as 40 DEGREES, and the blade's
+#    80 mm height used as a score travel. These arms drive the refusal, not the
+#    corrected numbers, because a number is a measurement and an arm asserting
+#    one trains people to edit expectations.
+d="$TMP/noprov"; mkdir -p "$d"
+python3 - "$ROOT" "$d" <<'PY' || { no "world noprov could NOT be built"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+t2, n = re.subn(r"\ncites = \[\n.*?\n\]\n", "\n", t, count=1, flags=re.S)
+assert n == 1, "no cites block to remove"
+(d / "noprov.toml").write_text(t2)
+PY
+got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/noprov.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" = 7 ] && /usr/bin/grep -q "gives no provenance for its" "$TMP/out"
+judge "a guard whose endpoint has no provenance REFUSES: an envelope nobody has to justify is a number somebody chose, and two of these were misread units (F15)" \
+      $? "rc $got"
+
+d="$TMP/badcite"; mkdir -p "$d"
+python3 - "$ROOT" "$d" <<'PY' || { no "world badcite could NOT be built"; }
+import sys, pathlib
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+old = 'quote = "removes a 37-64 degree window at the cut plane"'
+assert old in t, "no verifiable quote to break"
+(d / "badcite.toml").write_text(t.replace(old, 'quote = "a sentence that is not in the model file"', 1))
+PY
+got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/badcite.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" = 7 ] && /usr/bin/grep -q "is NOT in the file" "$TMP/out"
+judge "a quote that does not resolve against the model file REFUSES -- the old citations named 'the harness, line 22' while the text sat in can_cutter.scad at 23" \
+      $? "rc $got"
+
+d="$TMP/wrongval"; mkdir -p "$d"
+python3 - "$ROOT" "$d" <<'PY' || { no "world wrongval could NOT be built"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+t2, n = re.subn(r'endpoint = "low", value = 37\.0', 'endpoint = "low", value = 41.0', t, count=1)
+assert n == 1, "no low cite value to desync"
+(d / "wrongval.toml").write_text(t2)
+PY
+got=$( ( cd "$ROOT" && timeout 900 python3 "$TOOL" --file "$d/wrongval.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" = 7 ] && /usr/bin/grep -q "is not a citation" "$TMP/out"
+judge "a cite naming a DIFFERENT number than the range REFUSES: a citation to another value is not a citation" $? "rc $got"
+
+# -- AND THE RATIO IS PUBLISHED, because 4 of 24 sourced is what this envelope
+#    set is worth, and a reader must not have to measure that themselves.
+( cd "$ROOT" && timeout 900 python3 "$TOOL" >"$TMP/out" 2>&1 )
+/usr/bin/grep -qE "^-- provenance: [0-9]+ of [0-9]+ endpoints carry a quote VERIFIED" "$TMP/out" \
+  && /usr/bin/grep -q "declared chosen" "$TMP/out"
+judge "the run publishes how many endpoints are sourced versus chosen, rather than leaving the reader to count" \
+      $? "$(/usr/bin/grep -o '^-- provenance:.*' "$TMP/out" | head -1)"
+
 fin

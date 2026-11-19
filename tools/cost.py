@@ -24,6 +24,11 @@ import os
 import sys
 import tomllib
 
+# NO BYTECODE. Importing a sibling writes tools/__pycache__/*.pyc, which was
+# committed once by a broad `git add` (rook F14) and dirties every tree whose
+# Python differs. A stale .pyc has also, in this project's history, been
+# EXECUTED in place of the source and produced an impossible probe result.
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import corpus_reasons  # noqa: E402  -- the path above is what makes it importable
 
