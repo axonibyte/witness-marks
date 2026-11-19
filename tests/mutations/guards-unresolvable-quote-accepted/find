@@ -1,1 +1,1 @@
-                if " ".join(quote.split()) not in " ".join(body.split()):
+                if " ".join(quote.split()) not in prose_of(near):

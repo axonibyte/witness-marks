@@ -352,4 +352,25 @@ else
     no "provider/.venv is absent: the dotenv axis on this box is NO RESULT, not clean"
 fi
 
+# -- THE GUARD CITATIONS AGAINST CAL'S ACTUAL DESIGN FILE. This is the
+#    machine-dependent half of rook's F15: t_guards.sh proves the citation
+#    LOGIC on synthetic models, because that holds anywhere; whether the real
+#    file still contains the quoted text can only be asked where the file is.
+#    It is NOT in the t_*.sh glob for exactly that reason -- the
+#    foreign-machine gate reported it when it briefly was.
+MODEL=$(python3 -c "import tomllib,sys;print(tomllib.load(open(sys.argv[1],'rb'))['model'])" \
+        "$ROOT/tests/claims/can-cutter.toml" 2>/dev/null || true)
+if [ -n "${MODEL:-}" ] && [ -r "$MODEL" ]; then
+    got=$( ( cd "$ROOT" && timeout 300 python3 tools/guards.py --provenance-only \
+             >"$ROOT/.prov.out" 2>&1 ); echo $? )
+    [ "$got" = 0 ] \
+      && /usr/bin/grep -q "endpoints carry a quote VERIFIED against the model file" "$ROOT/.prov.out" \
+      && /usr/bin/grep -q "held off a value the source REJECTS, each quote verified" "$ROOT/.prov.out"
+    judge "every guard citation resolves against cal's REAL design file -- the four sourced quotes and the four rejections, checked where the file actually is" \
+          $? "rc $got: $(/usr/bin/grep -c . "$ROOT/.prov.out" 2>/dev/null) lines"
+    rm -f "$ROOT/.prov.out"
+else
+    no "the model named by can-cutter.toml is not on this machine, so the citations cannot be resolved: NO RESULT, not agreement"
+fi
+
 fin

@@ -88,6 +88,24 @@ def speak(provider_dir, model, expressions, overrides):
         proc.terminate()
 
 
+def prose_of(path):
+    """A source file's prose, with comment markers removed and whitespace
+    flattened, so a quote may span lines the way the comment does.
+
+    A citation into a .scad lands in a COMMENT BLOCK, where every line starts
+    `//`. Joining the raw lines puts those markers inside the text, and a
+    perfectly good two-line quote then fails to match -- which is what
+    happened to the first `excludes` cite written here, caught by this
+    tool's own check. Stripping the markers is reading the prose; it is not
+    loosening the comparison, which stays exact on the words.
+    """
+    out = []
+    for line in open(path, encoding="utf-8", errors="replace"):
+        out.append(line.lstrip().lstrip("/").strip() if line.lstrip().startswith("//")
+                   else line)
+    return " ".join(" ".join(out).split())
+
+
 def main():
     args = sys.argv[1:]
     path = "tests/claims/can-cutter.toml"
@@ -134,7 +152,7 @@ def main():
     # not, and silence is what let a misread stand. The count is published
     # below, because "4 of 24 endpoints are sourced" is what the envelope set
     # is actually worth -- the same discipline as the rediscovery matrix.
-    sourced, declared = 0, 0
+    sourced, declared, rejected = 0, 0, 0
     for g in guards:
         cites = {c.get("endpoint"): c for c in (g.get("cites") or [])}
         lo, hi = g["range"]
@@ -151,6 +169,37 @@ def main():
                       f"but the range says {val}; a citation to a different number "
                       f"is not a citation", file=sys.stderr)
                 return E_NO_PROVENANCE
+            # A SOURCE CAN REJECT A VALUE WITHOUT NAMING A BOUND, and that
+            # constrains the endpoint's SIDE even when the number itself is
+            # chosen. rook's F15b was this exactly: a range whose floor was
+            # the value the source called "what cuts nothing anybody wants".
+            # Auditing the other twenty endpoints found FOUR MORE of it --
+            # ranges admitting 45 deg, 2.6 mm, 4.0 mm and 0.515 mm, each a
+            # value the design history records as having FAILED. So an
+            # `excludes` cite says "the source rejects this, and the range
+            # must not admit it", and that is checked rather than described.
+            ex = c.get("excludes")
+            if ex is not None:
+                bad = ex.get("value")
+                if bad is None or not (ex.get("quote") and ex.get("file")):
+                    print(f"guards: `{g['name']}`'s {end} cite has an `excludes` with "
+                          f"no value, quote or file", file=sys.stderr)
+                    return E_NO_PROVENANCE
+                if lo <= bad <= hi:
+                    print(f"guards: `{g['name']}` must EXCLUDE {bad} -- the source "
+                          f"rejects it ({ex['quote'][:70]!r}) -- and its range "
+                          f"[{lo}, {hi}] admits it. A bound that readmits a value "
+                          f"the design history records as having failed is the "
+                          f"defect, not the envelope", file=sys.stderr)
+                    return E_NO_PROVENANCE
+                near_ex = os.path.join(os.path.dirname(model), os.path.basename(ex["file"]))
+                if os.path.isfile(near_ex):
+                    if " ".join(ex["quote"].split()) not in prose_of(near_ex):
+                        print(f"guards: `{g['name']}`'s {end} rejection quotes "
+                              f"{ex['quote']!r}, and that text is NOT in "
+                              f"{ex['file']}", file=sys.stderr)
+                        return E_NO_PROVENANCE
+                    rejected += 1
             if c.get("unsourced"):
                 declared += 1
                 continue
@@ -165,8 +214,7 @@ def main():
             # endpoint, never a pass, and the report says so.
             near = os.path.join(os.path.dirname(model), os.path.basename(cfile))
             if os.path.isfile(near):
-                body = open(near, encoding="utf-8", errors="replace").read()
-                if " ".join(quote.split()) not in " ".join(body.split()):
+                if " ".join(quote.split()) not in prose_of(near):
                     print(f"guards: `{g['name']}`'s {end} cite quotes {quote!r} from "
                           f"{cfile}, and that text is NOT in the file. A citation "
                           f"that does not resolve is the defect it was added to "
@@ -180,6 +228,10 @@ def main():
     print(f"-- provenance: {sourced} of {total} endpoints carry a quote VERIFIED "
           f"against the model file, {declared} are declared chosen, "
           f"{total - sourced - declared} unverified here")
+    if rejected:
+        print(f"-- and {rejected} endpoint(s) are held off a value the source "
+              f"REJECTS, each quote verified: a chosen number whose SIDE the "
+              f"design history fixes")
 
     # --provenance-only STOPS HERE, BEFORE THE PROVIDER IS SPOKEN TO. rook
     # measured the reason (thread:wm-review/27, a cost rather than a finding):

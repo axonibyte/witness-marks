@@ -158,6 +158,13 @@ d="$TMP/quote"; mkdir -p "$d"
   printf '// removes a 37-64 degree window at the cut plane\n'
   printf '// ~292 degrees of bore still holds a can concentric easily\n'
   printf '// scores 14-72 mm above the can bottom\n'
+  # and every REJECTION quote, since those are cites too and are checked the
+  # same way -- a synthetic model missing one makes the rejection refusal fire
+  # before the arm's own target, which is how this was found
+  printf '// 45 would also take the low-side\n// lip to 15 deg\n'
+  printf '// wall - thr_depth - thr_clear = 2.6 mm of material\n'
+  printf '// Was 4.0, which left only\n'
+  printf '// The cube-faced version used 0.515\n'
 } > "$d/fake.scad"
 python3 - "$ROOT" "$d" <<'PY' || { no "world quote could NOT be built"; }
 import sys, pathlib, re
@@ -207,5 +214,58 @@ judge "a cite naming a DIFFERENT number than the range REFUSES: a citation to an
   && /usr/bin/grep -q "declared chosen" "$TMP/out"
 judge "the run publishes how many endpoints are sourced versus chosen, rather than leaving the reader to count" \
       $? "$(/usr/bin/grep -o '^-- provenance:.*' "$TMP/out" | head -1)"
+
+# -- A RANGE MAY NOT READMIT A VALUE THE SOURCE REJECTS. rook's F15b was one
+#    instance; auditing the other twenty endpoints found FOUR MORE -- ranges
+#    admitting 45 deg, 2.6 mm, 4.0 mm and 0.515 mm, each a value the design
+#    history records as having FAILED. An `excludes` cite names the rejection
+#    and this refuses when the range still covers it.
+d="$TMP/readmit"; mkdir -p "$d"
+python3 - "$ROOT" "$d" <<'PY' || { no "world readmit could NOT be built"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+# widen the groove-material floor back under the 2.6 the source says flexed
+t2, n = re.subn(r'range = \[3\.0, 6\.0\]', 'range = [1.5, 6.0]', t, count=1)
+assert n == 1, "no tightened floor to loosen"
+t2 = t2.replace('endpoint = "low", value = 3.0', 'endpoint = "low", value = 1.5', 1)
+(d / "readmit.toml").write_text(t2)
+PY
+got=$( ( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only --file "$d/readmit.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" = 7 ] && /usr/bin/grep -q "must EXCLUDE 2.6" "$TMP/out"
+judge "a range loosened back over a value the source REJECTS refuses: readmitting a figure the design history records as failed is the defect, not the envelope" \
+      $? "rc $got"
+
+# AND A REJECTION MUST ITSELF RESOLVE, or it is the same unchecked citation
+# one level out. This one caught a real error when it was written: the quote
+# spanned two comment lines and the `//` markers broke the match.
+# AGAINST THE SYNTHETIC MODEL AGAIN, for the reason the foreign-machine gate
+# gave when this arm first borrowed the real one: on a box without cal's
+# design file the rejection cannot be checked, so there is no refusal to
+# assert and the arm passes for the wrong reason. The gate caught it within
+# minutes of this arm being written, which is it earning its place.
+d="$TMP/badrej"; mkdir -p "$d"
+cp "$TMP/quote/fake.scad" "$d/fake.scad"
+python3 - "$ROOT" "$d" <<'PY' || { no "world badrej could NOT be built"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+t = re.sub(r'^model = ".*"', f'model = "{d}/fake.scad"', t, count=1, flags=re.M)
+t = t.replace('file = "arts/can_cutter.scad"', 'file = "fake.scad"')
+old = 'quote = "Was 4.0, which left only"'
+assert old in t, "no rejection quote to break"
+(d / "badrej.toml").write_text(t.replace(old, 'quote = "a rejection nobody wrote"', 1))
+PY
+got=$( ( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only --file "$d/badrej.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" = 7 ] && /usr/bin/grep -q "rejection quotes" "$TMP/out"
+judge "a rejection whose quote does not resolve against the model file refuses -- a cited rejection is a citation and gets checked like one" \
+      $? "rc $got"
+
+# THE REAL FILE'S AGREEMENT IS NOT ASSERTED HERE. Whether cal's design file
+# still holds these eight quotes is a question about a file this repository
+# does not ship, so it lives in tools/tests/pin-arms.sh with the other
+# machine-dependent checks. In this glob it would pass on one box and fail on
+# every other -- which is what the foreign-machine gate reported when it was
+# written here.
 
 fin
