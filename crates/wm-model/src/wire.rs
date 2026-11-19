@@ -305,6 +305,38 @@ pub fn section_from(measure: &Value, plane: Plane) -> Result<Section, String> {
     // relative, loose enough for that accumulation over many vertices and
     // tight enough that reading a hole as solid (353.6 against 212.1, 67%)
     // cannot pass.
+    // EVERY CONTOUR IS ACCOUNTED FOR, AND THAT IS AN EXACT CHECK. rook named
+    // the reach of the area comparison below (wm-review/17, a bound rather
+    // than a finding): at 1e-3 RELATIVE, a dropped contour smaller than 0.1%
+    // of the section would still sum consistently -- 0.2 mm2 in a 200 mm2
+    // section -- so that check alone cannot say every contour arrived.
+    //
+    // The reply answers it exactly. `polygon_count` is the number of contours
+    // the provider found, and `hole_count` how many of them are holes.
+    // MEASURED: two cubes give polygon_count 2, hole_count 0; a $fn=8 ring
+    // gives polygon_count 2, hole_count 1. So a dropped contour, or winding
+    // misread in either direction, is caught on an INTEGER rather than on a
+    // tolerance -- at any size.
+    if let Some(n) = measure.get("polygon_count").and_then(Value::as_u64) {
+        if n as usize != contours.len() {
+            return Err(format!(
+                "the provider found {n} contour(s) and this parsed {}; a contour that \
+                 went missing between the reply and the reading is a misread, and no \
+                 area comparison can catch a small one",
+                contours.len()
+            ));
+        }
+    }
+    if let Some(h) = measure.get("hole_count").and_then(Value::as_u64) {
+        let holes = contours.iter().filter(|c| c.is_hole).count();
+        if h as usize != holes {
+            return Err(format!(
+                "the provider reports {h} hole(s) and the winding says {holes}; \
+                 hole-ness is read from the signed area, so a disagreement means this \
+                 has misread the orientation and a solid may be reported as a void"
+            ));
+        }
+    }
     if let Some(reported) = measure.get("area").and_then(Value::as_f64) {
         let scale = reported.abs().max(1.0);
         if (signed_total - reported).abs() / scale > 1e-3 {
@@ -487,6 +519,41 @@ mod tests {
         )
         .expect_err("the parse disagrees with the provider's own total");
         assert!(err.contains("MISREAD"), "{err}");
+    }
+
+    /// rook's bound, answered on an INTEGER instead of a tolerance
+    /// (wm-review/17): the area comparison at 1e-3 relative cannot see a
+    /// dropped contour smaller than 0.1% of the section, so `polygon_count`
+    /// is checked exactly. A contour that goes missing between the reply and
+    /// the reading is a misread at ANY size.
+    #[test]
+    fn a_contour_missing_against_polygon_count_is_refused_at_any_size() {
+        // one tiny contour dropped from a two-contour reply: 0.04 mm2 against
+        // 400, which is 1e-4 relative and sails through the area check
+        let err = section_from(
+            &serde_json::json!({
+                "polygon_count": 2,
+                "contours": [square(0.0, 0.0, 10.0)]
+            }),
+            zplane(),
+        )
+        .expect_err("the provider found two contours and one arrived");
+        assert!(err.contains("went missing"), "{err}");
+    }
+
+    /// And hole-ness is checked against the provider's own count, so a
+    /// winding misread in either direction is caught rather than believed.
+    #[test]
+    fn a_winding_that_disagrees_with_hole_count_is_refused() {
+        let err = section_from(
+            &serde_json::json!({
+                "hole_count": 1,
+                "contours": [square(0.0, 0.0, 2.0), square(0.0, 0.0, 1.0)]
+            }),
+            zplane(),
+        )
+        .expect_err("the provider says one hole and both contours wind solid");
+        assert!(err.contains("the winding says"), "{err}");
     }
 
     #[test]

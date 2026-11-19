@@ -91,6 +91,21 @@ kernel_export_format_stl = "asciistl"
 # ~/.local/share/OpenSCAD/libraries, which is the same figure the fork's
 # recorded baseline names. The corpus uses BOSL2, so its version is a pin.
 library_bosl2 = "2.0.716"
+# THE SECTION CONTOUR CAP, an axis found 2026-11-19 while fixing rook's F11.
+# MEASURED at server.py:3556: `cap = 400 if detailed else 60`, and past the cap
+# the reply carries ["...", "N more"] in place of the remaining points. So a
+# `measure(mode=section)` WITHOUT `response_format = "detailed"` truncates every
+# contour of real geometry -- a $fn=100 cylinder returns 61 entries concise and
+# 100 detailed. This is an axis rather than a detail because a truncated point
+# list is where wm-model computes a contour's centroid, area and bbox from: the
+# figures would be wrong AND would look measured. wire::section_from refuses a
+# truncated list instead, and crates/wm-provider/examples/section-from-provider.rs
+# (driven by tools/tests/vectors-arms.sh) verifies BOTH caps against the live
+# provider. The POINTS are `round(x, 4)` either way -- detailed moves the cap,
+# not the precision.
+section_contour_cap_concise = "60"
+section_contour_cap_detailed = "400"
+section_point_decimals = "4"
 #
 # [env] -- THE KNOBS, each `env_NAME`. "" means MUST BE UNSET; recording a
 # value is the supported way to set one deliberately, per the project's rule to

@@ -38,7 +38,17 @@ fn main() -> Result<()> {
     let answer = p
         .call(
             "measure",
-            json!({"scad_content": model, "mode": "section", "section_offset": 5.0}),
+            // `response_format: "detailed"` IS NOT OPTIONAL FOR SECTIONS.
+            // MEASURED 2026-11-19 on the pinned provider (server.py:3556):
+            // the contour point list is capped at `400 if detailed else 60`,
+            // and past the cap the reply carries ["...", "N more"] instead of
+            // the rest. A $fn=100 cylinder comes back as 61 entries concise
+            // and 100 detailed, so WITHOUT this flag every section of real
+            // geometry is truncated and `section_from` rightly refuses it.
+            // The points are `round(x, 4)` either way: detailed moves the
+            // CAP, not the precision, which is also the bound on rook's F10.
+            json!({"scad_content": model, "mode": "section", "section_offset": 5.0,
+                   "response_format": "detailed"}),
         )
         .map_err(|e| anyhow::anyhow!(e))?;
     let reply = &answer.payload;
@@ -95,6 +105,44 @@ fn main() -> Result<()> {
     let reported = reply.get("area").and_then(|v| v.as_f64());
     let summed: f64 = contours.iter().map(|c| c.area_mm2).sum();
     println!("area        provider {reported:?} parsed {summed}");
+    // AND A CONTOUR PAST THE CONCISE CAP, BOTH WAYS, because the cap is the
+    // difference between a usable section and a refusal.
+    let round_model = "$fn = 100; cylinder(r = 10, h = 5);";
+    let concise = p
+        .call(
+            "measure",
+            json!({"scad_content": round_model, "mode": "section", "section_offset": 2.5}),
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
+    match section_from(&concise.payload, plane) {
+        Err(why) if why.contains("TRUNCATED") => println!("concise     REFUSED, correctly"),
+        Err(why) => bail!("concise refused for the wrong reason: {why}"),
+        Ok(_) => bail!("a truncated 100-point contour parsed; the refusal is not working"),
+    }
+    let detailed = p
+        .call(
+            "measure",
+            json!({"scad_content": round_model, "mode": "section", "section_offset": 2.5,
+                   "response_format": "detailed"}),
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let full = section_from(&detailed.payload, plane).map_err(|e| anyhow::anyhow!(e))?;
+    match &full {
+        Section::Cut { contours, .. } => {
+            let c = contours
+                .first()
+                .ok_or_else(|| anyhow::anyhow!("detailed gave no contours"))?;
+            println!(
+                "detailed    1 contour, {:?} points, area {:.4} hole {}",
+                c.vertices, c.area_mm2, c.is_hole
+            );
+            if c.vertices != Some(100) {
+                bail!("expected 100 points at $fn=100, got {:?}", c.vertices);
+            }
+        }
+        Section::Unresolved { why, .. } => bail!("detailed would not resolve: {why}"),
+    }
+
     println!("-- a real section reply parsed, diffed and agreed with its own aggregate");
     Ok(())
 }

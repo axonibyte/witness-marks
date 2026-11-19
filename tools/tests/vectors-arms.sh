@@ -191,8 +191,19 @@ if [ -d "$PROV/.venv" ]; then
       && /usr/bin/grep -q "area 100.0000 centroid \[5.0000, 5.0000\] vertices Some(4) hole false" "$T/section.out" \
       && /usr/bin/grep -q "area 100.0000 centroid \[25.0000, 5.0000\] vertices Some(4) hole false" "$T/section.out" \
       && /usr/bin/grep -q "self-diff   unchanged=true" "$T/section.out" \
-      && /usr/bin/grep -q "area        provider Some(200.0) parsed 200" "$T/section.out"
-    judge "the section parser reads a REAL provider reply: two contours of 100 mm2 at the cube centres, four points each, no holes, summing to the provider's own 200 mm2" \
+      && /usr/bin/grep -q "area        provider Some(200.0) parsed 200" "$T/section.out" \
+      && /usr/bin/grep -q "^concise     REFUSED, correctly$" "$T/section.out" \
+      && /usr/bin/grep -q "^detailed    1 contour, Some(100) points" "$T/section.out"
+    # WHAT THIS ARM DOES AND DOES NOT REACH, named at rook's request
+    # (wm-review/17) so nobody later reads it as "every contour is accounted
+    # for". The area agreement is a 1e-3 RELATIVE comparison, so on a 200 mm2
+    # section it cannot see a dropped contour below about 0.2 mm2. What DOES
+    # account for every contour is exact and lives in the parser:
+    # `polygon_count` against the number parsed, and `hole_count` against the
+    # number the winding says -- both INTEGERS, both refusing at any size,
+    # both armed by wm-model's own tests. This arm proves the pair works end
+    # to end on a real reply; it is not the completeness check.
+    judge "the section parser reads a REAL provider reply: two contours of 100 mm2 at the cube centres, four points each, no holes, summing to the provider's own 200 mm2 (completeness is the parser's exact polygon_count/hole_count checks, NOT this 1e-3 area agreement), AND the 60-point concise cap refuses while response_format=detailed parses all 100" \
           $? "rc $rc: $(/usr/bin/grep -c . "$T/section.out" 2>/dev/null) lines, $(tail -1 "$T/section.out" 2>/dev/null)"
 else
     no "provider/.venv is absent: the section parser cannot be shown to read a real reply, which is NO RESULT rather than a pass"

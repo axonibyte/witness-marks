@@ -62,6 +62,7 @@ ten. Neither count is wrong; quoting one without its unit is.
 | **diagnostic strictness** | `MCP_HARD_WARNINGS` | pinned unset, refuses (rc 11) |
 | **resource bounds** | `MCP_RENDER_TIMEOUT`, `MCP_MAX_FILE_SIZE_MB`, `MCP_MAX_MEMORY_MB`, `MCP_ALLOWED_PATHS` | pinned unset, refuses (rc 11) |
 | **dotenv** | `load_dotenv()` searching upward | refuses when one is reachable (rc 12) |
+| **section contour cap** | `response_format`, `400 if detailed else 60` | recorded; the parser refuses a truncated list, and the deliberate arm drives both caps |
 
 `provider/PROVIDER.toml` is the record; `tools/provider-verify.py` reads it and
 refuses. The recorded value is also how a knob is set **deliberately**: `""`
@@ -108,6 +109,19 @@ passed a `.env` sitting beside the provider (rook, F2 on `thread:wm-review`,
 **refuses** (rc 12) when it cannot find it, because an answer about a tree
 nobody looked in is the same defect one level up. Measured 2026-11-19: none
 reachable from that directory.
+
+**The section contour cap, which is where a figure would have been invented.**
+Added 2026-11-19, found while fixing rook's F11. `measure(mode=section)` caps
+each contour's point list at **`400 if detailed else 60`** (`server.py:3556`)
+and replaces the remainder with `["...", "N more"]`. Measured: a `$fn=100`
+cylinder returns **61 entries** without `response_format = "detailed"` and
+**100** with it. That matters because `wm-model` computes each contour's
+centroid, area and bbox **from those points** — so a truncated list would
+yield figures that are wrong and look measured. `wire::section_from` refuses a
+truncated list rather than averaging what arrived, and
+`crates/wm-provider/examples/section-from-provider.rs` drives both caps
+against the live provider. The points are `round(x, 4)` in either mode:
+`detailed` moves the cap, not the precision.
 
 ## Enumerated and deliberately not refused
 
