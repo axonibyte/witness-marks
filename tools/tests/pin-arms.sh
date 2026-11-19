@@ -364,8 +364,8 @@ if [ -n "${MODEL:-}" ] && [ -r "$MODEL" ]; then
     got=$( ( cd "$ROOT" && timeout 300 python3 tools/guards.py --provenance-only \
              >"$ROOT/.prov.out" 2>&1 ); echo $? )
     [ "$got" = 0 ] \
-      && /usr/bin/grep -q "endpoints carry a quote VERIFIED against the model file" "$ROOT/.prov.out" \
-      && /usr/bin/grep -q "held off a value the source REJECTS, each quote verified" "$ROOT/.prov.out"
+      && /usr/bin/grep -q "quoted outright and verified" "$ROOT/.prov.out" \
+      && /usr/bin/grep -q "chosen-but-side-sourced" "$ROOT/.prov.out"
     judge "every guard citation resolves against cal's REAL design file -- the four sourced quotes and the four rejections, checked where the file actually is" \
           $? "rc $got: $(/usr/bin/grep -c . "$ROOT/.prov.out" 2>/dev/null) lines"
     rm -f "$ROOT/.prov.out"

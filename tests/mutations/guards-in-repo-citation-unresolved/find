@@ -1,0 +1,3 @@
+    inrepo = os.path.join(repo, cfile)
+    if os.path.isfile(inrepo):
+        return inrepo

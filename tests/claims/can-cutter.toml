@@ -37,7 +37,7 @@ source = "sqrt(r_edge*r_edge + (61/2)*(61/2)) - body_r"
 range = [0.5, 25.0]
 unit = "mm"
 cites = [
-  { endpoint = "low", value = 0.5, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
+  { endpoint = "low", value = 0.5, unsourced = "the model file names no number for this endpoint, so the value is chosen -- but its SIDE is sourced: the tips sit at 44.7 mm against a 38.6 mm wall, so the crossing is 6.1 mm; the source states only that it MUST be a crossing", excludes = { value = 0.0, file = "arts/can_cutter.scad", line = 18, quote = "The blade MUST cross the wall; only its holder can live outside" } },
   { endpoint = "high", value = 25.0, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
 ]
 because = """
@@ -54,7 +54,7 @@ source = "bore_r - can_dia/2"
 range = [0.3, 1.2]
 unit = "mm"
 cites = [
-  { endpoint = "low", value = 0.3, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
+  { endpoint = "low", value = 0.3, unsourced = "the model file names no number for this endpoint, so the value is chosen -- but its SIDE is sourced: zero slop is a press fit, which is the opposite of the property named", excludes = { value = 0.0, file = "arts/can_cutter.scad", line = 37, quote = "radial slop so the can turns freely" } },
   { endpoint = "high", value = 1.2, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
 ]
 because = """
@@ -123,7 +123,7 @@ source = "can_r - r_edge"
 range = [0.15, 0.80]
 unit = "mm"
 cites = [
-  { endpoint = "low", value = 0.15, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
+  { endpoint = "low", value = 0.15, unsourced = "the model file names no number for this endpoint, so the value is chosen -- but its SIDE is sourced: zero bite is an edge resting on the wall rather than inside it", excludes = { value = 0.0, file = "arts/can_cutter.scad", line = 40, quote = "how far inside the can wall the edge sits" } },
   { endpoint = "high", value = 0.8, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
 ]
 because = """
@@ -186,7 +186,7 @@ source = "stub_lap"
 range = [0.2, 1.5]
 unit = "mm"
 cites = [
-  { endpoint = "low", value = 0.2, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
+  { endpoint = "low", value = 0.2, unsourced = "the model file names no number for this endpoint, so the value is chosen -- but its SIDE is sourced: zero lap IS the coincident-face case the source rejects by name", excludes = { value = 0.0, file = "arts/can_cutter.scad", line = 739, quote = "so the two solids actually overlap rather than meeting at two coincident faces" } },
   { endpoint = "high", value = 1.5, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
 ]
 because = """
@@ -213,7 +213,7 @@ source = "leaf_t"
 range = [0.8, 2.0]
 unit = "mm"
 cites = [
-  { endpoint = "low", value = 0.8, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
+  { endpoint = "low", value = 0.8, unsourced = "0.8 is two extrusion widths at the 0.4 mm nozzle the model names (line 66), which is arithmetic rather than a quoted bound -- but the SIDE is sourced from this project's own harness, which rejects anything under two widths", excludes = { value = 0.7, file = "tests/corpus/source-buildability-tests.md", line = 28, quote = "A 0.7 mm slot is under two extrusion widths" } },
   { endpoint = "high", value = 2.0, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
 ]
 because = """
@@ -227,7 +227,7 @@ source = "arm_t - leaf_t"
 range = [1.0, 8.0]
 unit = "mm"
 cites = [
-  { endpoint = "low", value = 1.0, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
+  { endpoint = "low", value = 1.0, unsourced = "the model file names no number for this endpoint, so the value is chosen -- but its SIDE is sourced: the arms are rigid and the leaf is the flexure, so a non-positive difference inverts the design's own division of labour", excludes = { value = 0.0, file = "arts/can_cutter.scad", line = 124, quote = "rigid stand-off arms, from horn to leaf" } },
   { endpoint = "high", value = 8.0, unsourced = "no mm-valued statement in the model file gives this endpoint; it is an envelope I chose. rook measured the whole set on 2026-11-19 (thread:wm-review/22-23): of 24 endpoints only 2 sat inside a quote, and BOTH of those misread it. Declared rather than dressed up" },
 ]
 because = """

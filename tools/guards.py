@@ -88,6 +88,23 @@ def speak(provider_dir, model, expressions, overrides):
         proc.terminate()
 
 
+def cited_file(repo, model, cfile):
+    """Where a cite's file actually is: in THIS REPOSITORY if the path names
+    something here, otherwise beside the model.
+
+    AN IN-REPO CITATION IS STRICTLY BETTER than one into cal's design file: it
+    is always present, so it is machine-independent and CI checks it too. The
+    project's own corpus is a legitimate source -- `leaf_t`'s floor comes from
+    the buildability harness, not from the model -- and before this, such a
+    citation could not resolve at all, so the endpoint read as wholly chosen
+    when it was not.
+    """
+    inrepo = os.path.join(repo, cfile)
+    if os.path.isfile(inrepo):
+        return inrepo
+    return os.path.join(os.path.dirname(model), os.path.basename(cfile))
+
+
 def prose_of(path):
     """A source file's prose, with comment markers removed and whitespace
     flattened, so a quote may span lines the way the comment does.
@@ -192,7 +209,7 @@ def main():
                           f"the design history records as having failed is the "
                           f"defect, not the envelope", file=sys.stderr)
                     return E_NO_PROVENANCE
-                near_ex = os.path.join(os.path.dirname(model), os.path.basename(ex["file"]))
+                near_ex = cited_file(root, model, ex["file"])
                 if os.path.isfile(near_ex):
                     if " ".join(ex["quote"].split()) not in prose_of(near_ex):
                         print(f"guards: `{g['name']}`'s {end} rejection quotes "
@@ -212,7 +229,7 @@ def main():
             # old citations named "the harness, line 22" and the text was in the
             # MODEL file at line 23. An unreachable file is NO RESULT for this
             # endpoint, never a pass, and the report says so.
-            near = os.path.join(os.path.dirname(model), os.path.basename(cfile))
+            near = cited_file(root, model, cfile)
             if os.path.isfile(near):
                 if " ".join(quote.split()) not in prose_of(near):
                     print(f"guards: `{g['name']}`'s {end} cite quotes {quote!r} from "
@@ -225,13 +242,19 @@ def main():
                 print(f"  note {g['name']} {end}: {cfile} is not on this machine, so "
                       f"its quote is UNVERIFIED here (not a pass)")
     total = 2 * len(guards)
-    print(f"-- provenance: {sourced} of {total} endpoints carry a quote VERIFIED "
-          f"against the model file, {declared} are declared chosen, "
-          f"{total - sourced - declared} unverified here")
-    if rejected:
-        print(f"-- and {rejected} endpoint(s) are held off a value the source "
-              f"REJECTS, each quote verified: a chosen number whose SIDE the "
-              f"design history fixes")
+    # THE TALLY IS THREE-WAY, because "declared chosen" was lumping together
+    # two different states: an endpoint nobody can source at all, and one
+    # whose NUMBER is chosen while its SIDE is fixed by a rejection the source
+    # states outright. Reporting them as one figure understated what the audit
+    # had established -- the same complaint rook made about "1 of 108".
+    wholly = declared - rejected
+    print(f"-- provenance over {total} endpoints: {sourced} quoted outright and "
+          f"verified, {rejected} chosen-but-side-sourced (the number is mine, the "
+          f"side is held off a value the source REJECTS, quote verified), "
+          f"{wholly} WHOLLY CHOSEN")
+    if total - sourced - declared:
+        print(f"-- {total - sourced - declared} endpoint(s) unverified here, "
+              f"because the file they cite is not on this machine")
 
     # --provenance-only STOPS HERE, BEFORE THE PROVIDER IS SPOKEN TO. rook
     # measured the reason (thread:wm-review/27, a cost rather than a finding):

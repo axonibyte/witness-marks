@@ -150,22 +150,23 @@ judge "a guard whose endpoint has no provenance REFUSES: an envelope nobody has 
 # A synthetic model makes the REFUSAL LOGIC testable anywhere; whether the
 # real design file agrees stays a machine-dependent NOTE, never an assertion.
 d="$TMP/quote"; mkdir -p "$d"
-# THE SYNTHETIC MODEL CARRIES EVERY QUOTE THE CITES USE, not one of them.
-# The first version held only one and the "resolves" world still refused,
-# because the other three cites quote text that was not in it -- the refusal
-# was firing correctly on a world I had built wrong.
-{
-  printf '// removes a 37-64 degree window at the cut plane\n'
-  printf '// ~292 degrees of bore still holds a can concentric easily\n'
-  printf '// scores 14-72 mm above the can bottom\n'
-  # and every REJECTION quote, since those are cites too and are checked the
-  # same way -- a synthetic model missing one makes the rejection refusal fire
-  # before the arm's own target, which is how this was found
-  printf '// 45 would also take the low-side\n// lip to 15 deg\n'
-  printf '// wall - thr_depth - thr_clear = 2.6 mm of material\n'
-  printf '// Was 4.0, which left only\n'
-  printf '// The cube-faced version used 0.515\n'
-} > "$d/fake.scad"
+# THE SYNTHETIC MODEL IS GENERATED FROM THE CITES, not hand-written to match
+# them. Two hand-written versions drifted -- the first held one of four
+# quotes, the second missed the five rejections added later -- and each time
+# the refusal fired correctly over a fixture I had built wrong. A fixture
+# derived from the thing under test cannot drift from it.
+python3 - "$ROOT" "$d" <<'PY' || { no "the synthetic model could NOT be generated"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+quotes = re.findall(r'quote = "([^"]*)"', t)
+assert quotes, "no quotes to mirror"
+# every quote as its own comment line, so a two-line citation still matches
+# through prose_of's marker stripping
+d.mkdir(parents=True, exist_ok=True)
+(d / "fake.scad").write_text("".join(f"// {q}\n" for q in quotes), encoding="utf-8")
+print(f"  mirrored {len(quotes)} cite quote(s) into the synthetic model")
+PY
 python3 - "$ROOT" "$d" <<'PY' || { no "world quote could NOT be built"; }
 import sys, pathlib, re
 root, d = sys.argv[1], pathlib.Path(sys.argv[2])
@@ -190,7 +191,7 @@ judge "a quote that does not resolve against its model REFUSES -- the old citati
 # to fail for the ordinary reason that this synthetic model has no symbols.
 got=$( ( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only --file "$d/resolves.toml" >"$TMP/out" 2>&1 ); echo $? )
 [ "$got" = 0 ] && ! /usr/bin/grep -q "is NOT in the file" "$TMP/out" \
-  && /usr/bin/grep -q "carry a quote VERIFIED" "$TMP/out"
+  && /usr/bin/grep -q "quoted outright and verified" "$TMP/out"
 judge "a quote that DOES resolve passes the provenance stage, so the refusal above is a check and not a constant" \
       $? "rc $got"
 
@@ -210,8 +211,8 @@ judge "a cite naming a DIFFERENT number than the range REFUSES: a citation to an
 # -- AND THE RATIO IS PUBLISHED, because 4 of 24 sourced is what this envelope
 #    set is worth, and a reader must not have to measure that themselves.
 ( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only >"$TMP/out" 2>&1 )
-/usr/bin/grep -qE "^-- provenance: [0-9]+ of [0-9]+ endpoints carry a quote VERIFIED" "$TMP/out" \
-  && /usr/bin/grep -q "declared chosen" "$TMP/out"
+/usr/bin/grep -qE "^-- provenance over [0-9]+ endpoints: [0-9]+ quoted outright" "$TMP/out" \
+  && /usr/bin/grep -q "WHOLLY CHOSEN" "$TMP/out"
 judge "the run publishes how many endpoints are sourced versus chosen, rather than leaving the reader to count" \
       $? "$(/usr/bin/grep -o '^-- provenance:.*' "$TMP/out" | head -1)"
 
@@ -267,5 +268,32 @@ judge "a rejection whose quote does not resolve against the model file refuses -
 # machine-dependent checks. In this glob it would pass on one box and fail on
 # every other -- which is what the foreign-machine gate reported when it was
 # written here.
+
+# -- AN IN-REPO CITATION RESOLVES AND IS MACHINE-INDEPENDENT, which is why it
+#    is preferred over one into cal's design file. leaf_t's floor is two
+#    extrusion widths at the nozzle the model names, and the SIDE comes from
+#    this project's own buildability harness rejecting anything under two.
+#    This arm needs no out-of-repo file at all, so it holds on any machine.
+d="$TMP/inrepo"; mkdir -p "$d"
+python3 - "$ROOT" "$d" <<'PY' || { no "world inrepo could NOT be built"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+old = 'quote = "A 0.7 mm slot is under two extrusion widths"'
+assert old in t, "no in-repo rejection quote to break"
+(d / "broken.toml").write_text(t.replace(old, 'quote = "a rule this harness never stated"', 1))
+PY
+got=$( ( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only --file "$d/broken.toml" >"$TMP/out" 2>&1 ); echo $? )
+[ "$got" = 7 ] && /usr/bin/grep -q "rejection quotes" "$TMP/out"
+judge "an IN-REPO rejection quote is resolved and refused when it does not match -- a citation into this repository needs no other machine, so CI checks it too" \
+      $? "rc $got"
+
+# and the three-way tally is published, because "declared chosen" was lumping
+# an endpoint nobody can source with one whose SIDE the source fixes
+( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only >"$TMP/out" 2>&1 )
+/usr/bin/grep -qE "quoted outright and verified, [0-9]+ chosen-but-side-sourced" "$TMP/out" \
+  && /usr/bin/grep -q "WHOLLY CHOSEN" "$TMP/out"
+judge "the provenance tally is THREE-WAY: quoted, chosen-but-side-sourced, and wholly chosen -- reporting the middle as 'chosen' understated what the audit established" \
+      $? "$(/usr/bin/grep -o 'provenance over.*' "$TMP/out" | head -1)"
 
 fin
