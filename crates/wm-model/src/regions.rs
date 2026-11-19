@@ -209,168 +209,311 @@ pub fn diff_sections(
         ));
     }
 
-    // PAIRING IS GLOBALLY CLOSEST-FIRST, NOT FIRST-FIT. rook, F6 on
-    // thread:wm-review/9, DRIVEN: the old loop gave each before-contour the
-    // FIRST after-contour within tolerance, so the verdict depended on the
-    // order the contours happened to be listed in. Their case, at tol 1 mm --
-    // before x=0 and x=1.8, after x=0.9 and x=0.1, where a perfect pairing
-    // exists:
+    // PAIRING IS A MAXIMUM-CARDINALITY MATCHING, AND THE REPORT MUST BE THE
+    // SAME FOR EVERY ONE OF THEM. Two findings from rook took this through
+    // three versions, and the third is the one that is actually defensible.
     //
-    //     after listed [0.9, 0.1] -> ChangedInPlace, Removed, Added
-    //     after listed [0.1, 0.9] -> ChangedInPlace, ChangedInPlace
+    // F6 (wm-review/9): the first version was FIRST-FIT, so the verdict
+    // depended on the order the contours happened to be listed in.
     //
-    // Same geometry, two answers, and the first CLAIMS STRUCTURAL CHANGE that
-    // did not happen. An instrument whose answer depends on list order is not
-    // measuring the geometry.
+    // F9 (wm-review/13): the second version took the globally cheapest pair
+    // first. Order stopped mattering and the instrument could still MISS A
+    // FULL PAIRING. rook drove it -- tol 1 mm, before x=0 and x=1.2, after
+    // x=0.3 and x=-0.5: the cheapest pair (0 to 0.3, cost 0.3) consumes
+    // 1.2's ONLY eligible partner, and the answer came back
+    // ["Removed", "Added"] even though 0 to -0.5 and 1.2 to 0.3 are both
+    // inside the tolerance. Greedy maximises the first choice, not the number
+    // of correspondences, and it is the NUMBER that decides whether this
+    // instrument claims something was added or removed.
     //
-    // So every candidate pair within tolerance is costed, and the cheapest
-    // available pair is taken until none remain. Cost is the Chebyshev
-    // distance between centroids, tie-broken by area difference; the tolerance
-    // test is unchanged and still decides WHETHER a pair is eligible -- the
-    // cost only ORDERS the eligible ones. Sorting by (cost, b index, a index)
-    // makes the result a function of the contour SETS and not their order.
+    // F10 (same line): my tie test compared costs with `==` on f64. By this
+    // project's OWN rule for reported figures (issue 54, and `reported_interval`
+    // in tools/vector-run.py), a provider reporting four decimals cannot
+    // separate two costs closer than 1e-4 -- so an exact-equality tie test
+    // decides correspondence on digits nobody vouched for.
     //
-    // AND A TIE REFUSES ONLY WHEN IT COULD CHANGE THE ANSWER. If another
-    // eligible pair shares a contour with the chosen one at exactly the same
-    // cost, the correspondence is decided by a tie-break rather than by the
-    // geometry -- but that matters only if the two competitors DIFFER. Two
-    // coincident contours are interchangeable: whichever is picked, one pairs
-    // and the other is Removed, with identical fields either way. rook said
-    // this part plainly when reporting F6 -- the exclusivity case uses
-    // coincident contours, so order never mattered there -- and the first
-    // version of this refusal broke that test by refusing an immaterial tie.
-    // Equality is on every recorded field, so a tie survives only where the
-    // competitors are indistinguishable and therefore the verdict is too.
-    let cost_of = |b: &Contour, a: &Contour| -> (f64, f64) {
-        let dx = (a.centroid_mm[0] - b.centroid_mm[0]).abs();
-        let dy = (a.centroid_mm[1] - b.centroid_mm[1]).abs();
-        (dx.max(dy), (a.area_mm2 - b.area_mm2).abs())
-    };
-    let eligible = |b: &Contour, a: &Contour| -> bool {
-        (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
-            && (a.centroid_mm[1] - b.centroid_mm[1]).abs() <= centroid_tol_mm
-            && (a.area_mm2 - b.area_mm2).abs() <= area_tol_mm2
-    };
+    // THE FIX ANSWERS BOTH AT ONCE BY MAKING COST DECIDE NOTHING REPORTABLE.
+    // Maximum cardinality is computed first, by augmenting paths, which is
+    // what rook prescribed and is what settles Added/Removed. Then EVERY
+    // maximum matching is enumerated and the report each would produce is
+    // compared. If they all agree, that report is the answer and which
+    // matching produced it is immaterial. If any two disagree, the
+    // correspondence is genuinely ambiguous and this refuses. Cost is gone
+    // entirely: nothing is ordered by a float comparison, so F10's digits
+    // cannot reach the verdict.
+    let eligible: Vec<Vec<usize>> = bc
+        .iter()
+        .map(|b| {
+            ac.iter()
+                .enumerate()
+                .filter(|(_, a)| {
+                    (a.centroid_mm[0] - b.centroid_mm[0]).abs() <= centroid_tol_mm
+                        && (a.centroid_mm[1] - b.centroid_mm[1]).abs() <= centroid_tol_mm
+                        && (a.area_mm2 - b.area_mm2).abs() <= area_tol_mm2
+                })
+                .map(|(i, _)| i)
+                .collect()
+        })
+        .collect();
 
-    let mut cand: Vec<(f64, f64, usize, usize)> = Vec::new();
-    for (bi, b) in bc.iter().enumerate() {
-        for (ai, a) in ac.iter().enumerate() {
-            if eligible(b, a) {
-                let (c, t) = cost_of(b, a);
-                cand.push((c, t, bi, ai));
-            }
-        }
-    }
-    // total order, and NOT partial_cmp().unwrap(): every coordinate here is
-    // already proven finite by the refusal above, so total_cmp is exact and
-    // cannot panic on a NaN that cannot be present.
-    cand.sort_by(|x, y| {
-        x.0.total_cmp(&y.0)
-            .then(x.1.total_cmp(&y.1))
-            .then(x.2.cmp(&y.2))
-            .then(x.3.cmp(&y.3))
-    });
-
-    let mut taken = vec![false; ac.len()];
-    let mut paired_b = vec![None; bc.len()];
-    let mut regions = Vec::new();
-    let mut unchecked_pairs = 0usize;
-    for k in 0..cand.len() {
-        let (c, tb, bi, ai) = cand[k];
-        if paired_b[bi].is_some() || taken[ai] {
-            continue;
-        }
-        // A COMPETING PAIR AT THE SAME COST IS A TIE, and a tie is unknown.
-        if let Some(&(_, _, bj, aj)) = cand[k + 1..].iter().find(|&&(c2, tb2, bj, aj)| {
-            c2 == c
-                && tb2 == tb
-                && paired_b[bj].is_none()
-                && !taken[aj]
-                && (bj == bi || aj == ai)
-                // the competitor must be DISTINGUISHABLE from the chosen one,
-                // or the choice between them changes nothing that is reported
-                && if bj == bi {
-                    ac[aj] != ac[ai]
-                } else {
-                    bc[bj] != bc[bi]
+    // Kuhn's algorithm: the size of a maximum matching, in polynomial time.
+    // This is the figure that decides how many contours are Added or Removed,
+    // so it is computed exactly rather than approached greedily.
+    let max_k = {
+        let mut to_b: Vec<Option<usize>> = vec![None; ac.len()];
+        fn augment(
+            b: usize,
+            eligible: &[Vec<usize>],
+            to_b: &mut Vec<Option<usize>>,
+            seen: &mut Vec<bool>,
+        ) -> bool {
+            for &a in &eligible[b] {
+                if seen[a] {
+                    continue;
                 }
-        }) {
-            return Err(format!(
-                "two pairings are equally close at {:?} {} mm -- before contour {bi}                  with after contour {ai}, and before {bj} with after {aj}, both at                  Chebyshev {c} mm and area difference {tb} mm2 -- so which contours                  correspond depends on a tie-break and not on the geometry. An                  ambiguous correspondence is unknown, never a reading",
-                plane.axis, plane.offset_mm
-            ));
-        }
-        paired_b[bi] = Some(ai);
-        taken[ai] = true;
-    }
-
-    for (bi, b) in bc.iter().enumerate() {
-        match paired_b[bi] {
-            Some(i) => {
-                // PAIRED IS NOT THE SAME AS UNCHANGED. The pairing keys on
-                // centroid and area; a contour can hold both and still have
-                // moved, and this instrument cannot say where inside it.
-                // EVIDENCE OF CHANGE, NOT ABSENCE OF EVIDENCE. The vertex
-                // counts decide only when BOTH sides have one; an unknown
-                // count compared against a known one is unknown, and
-                // reporting it as a reshape would claim a measurement nobody
-                // took. MEASURED: an earlier version defaulted a missing
-                // count to a number and a surviving mutant proved the
-                // justification for that default was false -- 0 and
-                // usize::MAX behave identically in every case, because the
-                // only cases are both-absent (equal either way) and
-                // one-absent (unequal either way). The real answer is that
-                // absence is not a value.
-                let verts_differ = match (b.vertices, ac[i].vertices) {
-                    (Some(x), Some(y)) => x != y,
-                    _ => {
-                        unchecked_pairs += 1;
-                        false
-                    }
+                seen[a] = true;
+                // no unwrap: the two cases are "this after-contour is free"
+                // and "it is taken, so try to re-house whoever holds it"
+                let can_take = match to_b[a] {
+                    None => true,
+                    Some(held) => augment(held, eligible, to_b, seen),
                 };
-                // THE BBOX IS JUDGED AT THE SAME TOLERANCE THAT PAIRED THEM.
-                // rook asked this as a question beside F6, and it is the same
-                // incoherence: these two contours were declared the SAME
-                // contour because their centroids and areas agree to within a
-                // tolerance, and the change test then compared bbox_mm for
-                // EXACT f64 equality. At that strictness any last-bit noise in
-                // a coordinate reads as a reshape, and a reshape smaller than
-                // the tolerance is not something this instrument can see. So
-                // the bbox decides only when an edge moves by MORE than the
-                // centroid tolerance; below that the honest answer is that
-                // nothing measurable changed.
-                let bbox_differs = b
-                    .bbox_mm
-                    .iter()
-                    .zip(ac[i].bbox_mm.iter())
-                    .any(|(x, y)| (x - y).abs() > centroid_tol_mm);
-                if verts_differ || bbox_differs {
-                    regions.push(Region {
-                        kind: RegionKind::ChangedInPlace,
-                        centroid_mm: ac[i].centroid_mm,
-                        area_mm2: ac[i].area_mm2,
-                        bbox_mm: ac[i].bbox_mm,
-                    });
+                if can_take {
+                    to_b[a] = Some(b);
+                    return true;
                 }
             }
-            None => regions.push(Region {
-                kind: RegionKind::Removed,
-                centroid_mm: b.centroid_mm,
-                area_mm2: b.area_mm2,
-                bbox_mm: b.bbox_mm,
-            }),
+            false
         }
-    }
-    for (i, a) in ac.iter().enumerate() {
-        if !taken[i] {
-            regions.push(Region {
-                kind: RegionKind::Added,
-                centroid_mm: a.centroid_mm,
-                area_mm2: a.area_mm2,
-                bbox_mm: a.bbox_mm,
-            });
+        let mut k = 0usize;
+        for b in 0..bc.len() {
+            let mut seen = vec![false; ac.len()];
+            if augment(b, &eligible, &mut to_b, &mut seen) {
+                k += 1;
+            }
         }
+        k
+    };
+
+    // The report one matching would produce, as a value that can be compared
+    // against another matching's. `unchecked_pairs` is part of it: a pairing
+    // that silently checked fewer vertex counts is a different answer.
+    let report_of = |m: &[Option<usize>]| -> (Vec<Region>, usize) {
+        let mut regions = Vec::new();
+        let mut unchecked = 0usize;
+        for (bi, b) in bc.iter().enumerate() {
+            match m[bi] {
+                Some(i) => {
+                    // PAIRED IS NOT THE SAME AS UNCHANGED. The pairing keys on
+                    // centroid and area; a contour can hold both and still
+                    // have moved, and this instrument cannot say where inside
+                    // it. EVIDENCE OF CHANGE, NOT ABSENCE OF EVIDENCE: the
+                    // vertex counts decide only when BOTH sides have one. An
+                    // earlier version defaulted a missing count to a number
+                    // and a surviving mutant proved that justification false --
+                    // 0 and usize::MAX behave identically, because the only
+                    // cases are both-absent (equal either way) and one-absent
+                    // (unequal either way). Absence is not a value.
+                    let verts_differ = match (b.vertices, ac[i].vertices) {
+                        (Some(x), Some(y)) => x != y,
+                        _ => {
+                            unchecked += 1;
+                            false
+                        }
+                    };
+                    // THE BBOX IS JUDGED AT THE TOLERANCE THAT PAIRED THEM.
+                    // rook asked this beside F6 and it is the same
+                    // incoherence: these contours were declared the same
+                    // because centroid and area agree to within a tolerance,
+                    // and the change test then demanded EXACT f64 equality of
+                    // bbox_mm. At that strictness any last-bit noise reads as
+                    // a reshape, and a reshape below the tolerance is not
+                    // something this instrument can see.
+                    let bbox_differs = b
+                        .bbox_mm
+                        .iter()
+                        .zip(ac[i].bbox_mm.iter())
+                        .any(|(x, y)| (x - y).abs() > centroid_tol_mm);
+                    if verts_differ || bbox_differs {
+                        regions.push(Region {
+                            kind: RegionKind::ChangedInPlace,
+                            centroid_mm: ac[i].centroid_mm,
+                            area_mm2: ac[i].area_mm2,
+                            bbox_mm: ac[i].bbox_mm,
+                        });
+                    }
+                }
+                None => regions.push(Region {
+                    kind: RegionKind::Removed,
+                    centroid_mm: b.centroid_mm,
+                    area_mm2: b.area_mm2,
+                    bbox_mm: b.bbox_mm,
+                }),
+            }
+        }
+        for (i, a) in ac.iter().enumerate() {
+            if !m.contains(&Some(i)) {
+                regions.push(Region {
+                    kind: RegionKind::Added,
+                    centroid_mm: a.centroid_mm,
+                    area_mm2: a.area_mm2,
+                    bbox_mm: a.bbox_mm,
+                });
+            }
+        }
+        (regions, unchecked)
+    };
+    let key_of = |r: &(Vec<Region>, usize)| -> String {
+        let mut parts: Vec<String> =
+            r.0.iter()
+                .map(|g| {
+                    format!(
+                        "{:?}|{:?}|{:?}|{:?}",
+                        g.kind, g.centroid_mm, g.area_mm2, g.bbox_mm
+                    )
+                })
+                .collect();
+        parts.sort();
+        format!("{}#{}", parts.join(";"), r.1)
+    };
+
+    // ENUMERATE EVERY MAXIMUM MATCHING, under a budget. The budget is a
+    // REFUSAL and not a fallback: past it this cannot show the answer is
+    // unique, and an answer it cannot show to be unique is unknown.
+    const MATCHING_BUDGET: usize = 20_000;
+    let mut visited = 0usize;
+    let mut first: Option<((Vec<Region>, usize), String)> = None;
+    let mut disagreement: Option<String> = None;
+    let mut m: Vec<Option<usize>> = vec![None; bc.len()];
+    let mut used = vec![false; ac.len()];
+
+    #[allow(clippy::too_many_arguments)]
+    fn walk(
+        bi: usize,
+        matched: usize,
+        remaining: usize,
+        max_k: usize,
+        eligible: &[Vec<usize>],
+        m: &mut Vec<Option<usize>>,
+        used: &mut Vec<bool>,
+        visited: &mut usize,
+        budget: usize,
+        on_full: &mut dyn FnMut(&[Option<usize>]),
+    ) -> bool {
+        if *visited > budget {
+            return false;
+        }
+        // cannot still reach a maximum matching: prune
+        if matched + remaining < max_k {
+            return true;
+        }
+        if bi == m.len() {
+            // THE PRUNE ABOVE IS THE SINGLE AUTHORITY ON CARDINALITY. A leaf
+            // is reachable only with matched == max_k, because at a leaf
+            // `remaining` is 0 and the prune fires on anything smaller. This
+            // used to re-check it, and the mutant
+            // `regions-accepts-a-smaller-matching` SURVIVED -- relaxing the
+            // second check changed nothing, which is the proof that it was
+            // decorative. Two mutually-redundant guards mean neither is
+            // load-bearing and neither can be tested.
+            *visited += 1;
+            on_full(m);
+            return true;
+        }
+        for &a in &eligible[bi] {
+            if used[a] {
+                continue;
+            }
+            used[a] = true;
+            m[bi] = Some(a);
+            if !walk(
+                bi + 1,
+                matched + 1,
+                remaining - 1,
+                max_k,
+                eligible,
+                m,
+                used,
+                visited,
+                budget,
+                on_full,
+            ) {
+                used[a] = false;
+                m[bi] = None;
+                return false;
+            }
+            used[a] = false;
+            m[bi] = None;
+        }
+        // leaving this before-contour unmatched
+        walk(
+            bi + 1,
+            matched,
+            remaining - 1,
+            max_k,
+            eligible,
+            m,
+            used,
+            visited,
+            budget,
+            on_full,
+        )
     }
+
+    let within_budget = {
+        let mut on_full = |cand: &[Option<usize>]| {
+            if disagreement.is_some() {
+                return;
+            }
+            let rep = report_of(cand);
+            let key = key_of(&rep);
+            match &first {
+                None => first = Some((rep, key)),
+                Some((_, k0)) => {
+                    if *k0 != key {
+                        disagreement = Some(key);
+                    }
+                }
+            }
+        };
+        walk(
+            0,
+            0,
+            bc.len(),
+            max_k,
+            &eligible,
+            &mut m,
+            &mut used,
+            &mut visited,
+            MATCHING_BUDGET,
+            &mut on_full,
+        )
+    };
+    if !within_budget {
+        return Err(format!(
+            "there are more than {MATCHING_BUDGET} equally-large ways to pair the \
+             contours at {:?} {} mm, so this cannot show that the correspondence it \
+             would report is the only one. An answer that cannot be shown unique is \
+             unknown, never a reading",
+            plane.axis, plane.offset_mm
+        ));
+    }
+    if let Some(other) = disagreement {
+        let (_, mine) = first
+            .as_ref()
+            .expect("a disagreement implies a first report");
+        return Err(format!(
+            "the contours at {:?} {} mm can be paired two equally-large ways that \
+             REPORT DIFFERENTLY -- {mine} against {other} -- so which contours \
+             correspond is decided by a tie-break and not by the geometry. An \
+             ambiguous correspondence is unknown, never a reading",
+            plane.axis, plane.offset_mm
+        ));
+    }
+    // report_of already accounts for every after-contour the matching did not
+    // use, so there is no second pass here: a loop over `taken` would be a
+    // SECOND place that decides what Added means.
+    let ((regions, unchecked_pairs), _key) = first.expect("a non-empty section yields one report");
     Ok(RegionDiff {
         plane,
         comparison,
@@ -444,6 +587,72 @@ mod tests {
         );
     }
 
+    /// rook's F9, thread:wm-review/13, DRIVEN by them before I had it. The
+    /// cheapest-first pairing that replaced first-fit was order-independent
+    /// and STILL missed a full pairing: the cheapest pair consumes the only
+    /// eligible partner of another contour, and the instrument then claims a
+    /// contour was removed and another added when a complete correspondence
+    /// exists. Greedy maximises the first choice; the NUMBER of
+    /// correspondences is what decides Added and Removed.
+    #[test]
+    fn a_full_pairing_is_found_even_when_the_cheapest_pair_would_block_it() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 1.0,
+            area_tol_mm2: 1.0,
+        };
+        // rook's figures exactly: the cheapest pair is 0 -> 0.3 at 0.3, which
+        // takes 1.2's ONLY partner. The maximum matching is 0 -> -0.5 and
+        // 1.2 -> 0.3, both inside the tolerance.
+        let before = cut(3.0, vec![c(0.0, 0.0, 10.0, 4), c(1.2, 0.0, 10.0, 4)]);
+        let after = cut(3.0, vec![c(0.3, 0.0, 10.0, 4), c(-0.5, 0.0, 10.0, 4)]);
+        let d = diff_sections(&before, &after, tol).expect("a full pairing exists");
+        assert!(
+            !d.regions
+                .iter()
+                .any(|r| matches!(r.kind, RegionKind::Added | RegionKind::Removed)),
+            "greedy claimed structural change where a complete pairing exists: {:?}",
+            d.regions
+        );
+    }
+
+    /// And the cardinality is what is maximised, not the cost: a pairing that
+    /// leaves a contour unmatched when it need not be is the F9 defect, so
+    /// the count of correspondences is asserted directly.
+    #[test]
+    fn the_number_of_correspondences_is_maximised_not_the_closeness_of_the_first() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 1.0,
+            area_tol_mm2: 1.0,
+        };
+        // three before, three after, where the greedy first pick strands two
+        let before = cut(
+            3.0,
+            vec![
+                c(0.0, 0.0, 10.0, 4),
+                c(1.2, 0.0, 10.0, 4),
+                c(2.4, 0.0, 10.0, 4),
+            ],
+        );
+        let after = cut(
+            3.0,
+            vec![
+                c(0.3, 0.0, 10.0, 4),
+                c(-0.5, 0.0, 10.0, 4),
+                c(2.0, 0.0, 10.0, 4),
+            ],
+        );
+        let d = diff_sections(&before, &after, tol).expect("three correspondences exist");
+        assert_eq!(
+            d.regions
+                .iter()
+                .filter(|r| matches!(r.kind, RegionKind::Added | RegionKind::Removed))
+                .count(),
+            0,
+            "a maximum matching pairs all three: {:?}",
+            d.regions
+        );
+    }
+
     /// The other half of F6: a tie that COULD change the answer is unknown,
     /// never a reading. Two distinguishable after-contours sit equally close
     /// to one before-contour, so which one it corresponds to is decided by a
@@ -460,8 +669,43 @@ mod tests {
         let after = cut(3.0, vec![c(-0.5, 0.0, 10.0, 4), c(0.5, 0.0, 10.0, 9)]);
         let err = diff_sections(&before, &after, tol).expect_err("a material tie");
         assert!(
-            err.contains("equally close") && err.contains("tie-break"),
+            err.contains("REPORT DIFFERENTLY") && err.contains("tie-break"),
             "{err}"
+        );
+    }
+
+    /// rook's F10, thread:wm-review/13: the tie test compared costs with `==`
+    /// on f64, and by this project's own rule for reported figures a provider
+    /// reporting four decimals cannot separate costs closer than 1e-4 -- so an
+    /// exact-equality tie test decided correspondence on digits nobody
+    /// vouched for.
+    ///
+    /// THE ANSWER IS THAT NO COST DECIDES ANYTHING. Cost was removed; the
+    /// cardinality is maximised and then every maximum matching's report is
+    /// compared. So a near-tie cannot be silently resolved by invisible
+    /// digits: it REFUSES, naming that the two pairings report differently.
+    /// Refusing is the conservative direction and it is the point -- the
+    /// instrument declines to answer rather than answering from a difference
+    /// it cannot vouch for.
+    #[test]
+    fn a_near_tie_refuses_rather_than_being_decided_by_digits_nobody_vouched_for() {
+        let tol = Comparison::ContourIdentity {
+            centroid_tol_mm: 1.0,
+            area_tol_mm2: 1.0,
+        };
+        let before = cut(3.0, vec![c(0.0, 0.0, 10.0, 4)]);
+        // two candidates a hair apart -- far closer than any reported figure
+        // could distinguish. One will be paired and one reported Added, and
+        // WHICH is decided by nothing the geometry vouches for.
+        let after = cut(
+            3.0,
+            vec![c(0.3, 0.0, 10.0, 4), c(0.3 + 1e-12, 0.0, 10.0, 4)],
+        );
+        let err =
+            diff_sections(&before, &after, tol).expect_err("a near-tie must refuse, not pick");
+        assert!(
+            err.contains("REPORT DIFFERENTLY"),
+            "a near-tie was resolved silently: {err}"
         );
     }
 

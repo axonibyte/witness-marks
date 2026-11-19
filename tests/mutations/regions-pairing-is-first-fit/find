@@ -1,1 +1,1 @@
-        x.0.total_cmp(&y.0)
+                    Some(held) => augment(held, eligible, to_b, seen),
