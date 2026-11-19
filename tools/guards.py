@@ -99,13 +99,16 @@ def main():
         doc = tomllib.load(fh)
     guards = doc.get("guard") or []
     model = doc.get("model", "")
+    # THE FILE IS JUDGED BEFORE THE WORLD IS, and the order is a defect this
+    # had the wrong way round. A structural check needs nothing and is always
+    # answerable; whether the model is on this machine is a fact about the
+    # machine. With the world checked first, CI -- which clones only this
+    # repository and has no copy of the design -- got "the model is not there"
+    # for a file with an inverted range, so the arm asserting rc 6 saw rc 5 and
+    # failed. The structural verdict must not depend on where it is run.
     if not guards:
         print(f"guards: {path} declares no guards; a run over nothing prints no "
               f"failures, which reads exactly like a run that found none", file=sys.stderr)
-        return E_NOTHING
-    if not os.path.isfile(model):
-        print(f"guards: the model {model} is not there, so nothing was checked",
-              file=sys.stderr)
         return E_NOTHING
     for g in guards:
         lo, hi = g.get("range", [0, 0])
@@ -113,6 +116,15 @@ def main():
             print(f"guards: `{g['name']}` has range [{lo}, {hi}], which brackets "
                   f"nothing", file=sys.stderr)
             return E_BAD_RANGE
+    # AND ONLY NOW THE WORLD. The model lives OUTSIDE this repository -- it is
+    # cal's design file, not ours -- so its absence is an ordinary state on any
+    # machine but the author's, and it is reported as its own thing rather than
+    # as a defect in the guards.
+    if not os.path.isfile(model):
+        print(f"guards: the model {model} is not on this machine, so nothing was "
+              f"checked. The guards themselves are well-formed; this is a WHERE "
+              f"finding, not a WHAT one", file=sys.stderr)
+        return E_NOTHING
 
     reply, err = speak(os.path.join(root, "provider"), model,
                        [g["source"] for g in guards], overrides)

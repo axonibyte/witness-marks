@@ -1,0 +1,6 @@
+    for g in guards:
+        lo, hi = g.get("range", [0, 0])
+        if not (lo < hi):
+            print(f"guards: `{g['name']}` has range [{lo}, {hi}], which brackets "
+                  f"nothing", file=sys.stderr)
+            return E_BAD_RANGE

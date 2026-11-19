@@ -95,4 +95,28 @@ got=$(rc_of "$TMP/inverted.toml")
 [ "$got" = 6 ] && /usr/bin/grep -q "brackets" "$TMP/out"
 judge "an inverted range REFUSES before anything is evaluated" $? "rc $got"
 
+# -- EVERY STRUCTURAL REFUSAL MUST HOLD WITH THE MODEL ABSENT, which is the arm
+#    that would have caught this. The model is cal's design file and lives
+#    OUTSIDE this repository, so on CI -- which clones only this repo -- it is
+#    simply not there. A structural verdict that changes with the machine is not
+#    a structural verdict, and the first version of guards.py checked the world
+#    before the file: CI got rc 5 "model is not there" for an inverted range and
+#    the arm above failed at 26 seconds.
+AWAY=$(mktemp -d) || { no "mktemp failed" ""; fin; }
+sed 's|^model = .*|model = "/nonexistent/on/any/runner/can_cutter.scad"|' "$FILE" > "$AWAY/away.toml"
+got=$(rc_of "$AWAY/away.toml")
+[ "$got" = 5 ] && /usr/bin/grep -q "WHERE finding, not a WHAT one" "$TMP/out"
+judge "an absent model is reported as a WHERE finding, not as a defect in the guards" $? "rc $got"
+
+sed 's|^range = \[0.5, 25.0\]|range = [25.0, 0.5]|' "$AWAY/away.toml" > "$AWAY/both.toml"
+got=$(rc_of "$AWAY/both.toml")
+[ "$got" = 6 ]
+judge "an inverted range still refuses with rc 6 when the model is absent: the structural verdict does not depend on the machine" $? "rc $got"
+
+printf 'model = "/nonexistent/x.scad"\n' > "$AWAY/nog.toml"
+got=$(rc_of "$AWAY/nog.toml")
+[ "$got" = 5 ]
+judge "and a file with no guards still refuses with rc 5 when the model is absent" $? "rc $got"
+rm -rf "$AWAY"
+
 fin

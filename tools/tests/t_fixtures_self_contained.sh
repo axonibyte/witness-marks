@@ -107,6 +107,46 @@ else
     no "a committed model names an absolute path, which is one machine's checkout rather than a fact about this repository" "$(printf '%s' "$ABS" | head -3)"
 fi
 
+# AND NO COMMITTED FILE REACHES OUTSIDE THE REPOSITORY WITHOUT SAYING SO.
+# TWICE IN ONE DAY a committed absolute path broke CI, and the two were
+# different classes:
+#
+#   vectors.toml named paths INSIDE the repo absolutely, which resolved here
+#   and pointed at a foreign tree on a different root. The foreign-root gate in
+#   battery.sh catches that one.
+#
+#   tests/claims/can-cutter.toml names the harness, which lives OUTSIDE the
+#   repo entirely -- cal's design file, in another tree. A foreign ROOT on this
+#   MACHINE still resolves it, so that gate cannot see it, and CI (which clones
+#   only this repo) failed at 26 seconds.
+#
+# So an out-of-repo path is allowed and must be DECLARED, with the tool that
+# reads it required to treat its absence as an ordinary state. Undeclared is
+# the accident; declared is a decision somebody made on purpose.
+# THE TWO DECLARED ONES, each with the reason it is allowed:
+#
+#   tests/claims/can-cutter.toml    names the MODEL the guards are about. Its
+#       absence is an ordinary state on any machine but the author's, and
+#       tools/guards.py reports it as a WHERE finding with its own exit code
+#       rather than as a defect in the guards -- armed in t_guards.sh.
+#
+#   tests/fixtures/can_cutter/MANIFEST.toml  records where the VENDORED copies
+#       came from, under a [source] heading. Provenance, not a dependency:
+#       t_fixture_manifest.sh checks the vendored BYTES against recorded
+#       digests and never opens the source paths, so they may be absent for
+#       ever without changing a verdict.
+ALLOWED="tests/claims/can-cutter.toml tests/fixtures/can_cutter/MANIFEST.toml"
+OUTSIDE=$(cd "$ROOT" && /usr/bin/grep -rlE '"/[a-z]' --include='*.toml' tests tools 2>/dev/null \
+          | while read -r f; do
+              case " $ALLOWED " in *" $f "*) continue ;; esac
+              printf '%s\n' "$f"
+            done)
+if [ -z "$OUTSIDE" ]; then
+    ok "no committed TOML names an absolute path outside the repository except the declared one"
+else
+    no "a committed file reaches outside the repository and is not declared" "$OUTSIDE"
+fi
+
 OUT=$(scan "$ROOT" "$ROOT/tests/vectors/vectors.toml" 2>&1) || {
     no "the scan did not run: $OUT"; fin
 }
