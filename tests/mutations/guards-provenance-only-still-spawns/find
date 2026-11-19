@@ -1,0 +1,2 @@
+    if "--provenance-only" in args:
+        return 0

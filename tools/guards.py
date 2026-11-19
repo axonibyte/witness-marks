@@ -16,6 +16,9 @@ WHAT IT REFUSES, each a way a guard could report a pass it did not earn:
      prints no failures, which reads exactly like a run that found none.
   6  a range that does not bracket anything, or is inverted.
 
+usage: guards.py [--provenance-only]  -- check the endpoints' citations and stop,
+without starting a provider
+
 usage: guards.py [--file tests/claims/can-cutter.toml] [--set NAME=VALUE ...]
 
 `--set` overrides a model variable before evaluating, which is how a guard is
@@ -177,6 +180,21 @@ def main():
     print(f"-- provenance: {sourced} of {total} endpoints carry a quote VERIFIED "
           f"against the model file, {declared} are declared chosen, "
           f"{total - sourced - declared} unverified here")
+
+    # --provenance-only STOPS HERE, BEFORE THE PROVIDER IS SPOKEN TO. rook
+    # measured the reason (thread:wm-review/27, a cost rather than a finding):
+    # on a box with no warm environment, the first `uv run --frozen --no-dev
+    # openscad-mcp` sat about FIVE MINUTES while maturin built a dependency
+    # from source. That is inside this tool's own bound and NOT inside CI's,
+    # which gives each arm file 300s total (ci.yml:71) -- and the arm that
+    # drives a resolvable quote is the first one whose model EXISTS on a
+    # clean runner, so it is the first that would spawn at all.
+    #
+    # An arm checking provenance has no business starting a provider: the
+    # question is entirely about this repository's own text. The flag makes
+    # that explicit rather than leaving it to a timeout.
+    if "--provenance-only" in args:
+        return 0
     # AND ONLY NOW THE WORLD. The model lives OUTSIDE this repository -- it is
     # cal's design file, not ours -- so its absence is an ordinary state on any
     # machine but the author's, and it is reported as its own thing rather than
