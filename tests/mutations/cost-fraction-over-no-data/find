@@ -1,1 +1,1 @@
-        if assessed == 0:
+        share = 100.0 * tally["scope"] / assessed

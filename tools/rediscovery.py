@@ -21,15 +21,21 @@ import os
 import sys
 import tomllib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import corpus_reasons  # noqa: E402  -- the path above is what makes it importable
+
 E_COVERAGE = 3
 E_DANGLING = 4
 E_NO_REASON = 5
 E_BAD_VERDICT = 6
-#: How many verdicts may share one reason before it stops being a reason.
-#: Small on purpose: a handful of genuinely identical cases is believable, a
-#: corpus is not.
-PASTE_LIMIT = 5
 E_PASTED = 7
+#: The paste check MOVED to tools/corpus_reasons.py, 2026-11-19. rook's F13
+#: (thread:wm-review/19): this rule lived here and cost.py -- written the same
+#: week, reading a corpus the same way -- had no such check, with all 108 of
+#: its reasons being one sentence. A second copy would have been the same
+#: mistake one iteration later, so there is one implementation and
+#: tools/tests/t_cost.sh enumerates the tools that must use it.
+PASTE_LIMIT = corpus_reasons.PASTE_LIMIT
 VERDICTS = ("re-found", "not-found", "unassessed")
 
 
@@ -127,14 +133,10 @@ def main():
     # incrementing, in another costume: a refusal whose text prescribes how to
     # satisfy it without doing the work. So an identical reason may stand for a
     # handful of genuinely identical cases and not for a corpus.
-    for why, n in whys.items():
-        if n > PASTE_LIMIT:
-            print(f"rediscovery: {n} verdicts carry the SAME `why` ({why[:60]!r}...). A "
-                  f"reason repeated {n} times is one reason, not {n}; it says nobody "
-                  f"looked at {n - 1} of them. Write what is true of EACH, or say "
-                  f"plainly in one of them that the set is unexamined",
-                  file=sys.stderr)
-            return E_PASTED
+    hit = corpus_reasons.pasted(whys.elements())
+    if hit:
+        print(f"rediscovery: {corpus_reasons.refusal(*hit)}", file=sys.stderr)
+        return E_PASTED
     missing = sorted(set(incidents) - seen)
     if missing:
         print(f"rediscovery: {len(missing)} incident(s) carry no verdict "

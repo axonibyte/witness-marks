@@ -15,17 +15,23 @@ exit codes, each meaning a different thing:
   4  a verdict outside {measurement, scope, unknown}
   5  a verdict with no `why` -- an unexplained judgment is indistinguishable
      from one nobody made
-  6  asked for a fraction there is no data for
+  6  asked for a fraction there is no data for -- and, since 2026-11-19, asked
+     anything at all of a corpus with nothing assessed
+  7  a reason repeated past the paste limit: one reason, not many
 """
 import collections
 import os
 import sys
 import tomllib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import corpus_reasons  # noqa: E402  -- the path above is what makes it importable
+
 E_COVERAGE = 3
 E_BAD_VERDICT = 4
 E_NO_REASON = 5
 E_NO_DATA = 6
+E_PASTED = 7
 VERDICTS = ("measurement", "scope", "unknown")
 
 
@@ -67,6 +73,16 @@ def main():
                   file=sys.stderr)
             return E_NO_REASON
 
+    # F13 (rook, wm-review/19): a `why` that EXISTS is not a `why` that means
+    # anything, and all 108 verdicts here shared ONE. rediscovery.py has had
+    # this refusal since F4; this file, written the same week and reading a
+    # corpus the same way, did not. The check lives in corpus_reasons so there
+    # is one implementation rather than two that can diverge again.
+    hit = corpus_reasons.pasted(v.get("why") for v in verdicts)
+    if hit:
+        print(f"cost: {corpus_reasons.refusal(*hit)}", file=sys.stderr)
+        return E_PASTED
+
     missing = sorted(set(incidents) - seen)
     if missing:
         print(f"cost: {len(missing)} incident(s) carry no verdict "
@@ -81,9 +97,27 @@ def main():
     # TEST 6's CLAIM, CHECKED RATHER THAN RESTATED. The spec says zero logged
     # entries record building the wrong thing. The day one does, this line
     # changes and the claim stops being true.
+    #
+    # F12 (rook, wm-review/19): THIS PRINTED THE LIE THE DOCSTRING ABOVE
+    # REFUSES. `tally["scope"] == 0` is satisfied by an empty assessment, so
+    # with nothing assessed the tool said "test 6 still holds of this corpus:
+    # 0 of 108 incidents record building the wrong thing" and exited 0. That is
+    # the flattering 0/0 reworded as a count -- and an arm in t_cost.sh
+    # asserted it, so the defect was a committed expectation. Zero scope
+    # findings among zero assessments is not evidence that scope costs nothing;
+    # it is evidence that nobody looked.
+    if assessed == 0:
+        print(f"-- spec §10 test 6 is UNANSWERED over this corpus: 0 of "
+              f"{len(incidents)} incidents are assessed, so the 0 scope findings "
+              f"are an absence of looking and not an absence of scope cost")
+        print(f"cost: nothing is assessed, so neither the fraction nor test 6's "
+              f"claim can be answered. {tally['unknown']} incident(s) are "
+              f"unknown", file=sys.stderr)
+        return E_NO_DATA
     if tally["scope"] == 0:
-        print(f"-- spec §10 test 6 still holds of this corpus: 0 of {len(incidents)} "
-              f"incidents record building the wrong thing")
+        print(f"-- spec §10 test 6 still holds of this corpus: 0 of {assessed} "
+              f"ASSESSED incidents record building the wrong thing "
+              f"({tally['unknown']} still unknown)")
     else:
         print(f"-- spec §10 test 6 NO LONGER HOLDS: {tally['scope']} incident(s) "
               f"record building the wrong thing, where the spec says zero")
@@ -92,12 +126,12 @@ def main():
         print(f"-- {len(incidents)} incidents")
         for name in VERDICTS:
             print(f"   {tally.get(name, 0):>4}  {name}")
-        if assessed == 0:
-            print("\n   THE SCOPE FRACTION IS NOT COMPUTABLE: nothing is assessed.")
-            print("   Printing 0% from no data would flatter the project, because "
-                  "test 6's")
-            print("   worry is that scope costs MORE than measurement, not less.")
-            return E_NO_DATA
+        # NO SECOND `assessed == 0` CHECK HERE. It used to live only in this
+        # block, which is exactly how F12 happened: the refusal was behind
+        # --report while the flattering claim printed either way. The check is
+        # now above and unconditional, so a copy here would be a second
+        # authority on the same question -- the redundancy a surviving mutant
+        # already taught me to collapse in wm-model's matching.
         share = 100.0 * tally["scope"] / assessed
         print(f"\n   of {assessed} assessed, {tally['scope']} scope and "
               f"{tally['measurement']} measurement -> {share:.0f}% scope")
