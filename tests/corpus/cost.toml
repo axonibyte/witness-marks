@@ -1,0 +1,577 @@
+# WHERE THE TIME WENT (issue 61). One verdict per corpus incident:
+# `measurement` if it was spent measuring the wrong thing, `scope` if it was
+# spent BUILDING the wrong thing, `unknown` if the record does not settle it.
+#
+# WHY THIS IS A SEPARATE FILE and not a field added to the 108 incident
+# records: the same reason tests/corpus/rediscovery.toml is separate. The
+# incident text is the log as it was written; a verdict is a judgment made
+# later, and mixing them makes it impossible to tell which is which.
+#
+# WHAT SPEC §10 TEST 6 IS ASKING, and why it cannot be answered yet:
+#
+#   "Zero logged entries record building the wrong thing, and the project's
+#    most expensive turn was exactly that. If scope drift costs more than
+#    measurement in real use, a server built to these seven classes solves the
+#    cheaper half with great precision."
+#
+# A corpus that cannot express the more expensive half cannot be used to argue
+# the project addresses it. This file is where that half becomes expressible.
+#
+# EVERY ENTRY IS `unknown`, AND THAT IS THE HONEST STARTING STATE. The 108
+# records were written before this question was asked: they carry `state`,
+# `measurement` and `fix`, and `measurement` says HOW a defect was found, never
+# what it cost. Deciding retroactively where a day went, from prose written
+# without the question in mind, is 108 guesses -- and a precise-looking
+# fraction built on guesses is worse than no fraction.
+#
+# THE CLASS DOES NOT SETTLE IT, which was the tempting shortcut. The seven
+# classes say what KIND of defect each was; the cost says where the TIME went,
+# and those come apart. A class-D fit modelled nominal-to-nominal could have
+# cost SCOPE time (a part printed and rebuilt) or MEASUREMENT time (no way to
+# tell it would not fit). So no class-to-cost rule is applied here.
+#
+# WHAT THE CORPUS DOES SETTLE: none of the seven classes describes building the
+# wrong thing. That is test 6's claim, and tools/cost.py now checks it rather
+# than restating it -- so the day an incident is classed `scope`, the fraction
+# stops being a guess and the claim stops being true.
+
+
+[[cost]]
+id = "build-001"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-002"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-003"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-004"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-005"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-006"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-007"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-008"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-009"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-010"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-011"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-012"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-013"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-014"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-015"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-016"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-017"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-018"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-019"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-020"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-021"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-022"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-023"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-024"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-025"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-026"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-027"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-028"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-029"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-030"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-031"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-032"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-033"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-034"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-035"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-036"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-037"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-038"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-039"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-040"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-041"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-042"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-043"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-044"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-045"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-046"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-047"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-048"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-049"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-050"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-051"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-052"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-053"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-054"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-055"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-056"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-057"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-058"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-059"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-060"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-061"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-062"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-063"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-064"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-065"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-066"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-067"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-068"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-069"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-070"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-071"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-072"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-073"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-074"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-075"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-076"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "build-077"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-001"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-002"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-003"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-004"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-005"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-006"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-007"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-008"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-009"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-010"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-011"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-012"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-013"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-014"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-015"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-016"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-017"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-018"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-019"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-020"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-021"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-022"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-023"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-024"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-025"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-026"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-027"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-028"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-029"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-030"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
+
+[[cost]]
+id = "mcp-031"
+verdict = "unknown"
+why = "the record predates the question: it says how the defect was found, not what finding it cost"
