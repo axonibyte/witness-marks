@@ -296,4 +296,35 @@ judge "an IN-REPO rejection quote is resolved and refused when it does not match
 judge "the provenance tally is THREE-WAY: quoted, chosen-but-side-sourced, and wholly chosen -- reporting the middle as 'chosen' understated what the audit established" \
       $? "$(/usr/bin/grep -o 'provenance over.*' "$TMP/out" | head -1)"
 
+# -- THE RECORD'S OWN FIGURE IS MACHINE-INDEPENDENT (rook F17,
+#    thread:wm-review/35). WHOLLY CHOSEN is a claim about what the record
+#    sources, so it must not change with which files happen to be on the box.
+#    It did: on rook's machine the 9 side-sourced endpoints whose rejection
+#    quote could not resolve fell INTO wholly chosen, so their box read 19
+#    where this one read 10 -- a statement about the record made from a local
+#    absence. Both worlds below are synthetic, so this holds anywhere.
+d="$TMP/invariant"; mkdir -p "$d"
+python3 - "$ROOT" "$d" <<'PY' || { no "the invariant worlds could NOT be built"; }
+import sys, pathlib, re
+root, d = sys.argv[1], pathlib.Path(sys.argv[2])
+t = pathlib.Path(root, "tests/claims/can-cutter.toml").read_text()
+quotes = re.findall(r'quote = "([^"]*)"', t)
+assert quotes, "no quotes to mirror"
+(d / "fake.scad").write_text("".join(f"// {q}\n" for q in quotes), encoding="utf-8")
+# PRESENT: every out-of-repo cite resolves against the generated model
+near = re.sub(r'^model = ".*"', f'model = "{d}/fake.scad"', t, count=1, flags=re.M)
+near = near.replace('file = "arts/can_cutter.scad"', 'file = "fake.scad"')
+(d / "present.toml").write_text(near)
+# ABSENT: the same record, with nothing to resolve against
+(d / "absent.toml").write_text(
+    re.sub(r'^model = ".*"', 'model = "/nonexistent-on-any-machine/x.scad"',
+           near, count=1, flags=re.M))
+PY
+wc_of() { ( cd "$ROOT" && timeout 300 python3 "$TOOL" --provenance-only --file "$1" 2>&1 ) \
+          | /usr/bin/sed -n 's/.*, \([0-9]*\) WHOLLY CHOSEN.*/\1/p' | head -1; }
+a=$(wc_of "$d/present.toml"); b=$(wc_of "$d/absent.toml")
+[ -n "$a" ] && [ "$a" = "$b" ]
+judge "WHOLLY CHOSEN is the same with the cited files present and absent: a claim about the RECORD cannot be read off which files this machine happens to have (F17)" \
+      $? "present=$a absent=$b"
+
 fin

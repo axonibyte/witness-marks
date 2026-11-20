@@ -170,6 +170,7 @@ def main():
     # below, because "4 of 24 endpoints are sourced" is what the envelope set
     # is actually worth -- the same discipline as the rediscovery matrix.
     sourced, declared, rejected = 0, 0, 0
+    unverified_rejections = 0
     for g in guards:
         cites = {c.get("endpoint"): c for c in (g.get("cites") or [])}
         lo, hi = g["range"]
@@ -217,6 +218,20 @@ def main():
                               f"{ex['file']}", file=sys.stderr)
                         return E_NO_PROVENANCE
                     rejected += 1
+                else:
+                    # UNVERIFIED HERE, NOT UNSOURCED. rook's F17
+                    # (thread:wm-review/35): on a box without cal's design file
+                    # these dropped into WHOLLY CHOSEN, so the tally said
+                    # "nobody sourced this side" when it meant "I cannot check
+                    # here" -- a claim about the RECORD made from an absence on
+                    # THIS MACHINE. Measured by rook: their box printed
+                    # 0/1/19 where this one prints 4/10/10. The outright quotes
+                    # were already counted unverified; the rejections were not,
+                    # and the asymmetry is the whole defect.
+                    unverified_rejections += 1
+                    print(f"  note {g['name']} {end}: {ex['file']} is not on this "
+                          f"machine, so its REJECTION is unverified here (not "
+                          f"unsourced)")
             if c.get("unsourced"):
                 declared += 1
                 continue
@@ -247,14 +262,18 @@ def main():
     # whose NUMBER is chosen while its SIDE is fixed by a rejection the source
     # states outright. Reporting them as one figure understated what the audit
     # had established -- the same complaint rook made about "1 of 108".
-    wholly = declared - rejected
+    wholly = declared - rejected - unverified_rejections
     print(f"-- provenance over {total} endpoints: {sourced} quoted outright and "
           f"verified, {rejected} chosen-but-side-sourced (the number is mine, the "
           f"side is held off a value the source REJECTS, quote verified), "
           f"{wholly} WHOLLY CHOSEN")
-    if total - sourced - declared:
-        print(f"-- {total - sourced - declared} endpoint(s) unverified here, "
-              f"because the file they cite is not on this machine")
+    unverified = (total - sourced - declared) + unverified_rejections
+    if unverified:
+        print(f"-- {unverified} endpoint(s) UNVERIFIED HERE, because the file "
+              f"they cite is not on this machine: "
+              f"{total - sourced - declared} outright quote(s) and "
+              f"{unverified_rejections} rejection(s). Unverified is not "
+              f"unsourced -- the record says what it says wherever it is read")
 
     # --provenance-only STOPS HERE, BEFORE THE PROVIDER IS SPOKEN TO. rook
     # measured the reason (thread:wm-review/27, a cost rather than a finding):
