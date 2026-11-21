@@ -23,18 +23,35 @@
 //! # Face normals are the wrong instrument
 //!
 //! A face-normal test asks "which way does this triangle point" and concludes
-//! that anything pointing down needs support. It gets two whole classes
-//! wrong:
+//! that anything pointing down needs support.
 //!
-//! - **A bridge** is horizontal, so its normal points straight down -- the
-//!   most unsupported reading there is -- and a bridge anchored at both ends
-//!   needs no support at all.
-//! - **A stack of small steps** has every face vertical or horizontal, so no
-//!   normal is ever in the overhang band, and a staircase of 0.3 mm steps on
-//!   a 0.2 mm layer is unsupported at every one of them.
+//! **A bridge** is where it goes wrong: horizontal, so its normal points
+//! straight down -- the most unsupported reading there is -- while a bridge
+//! anchored at both ends needs no support at all. MEASURED 2026-11-20 against
+//! openscad-mcp 0.6.1's facet-normal analyser: a 22 x 10 mm deck spanning two
+//! posts reports 220 mm2 of overhang, which is its entire underside.
 //!
-//! The offset criterion sees both, because it compares AREA between layers
-//! rather than direction at a surface.
+//! CORRECTED 2026-11-20, and the correction matters because this paragraph
+//! used to credit the wrong mechanism. THE OFFSET CRITERION DOES NOT SEE THE
+//! BRIDGE EITHER -- nothing is under mid-span, so `slice(z) - offset(slice(z -
+//! h), +d)` reports it unsupported exactly as a face normal does. What
+//! distinguishes a bridge is the ANCHOR COUNT (`Region::anchors` below), and
+//! `offset_mm` refuses horizontal surfaces outright for precisely this
+//! reason. Attributing the bridge case to the offset was a misattribution of
+//! this module's own capability.
+//!
+//! AND A CLAIM THAT WAS SIMPLY FALSE, removed: this said a stack of small
+//! steps "has every face vertical or horizontal, so no normal is ever in the
+//! overhang band". A solid staircase's treads have UNDERSIDES, and those point
+//! straight down. MEASURED on a 20-step stack: 40 of 312 facets have
+//! nz < -0.999, and the same analyser's reported area scales monotonically
+//! with step size -- 54.8 mm2 at 0.05 mm steps, 88.8 at 0.30, 252.0 at 1.50.
+//! It distinguishes severity perfectly well. The claim was wrong and the
+//! conclusion drawn from it was wrong.
+//!
+//! So the honest statement of this module's advantage is narrower than the one
+//! that stood here: the offset criterion is the right instrument for SLOPED
+//! surfaces, and the anchor count is what no facet-normal method can supply.
 
 use crate::{critical_angle_deg, Missing, Process};
 
